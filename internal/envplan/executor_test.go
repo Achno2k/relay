@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 // fakeGen hands back a canned replacement step and counts repair calls.

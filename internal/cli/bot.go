@@ -12,12 +12,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/you/agents-cli/internal/config"
-	"github.com/you/agents-cli/internal/herdr"
-	"github.com/you/agents-cli/internal/slackbot"
-	"github.com/you/agents-cli/internal/sshx"
-	"github.com/you/agents-cli/internal/state"
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/herdr"
+	"github.com/Achno2k/agents-cli/internal/slackbot"
+	"github.com/Achno2k/agents-cli/internal/sshx"
+	"github.com/Achno2k/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 func init() {

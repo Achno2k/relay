@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/you/agents-cli/internal/state"
-	"github.com/you/agents-cli/internal/worktree"
+	"github.com/Achno2k/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/worktree"
 )
 
 // maxInlineChars is the point past which output becomes a file attachment

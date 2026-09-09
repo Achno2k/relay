@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/you/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/config"
 )
 
 type Step struct {

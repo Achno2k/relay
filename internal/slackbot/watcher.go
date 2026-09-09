@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/you/agents-cli/internal/herdr"
-	"github.com/you/agents-cli/internal/state"
-	"github.com/you/agents-cli/internal/worktree"
+	"github.com/Achno2k/agents-cli/internal/herdr"
+	"github.com/Achno2k/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/worktree"
 )
 
 // Reactions on the thread root, one per agent state.

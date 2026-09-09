@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/you/agents-cli/internal/config"
-	"github.com/you/agents-cli/internal/envplan"
-	"github.com/you/agents-cli/internal/sshx"
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/envplan"
+	"github.com/Achno2k/agents-cli/internal/sshx"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 var (

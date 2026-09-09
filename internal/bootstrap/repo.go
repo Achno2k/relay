@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/you/agents-cli/internal/sshx"
+	"github.com/Achno2k/agents-cli/internal/sshx"
 )
 
 // Origin describes the repo `agents init` was run inside.

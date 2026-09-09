@@ -14,10 +14,10 @@ import (
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 
-	"github.com/you/agents-cli/internal/config"
-	"github.com/you/agents-cli/internal/herdr"
-	"github.com/you/agents-cli/internal/state"
-	"github.com/you/agents-cli/internal/worktree"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/herdr"
+	"github.com/Achno2k/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/worktree"
 )
 
 // Bot is the Socket Mode bot. Everything it touches is an interface, so the

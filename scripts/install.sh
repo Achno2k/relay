@@ -1,9 +1,9 @@
 #!/bin/sh
 # Install agents from the latest GitHub release.
-# Usage: curl -fsSL https://raw.githubusercontent.com/you/agents-cli/main/scripts/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/Achno2k/agents-cli/main/scripts/install.sh | sh
 set -eu
 
-REPO="you/agents-cli"
+REPO="Achno2k/agents-cli"
 BASE="https://github.com/${REPO}/releases"
 
 say() { printf '%s\n' "$*"; }

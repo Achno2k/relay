@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/you/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/config"
 )
 
 type Target struct {

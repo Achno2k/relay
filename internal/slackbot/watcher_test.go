@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/you/agents-cli/internal/herdr"
+	"github.com/Achno2k/agents-cli/internal/herdr"
 )
 
 // event is one input to the state machine: either a herdr state or the bot

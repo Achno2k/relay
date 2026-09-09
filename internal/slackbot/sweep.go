@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/you/agents-cli/internal/config"
-	"github.com/you/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/state"
 )
 
 // sweepInterval is how often idle sessions are checked against the TTL.

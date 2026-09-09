@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 // maxRepairs is how many times a failed step is handed back to the harness.

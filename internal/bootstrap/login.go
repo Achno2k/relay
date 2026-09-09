@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/you/agents-cli/internal/harness"
-	"github.com/you/agents-cli/internal/sshx"
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/harness"
+	"github.com/Achno2k/agents-cli/internal/sshx"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 // Login signs in to each named harness on the box. Already-authenticated

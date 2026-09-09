@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/you/agents-cli/internal/cli"
+	"github.com/Achno2k/agents-cli/internal/cli"
 )
 
 func main() {

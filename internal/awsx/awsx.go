@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/you/agents-cli/internal/config"
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 // Instance is one running EC2 instance as shown in the picker.

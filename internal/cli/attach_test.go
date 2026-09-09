@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/you/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/config"
 )
 
 func TestValidRef(t *testing.T) {

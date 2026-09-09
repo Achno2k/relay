@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/you/agents-cli/internal/sshx"
+	"github.com/Achno2k/agents-cli/internal/sshx"
 )
 
 // ModulePath is this module, used to find its source tree when cross compiling.
-const ModulePath = "github.com/you/agents-cli"
+const ModulePath = "github.com/Achno2k/agents-cli"
 
 // remoteUpload is where the binary lands before it is installed with sudo.
 const remoteUpload = "/tmp/agents.upload"

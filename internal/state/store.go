@@ -19,7 +19,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/you/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/config"
 )
 
 type Status string

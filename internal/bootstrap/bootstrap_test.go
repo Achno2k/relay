@@ -7,10 +7,10 @@ import (
 
 func TestRepoName(t *testing.T) {
 	cases := map[string]string{
-		"git@github.com:you/agents-cli.git":     "agents-cli",
-		"https://github.com/you/agents-cli.git": "agents-cli",
-		"https://github.com/you/agents-cli":     "agents-cli",
-		"https://github.com/you/agents-cli/":    "agents-cli",
+		"git@github.com:Achno2k/agents-cli.git":     "agents-cli",
+		"https://github.com/Achno2k/agents-cli.git": "agents-cli",
+		"https://github.com/Achno2k/agents-cli":     "agents-cli",
+		"https://github.com/Achno2k/agents-cli/":    "agents-cli",
 		"ssh://git@github.com/org/deep/repo.git":      "repo",
 		"agents-cli":                                  "agents-cli",
 	}
@@ -59,7 +59,7 @@ func TestShellQuote(t *testing.T) {
 }
 
 func TestModulePathOf(t *testing.T) {
-	gomod := "module github.com/you/agents-cli\n\ngo 1.24\n"
+	gomod := "module github.com/Achno2k/agents-cli\n\ngo 1.24\n"
 	if got := modulePathOf(gomod); got != ModulePath {
 		t.Errorf("modulePathOf = %q, want %q", got, ModulePath)
 	}

@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/you/agents-cli/internal/ui"
+	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
 func init() {
@@ -51,7 +51,7 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 		"profile", "work-dev",
 		"region", "eu-west-1",
 		"instance", "i-0abc123def456789 (t4g.xlarge)",
-		"repo", "you/agents-cli",
+		"repo", "Achno2k/agents-cli",
 	)
 
 	ui.Title("Copyable command")
@@ -116,12 +116,12 @@ func demoPickers() error {
 	}
 	ui.Success(fmt.Sprintf("harnesses %v", names))
 
-	repo, err := ui.Input("Repo to clone", "you/agents-cli")
+	repo, err := ui.Input("Repo to clone", "Achno2k/agents-cli")
 	if err != nil {
 		return quietCancel(err)
 	}
 	if repo == "" {
-		repo = "you/agents-cli"
+		repo = "Achno2k/agents-cli"
 	}
 	ui.Success("repo " + repo)
 

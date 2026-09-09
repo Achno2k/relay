@@ -11,7 +11,7 @@ One binary, two sides:
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/you/agents-cli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Achno2k/agents-cli/main/scripts/install.sh | sh
 ```
 
 Or download a release tarball (darwin/arm64, linux/amd64, linux/arm64) and put

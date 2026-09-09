@@ -10,7 +10,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/you/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/state"
 )
 
 func testBot(t *testing.T, sessions ...state.Session) (*Bot, *fakeSlack, *fakeHerdr, *fakeStore) {

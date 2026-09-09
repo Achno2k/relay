@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/you/agents-cli/internal/harness"
+	"github.com/Achno2k/agents-cli/internal/harness"
 )
 
 // planSchema is the JSON schema the harness must answer with for a full plan.

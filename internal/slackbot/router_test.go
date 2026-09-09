@@ -3,8 +3,8 @@ package slackbot
 import (
 	"testing"
 
-	"github.com/you/agents-cli/internal/config"
-	"github.com/you/agents-cli/internal/state"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/state"
 )
 
 func testConfig() config.Config {
@@ -12,7 +12,7 @@ func testConfig() config.Config {
 	c.Harness = []string{"claude"}
 	c.Box.WorkDir = "/work"
 	c.Repos = map[string]config.Repo{
-		"agents-cli": {URL: "git@github.com:you/agents-cli.git"},
+		"agents-cli": {URL: "git@github.com:Achno2k/agents-cli.git"},
 		"aura":       {URL: "git@github.com:lt/aura.git"},
 	}
 	c.Slack.AllowedUserIDs = []string{"U1", "U2"}

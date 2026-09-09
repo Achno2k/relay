@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/you/agents-cli/internal/sshx"
+	"github.com/Achno2k/agents-cli/internal/sshx"
 )
 
 //go:embed scripts/herdr-server.service scripts/agents-bot.service
