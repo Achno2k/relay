@@ -50,6 +50,9 @@ Minimal. Monochrome base, one accent (soft orange, lipgloss "#E07A4F" / adaptive
 
 ## Contract changes
 (append here: date, who, what)
+- 2026-09-10 · tooling · `agents attach` shells out to `agents sessions mark-attached <session-id|agent-name> --by <user>@<hostname>` on the box (run over sshx, stdout shown to the user). Core owns that subcommand; it must resolve both ids and agent names.
+- 2026-09-10 · aws · `sshx.Runner` gained a method: `Ping(ctx context.Context) error` (connectivity check, runs `true` with a 10s timeout). Existing methods unchanged.
+- 2026-09-10 · aws · ssm ProxyCommand appends `--profile`/`--region` after the agreed string so the tunnel uses the same profile as the picker.
 
 ## Box-side vs laptop-side
 Commands that need harness auth or the herdr socket run ON THE BOX. When run on the laptop they proxy themselves: `sshx.Interactive("agents <same args>")`. Detect box with env AGENTS_ON_BOX=1 (set in the box's shell profile and systemd units by bootstrap). Applies to: `agents env`, `agents sessions`, `agents bot`.

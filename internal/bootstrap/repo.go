@@ -1,0 +1,106 @@
+package bootstrap
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"os/exec"
+	"path"
+	"strings"
+
+	"github.com/you/agents-cli/internal/sshx"
+)
+
+// Origin describes the repo `agents init` was run inside.
+type Origin struct {
+	Name          string // short name, "agents-cli"
+	URL           string // remote url as git reports it
+	DefaultBranch string // "main"
+}
+
+// DetectOrigin reads the origin remote of the git repo at dir.
+func DetectOrigin(ctx context.Context, dir string) (Origin, error) {
+	url, err := gitOut(ctx, dir, "remote", "get-url", "origin")
+	if err != nil {
+		return Origin{}, fmt.Errorf("no origin remote in %s: %w", dir, err)
+	}
+	o := Origin{URL: url, Name: RepoName(url), DefaultBranch: "main"}
+	if ref, err := gitOut(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
+		if b := strings.TrimPrefix(ref, "origin/"); b != "" {
+			o.DefaultBranch = b
+		}
+	}
+	return o, nil
+}
+
+// RepoName is the short name of a repo url: the last path element, minus .git.
+func RepoName(url string) string {
+	s := strings.TrimSpace(url)
+	s = strings.TrimSuffix(s, "/")
+	s = strings.TrimSuffix(s, ".git")
+	if i := strings.LastIndexAny(s, "/:"); i >= 0 {
+		s = s[i+1:]
+	}
+	return s
+}
+
+// CheckoutDir is where a repo's primary checkout lives on the box:
+// <workdir>/<repo>/main.
+func CheckoutDir(workDir, repo string) string {
+	return path.Join(ExpandHome(workDir), repo, "main")
+}
+
+// ExpandHome rewrites a leading ~ as $HOME so the path survives a bash heredoc.
+func ExpandHome(p string) string {
+	switch {
+	case p == "~":
+		return "$HOME"
+	case strings.HasPrefix(p, "~/"):
+		return "$HOME/" + strings.TrimPrefix(p, "~/")
+	case p == "":
+		return "$HOME/work"
+	default:
+		return p
+	}
+}
+
+// Clone clones the repo on the box, or fetches it when it is already there.
+func Clone(ctx context.Context, r sshx.Runner, workDir string, o Origin, log io.Writer) error {
+	dir := CheckoutDir(workDir, o.Name)
+	script := "set -e\n" +
+		`export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" +
+		"dir=" + shellQuote(dir) + "\n" +
+		"mkdir -p \"$(dirname \"$dir\")\"\n" +
+		"if [ -d \"$dir/.git\" ]; then\n" +
+		"  echo \"already cloned: $dir\"\n" +
+		"  git -C \"$dir\" fetch --all --prune\n" +
+		"else\n" +
+		"  git clone " + shellQuote(o.URL) + " \"$dir\"\n" +
+		"fi\n" +
+		"git -C \"$dir\" rev-parse --abbrev-ref HEAD\n"
+	return r.Run(ctx, script, log, log)
+}
+
+// GitHubReady reports whether gh on the box is authenticated, which is what a
+// private clone needs.
+func GitHubReady(ctx context.Context, r sshx.Runner) bool {
+	return r.Run(ctx, loginShell("gh auth status >/dev/null 2>&1"), io.Discard, io.Discard) == nil
+}
+
+// GitHubLogin runs `gh auth login` on the box against the user's tty and wires
+// git to use gh's credentials.
+func GitHubLogin(ctx context.Context, r sshx.Runner) error {
+	return r.Interactive(ctx, InteractiveCmd("gh auth login && gh auth setup-git"))
+}
+
+func gitOut(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out.String()), nil
+}

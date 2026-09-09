@@ -1,0 +1,23 @@
+# agents-bot.service — the Slack socket-mode bot. Tokens live in
+# {{.Home}}/.agents/slack.env (SLACK_BOT_TOKEN, SLACK_APP_TOKEN), written 0600
+# by `agents init`. No inbound ports.
+[Unit]
+Description=agents Slack bot
+After=network-online.target herdr-server.service
+Wants=network-online.target
+Requires=herdr-server.service
+
+[Service]
+Type=simple
+User={{.User}}
+WorkingDirectory={{.Home}}
+EnvironmentFile={{.Home}}/.agents/slack.env
+Environment=HOME={{.Home}}
+Environment=AGENTS_ON_BOX=1
+Environment=PATH={{.Home}}/.local/share/mise/shims:{{.Home}}/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/agents bot
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

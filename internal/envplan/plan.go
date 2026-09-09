@@ -2,7 +2,16 @@
 // Owner: session "env". Plans are cached at ~/.agents/plans/<repo>.json.
 package envplan
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/you/agents-cli/internal/config"
+)
 
 type Step struct {
 	Name      string `json:"name"`   // "Install Go 1.25"
@@ -39,18 +48,46 @@ type Executor interface {
 // ---- high level API used by `agents init` and `agents env` ----
 
 // Plans are stored on the machine that runs the executor (the box).
-func PlanPath(repo string) string                      { panic("TODO envplan") }
-func Load(repo string) (p Plan, found bool, err error) { panic("TODO envplan") }
-func Save(p Plan) error                                { panic("TODO envplan") }
 
-// NewGenerator wraps a harness (by name: "claude"|"codex") as a Generator.
-func NewGenerator(harnessName string) (Generator, error) { panic("TODO envplan") }
+// PlanPath returns the cache file for a repo: ~/.agents/plans/<repo>.json.
+func PlanPath(repo string) string {
+	return filepath.Join(config.Dir(), "plans", slug(repo)+".json")
+}
 
-// NewLocalExecutor runs steps with os/exec on this machine (the box).
-func NewLocalExecutor() Executor { panic("TODO envplan") }
+// slug makes a repo name safe to use as a file name.
+func slug(repo string) string {
+	repo = strings.TrimSuffix(strings.Trim(repo, "/"), ".git")
+	repo = strings.NewReplacer("/", "-", string(filepath.Separator), "-", " ", "-", ":", "-").Replace(repo)
+	if repo == "" {
+		return "repo"
+	}
+	return repo
+}
 
-// Setup is the whole flow: load cached plan or generate, show for approval
-// via ui, execute, verify. Runs locally on the box.
-func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) error {
-	panic("TODO envplan")
+// Load reads the cached plan for a repo. found is false when there is none.
+func Load(repo string) (p Plan, found bool, err error) {
+	b, err := os.ReadFile(PlanPath(repo))
+	if errors.Is(err, os.ErrNotExist) {
+		return Plan{}, false, nil
+	}
+	if err != nil {
+		return Plan{}, false, err
+	}
+	if err := json.Unmarshal(b, &p); err != nil {
+		return Plan{}, false, err
+	}
+	return p, true, nil
+}
+
+// Save writes a plan to its cache file.
+func Save(p Plan) error {
+	path := PlanPath(p.Repo)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(b, '\n'), 0o600)
 }
