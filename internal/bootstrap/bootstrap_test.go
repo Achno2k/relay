@@ -11,8 +11,8 @@ func TestRepoName(t *testing.T) {
 		"https://github.com/Achno2k/agents-cli.git": "agents-cli",
 		"https://github.com/Achno2k/agents-cli":     "agents-cli",
 		"https://github.com/Achno2k/agents-cli/":    "agents-cli",
-		"ssh://git@github.com/org/deep/repo.git":      "repo",
-		"agents-cli":                                  "agents-cli",
+		"ssh://git@github.com/org/deep/repo.git":    "repo",
+		"agents-cli":                                "agents-cli",
 	}
 	for url, want := range cases {
 		if got := RepoName(url); got != want {
