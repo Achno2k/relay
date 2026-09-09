@@ -57,3 +57,8 @@ Minimal. Monochrome base, one accent (soft orange, lipgloss "#E07A4F" / adaptive
 ## Box-side vs laptop-side
 Commands that need harness auth or the herdr socket run ON THE BOX. When run on the laptop they proxy themselves: `sshx.Interactive("agents <same args>")`. Detect box with env AGENTS_ON_BOX=1 (set in the box's shell profile and systemd units by bootstrap). Applies to: `agents env`, `agents sessions`, `agents bot`.
 `agents attach <id>` (laptop): marks attached_by over ssh, then execs `herdr --remote <user>@<host>`.
+
+## Box layout (fixed)
+- `<work_dir>/<repo>/main`   primary checkout (bootstrap.CheckoutDir). envplan and the bot use this as repoDir.
+- `<work_dir>/<repo>/<id>`   one worktree per session (worktree.Create).
+- `<worktree>/.agents/reply.md`  agent writes its final reply here every turn; bot reads it (herdr scrollback is empty for alt-screen agents).

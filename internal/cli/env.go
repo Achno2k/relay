@@ -157,7 +157,7 @@ func envResolveRepo(arg string) (repo, dir string, err error) {
 		if work == "" {
 			work = "~/work"
 		}
-		dir = filepath.Join(envExpand(work), arg)
+		dir = filepath.Join(envExpand(work), arg, "main") // main checkout, see PLAN.md box layout
 	}
 	dir, err = filepath.Abs(dir)
 	if err != nil {
