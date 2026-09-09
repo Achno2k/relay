@@ -35,3 +35,22 @@ type Executor interface {
 	Execute(ctx context.Context, p Plan, repoDir string, gen Generator) error
 	VerifyOnly(ctx context.Context, p Plan, repoDir string) error
 }
+
+// ---- high level API used by `agents init` and `agents env` ----
+
+// Plans are stored on the machine that runs the executor (the box).
+func PlanPath(repo string) string { panic("TODO envplan") }
+func Load(repo string) (p Plan, found bool, err error) { panic("TODO envplan") }
+func Save(p Plan) error { panic("TODO envplan") }
+
+// NewGenerator wraps a harness (by name: "claude"|"codex") as a Generator.
+func NewGenerator(harnessName string) (Generator, error) { panic("TODO envplan") }
+
+// NewLocalExecutor runs steps with os/exec on this machine (the box).
+func NewLocalExecutor() Executor { panic("TODO envplan") }
+
+// Setup is the whole flow: load cached plan or generate, show for approval
+// via ui, execute, verify. Runs locally on the box.
+func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) error {
+	panic("TODO envplan")
+}

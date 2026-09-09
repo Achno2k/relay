@@ -48,3 +48,6 @@ type Store interface {
 }
 
 func Open(path string) (Store, error) { panic("TODO state") }
+
+// DefaultPath is ~/.agents/state.db (respects AGENTS_HOME).
+func DefaultPath() string { panic("TODO state") }

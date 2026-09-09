@@ -50,3 +50,7 @@ Minimal. Monochrome base, one accent (soft orange, lipgloss "#E07A4F" / adaptive
 
 ## Contract changes
 (append here: date, who, what)
+
+## Box-side vs laptop-side
+Commands that need harness auth or the herdr socket run ON THE BOX. When run on the laptop they proxy themselves: `sshx.Interactive("agents <same args>")`. Detect box with env AGENTS_ON_BOX=1 (set in the box's shell profile and systemd units by bootstrap). Applies to: `agents env`, `agents sessions`, `agents bot`.
+`agents attach <id>` (laptop): marks attached_by over ssh, then execs `herdr --remote <user>@<host>`.
