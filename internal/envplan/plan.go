@@ -5,9 +5,9 @@ package envplan
 import "context"
 
 type Step struct {
-	Name      string `json:"name"`      // "Install Go 1.25"
-	Run       string `json:"run"`       // bash, run on the box
-	Verify    string `json:"verify"`    // bash, exit 0 = ok; may be empty
+	Name      string `json:"name"`   // "Install Go 1.25"
+	Run       string `json:"run"`    // bash, run on the box
+	Verify    string `json:"verify"` // bash, exit 0 = ok; may be empty
 	NeedsSudo bool   `json:"needs_sudo"`
 }
 
@@ -39,9 +39,9 @@ type Executor interface {
 // ---- high level API used by `agents init` and `agents env` ----
 
 // Plans are stored on the machine that runs the executor (the box).
-func PlanPath(repo string) string { panic("TODO envplan") }
+func PlanPath(repo string) string                      { panic("TODO envplan") }
 func Load(repo string) (p Plan, found bool, err error) { panic("TODO envplan") }
-func Save(p Plan) error { panic("TODO envplan") }
+func Save(p Plan) error                                { panic("TODO envplan") }
 
 // NewGenerator wraps a harness (by name: "claude"|"codex") as a Generator.
 func NewGenerator(harnessName string) (Generator, error) { panic("TODO envplan") }

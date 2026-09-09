@@ -8,13 +8,13 @@ import (
 )
 
 type Target struct {
-	Host      string
-	User      string
-	Transport string // ssh | ssm
-	KeyPath   string
+	Host       string
+	User       string
+	Transport  string // ssh | ssm
+	KeyPath    string
 	InstanceID string
-	Profile   string
-	Region    string
+	Profile    string
+	Region     string
 }
 
 type Runner interface {

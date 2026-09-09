@@ -12,12 +12,12 @@ import (
 )
 
 type Config struct {
-	AWS      AWS               `toml:"aws"`
-	Box      Box               `toml:"box"`
-	Harness  []string          `toml:"harnesses"` // "claude", "codex"
-	Repos    map[string]Repo   `toml:"repos"`     // key: short repo name
-	Slack    Slack             `toml:"slack"`
-	Sessions SessionPolicy     `toml:"sessions"`
+	AWS      AWS             `toml:"aws"`
+	Box      Box             `toml:"box"`
+	Harness  []string        `toml:"harnesses"` // "claude", "codex"
+	Repos    map[string]Repo `toml:"repos"`     // key: short repo name
+	Slack    Slack           `toml:"slack"`
+	Sessions SessionPolicy   `toml:"sessions"`
 }
 
 type AWS struct {

@@ -60,11 +60,11 @@ func Spinner(ctx context.Context, label string, fn func(ctx context.Context) err
 }
 
 // Plain text helpers. All write to stdout unless noted.
-func Title(s string)            { panic("TODO ui") } // section heading, accent
-func Info(s string)             { panic("TODO ui") }
-func Success(s string)          { panic("TODO ui") } // "✓ s"
-func Warn(s string)             { panic("TODO ui") } // "! s" amber
-func Fail(s string)             { panic("TODO ui") } // "✗ s" red, stderr
-func Muted(s string)            { panic("TODO ui") } // dim
-func KV(pairs ...string)        { panic("TODO ui") } // aligned key/value rows
-func Code(s string)             { panic("TODO ui") } // command the user can copy
+func Title(s string)     { panic("TODO ui") } // section heading, accent
+func Info(s string)      { panic("TODO ui") }
+func Success(s string)   { panic("TODO ui") } // "✓ s"
+func Warn(s string)      { panic("TODO ui") } // "! s" amber
+func Fail(s string)      { panic("TODO ui") } // "✗ s" red, stderr
+func Muted(s string)     { panic("TODO ui") } // dim
+func KV(pairs ...string) { panic("TODO ui") } // aligned key/value rows
+func Code(s string)      { panic("TODO ui") } // command the user can copy
