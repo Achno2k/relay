@@ -201,6 +201,8 @@ func runIn(ctx context.Context, dir string, name string, args ...string) (string
 	return string(out), err
 }
 
+// firstField is the first whitespace separated token of s, keeping its original
+// case, which is what an error message echoing the user back should use.
 func firstField(s string) string {
 	f := strings.Fields(s)
 	if len(f) == 0 {

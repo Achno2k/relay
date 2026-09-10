@@ -68,7 +68,7 @@ func (b *Bot) park(ctx context.Context, s state.Session) {
 }
 
 func (b *Bot) idleTTL() time.Duration {
-	h := b.Config.Sessions.IdleTTLHours
+	h := b.config().Sessions.IdleTTLHours
 	if h <= 0 {
 		h = config.Default().Sessions.IdleTTLHours
 	}

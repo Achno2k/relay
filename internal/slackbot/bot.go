@@ -33,6 +33,14 @@ type Bot struct {
 	// events straight to HandleEvent.
 	Socket *socketmode.Client
 
+	// Reload re-reads the config file. It runs before every event, so a repo
+	// added by `agents init` after the bot started, an allowlist change or a
+	// new channel default all take effect without a restart. Nil disables the
+	// reload and pins whatever Config holds, which is what tests want.
+	Reload func() (config.Config, error)
+
+	cfgMu sync.RWMutex
+
 	botUserID string
 
 	mu       sync.Mutex
@@ -78,7 +86,33 @@ func NewFromEnv(h herdr.Client, st state.Store, cfg config.Config, logger *log.L
 	api := slack.New(botToken, slack.OptionAppLevelToken(appToken))
 	b := New(NewSlackClient(api), h, st, cfg, logger)
 	b.Socket = socketmode.New(api)
+	b.Reload = config.Load
 	return b, nil
+}
+
+// config returns the current configuration. Everything that reads config goes
+// through here so a reload is picked up mid-flight.
+func (b *Bot) config() config.Config {
+	b.cfgMu.RLock()
+	defer b.cfgMu.RUnlock()
+	return b.Config
+}
+
+// reloadConfig re-reads the config file. A read failure is logged once and the
+// previous configuration is kept: a half written file should not take the bot
+// down or silently empty the allowlist.
+func (b *Bot) reloadConfig() {
+	if b.Reload == nil {
+		return
+	}
+	cfg, err := b.Reload()
+	if err != nil {
+		b.logf("reload config: %v", err)
+		return
+	}
+	b.cfgMu.Lock()
+	b.Config = cfg
+	b.cfgMu.Unlock()
 }
 
 func (b *Bot) logf(format string, args ...any) {
@@ -176,6 +210,12 @@ func (b *Bot) HandleMessage(ctx context.Context, in incoming) {
 	if in.User != "" && in.User == b.botUserID {
 		return
 	}
+	// Pick up a repo, allowlist entry or channel default added since the last
+	// event. The file is small and events are rare, so re-reading it beats
+	// making the user restart the bot after `agents init`.
+	b.reloadConfig()
+	cfg := b.config()
+
 	threadTS := in.ThreadKey()
 	bound := b.sessionForThread(ctx, in.Channel, threadTS)
 
@@ -185,7 +225,7 @@ func (b *Bot) HandleMessage(ctx context.Context, in incoming) {
 		in.ThreadText = b.threadText(ctx, in.Channel, threadTS)
 	}
 
-	d := decide(in, bound, b.isPending(in.Channel, threadTS), b.Config)
+	d := decide(in, bound, b.isPending(in.Channel, threadTS), cfg)
 	if d.Action != actIgnore {
 		b.logf("session=%s action=%s repo=%s", sessionID(bound), d.Action, d.Repo)
 	}
@@ -194,7 +234,7 @@ func (b *Bot) HandleMessage(ctx context.Context, in incoming) {
 	case actIgnore:
 		return
 	case actAskRepo:
-		b.askRepo(ctx, d)
+		b.askRepo(ctx, d, cfg)
 	case actCreate:
 		b.clearPending(d.Channel, d.ThreadTS)
 		b.createSession(ctx, d, nil)
@@ -268,24 +308,46 @@ func (b *Bot) clearPending(channel, threadTS string) {
 }
 
 // askRepo asks the thread which repo to work in and remembers that the next
-// message is the answer. It asks once: if the answer names no repo we stay
-// pending and wait rather than repeating the question.
-func (b *Bot) askRepo(ctx context.Context, d decision) {
+// message is the answer.
+//
+// If the thread was already waiting, this reply was meant to be that answer and
+// did not name a repo we know. Say so, once per attempt: staying silent left
+// the user typing into a thread that only logged ask_repo and never spoke.
+func (b *Bot) askRepo(ctx context.Context, d decision, cfg config.Config) {
 	if b.isPending(d.Channel, d.ThreadTS) {
+		word := firstField(d.Text)
+		if word == "" {
+			return
+		}
+		b.say(ctx, d.Channel, d.ThreadTS, unknownRepoMessage(word, repoNamesOf(cfg)))
 		return
 	}
 	b.setPending(d.Channel, d.ThreadTS)
-	known := b.repoNames()
 	msg := "Which repo? I don't have a default for this channel."
-	if len(known) > 0 {
+	if known := repoNamesOf(cfg); len(known) > 0 {
 		msg += " I know: " + strings.Join(known, ", ") + "."
 	}
 	b.say(ctx, d.Channel, d.ThreadTS, msg)
 }
 
-func (b *Bot) repoNames() []string {
-	out := make([]string, 0, len(b.Config.Repos))
-	for name := range b.Config.Repos {
+// unknownRepoMessage names what the user typed and what is actually on the box,
+// so the next thing they try is a name that works.
+func unknownRepoMessage(word string, known []string) string {
+	msg := "I don't know " + word + "."
+	if len(known) > 0 {
+		msg += " Repos on this box: " + strings.Join(known, ", ") + "."
+	} else {
+		msg += " There are no repos on this box yet."
+	}
+	return msg + " Run `agents init` from that repo to add it."
+}
+
+func (b *Bot) repoNames() []string { return repoNamesOf(b.config()) }
+
+func repoNamesOf(cfg config.Config) []string {
+	repos := cfg.Repos
+	out := make([]string, 0, len(repos))
+	for name := range repos {
 		out = append(out, name)
 	}
 	sortStrings(out)
@@ -301,15 +363,15 @@ func (b *Bot) say(ctx context.Context, channel, threadTS, text string) {
 // harnessKind is the harness the bot starts. The plan lists harnesses in
 // preference order, so the first one wins.
 func (b *Bot) harnessKind() string {
-	if len(b.Config.Harness) > 0 && b.Config.Harness[0] != "" {
-		return b.Config.Harness[0]
+	if h := b.config().Harness; len(h) > 0 && h[0] != "" {
+		return h[0]
 	}
 	return "claude"
 }
 
 func (b *Bot) workDir() string {
-	if b.Config.Box.WorkDir != "" {
-		return b.Config.Box.WorkDir
+	if w := b.config().Box.WorkDir; w != "" {
+		return w
 	}
 	return config.Default().Box.WorkDir
 }
@@ -336,8 +398,8 @@ func (b *Bot) liveCount(ctx context.Context) int {
 }
 
 func (b *Bot) maxLive() int {
-	if b.Config.Sessions.MaxLive > 0 {
-		return b.Config.Sessions.MaxLive
+	if n := b.config().Sessions.MaxLive; n > 0 {
+		return n
 	}
 	return config.Default().Sessions.MaxLive
 }
@@ -351,7 +413,7 @@ func (b *Bot) createSession(ctx context.Context, d decision, old *state.Session)
 			"%d sessions are already live, which is the cap. Finish one with `done` first.", n))
 		return
 	}
-	repoCfg, ok := b.Config.Repos[d.Repo]
+	repoCfg, ok := b.config().Repos[d.Repo]
 	if !ok {
 		b.say(ctx, d.Channel, d.ThreadTS, "I don't know a repo called `"+d.Repo+"`.")
 		return
@@ -529,11 +591,12 @@ func (b *Bot) HandleInteraction(ctx context.Context, cb slack.InteractionCallbac
 	if len(cb.ActionCallback.BlockActions) == 0 {
 		return
 	}
+	b.reloadConfig()
 	act := cb.ActionCallback.BlockActions[0]
 	if !isApprovalAction(act.ActionID) {
 		return
 	}
-	if !allowed(cb.User.ID, b.Config) {
+	if !allowed(cb.User.ID, b.config()) {
 		return
 	}
 	sess, err := b.Store.Get(ctx, act.Value)

@@ -2,6 +2,8 @@ package slackbot
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/slack-go/slack"
 
+	"github.com/Achno2k/agents-cli/internal/config"
 	"github.com/Achno2k/agents-cli/internal/state"
 )
 
@@ -334,7 +337,7 @@ func TestCreateSessionKillsTheAgentWhenTheRowCannotBeWritten(t *testing.T) {
 	}
 }
 
-func TestAskRepoOnlyAsksOnce(t *testing.T) {
+func TestAskRepoAsksOnceThenNamesWhatItDoesNotKnow(t *testing.T) {
 	b, sc, _, _ := testBot(t)
 	ctx := context.Background()
 
@@ -342,16 +345,311 @@ func TestAskRepoOnlyAsksOnce(t *testing.T) {
 		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
 		Text: "<@UBOT> have a look",
 	})
-	// An answer that still names no repo must not restate the question.
+	// The answer names a repo this box has never heard of.
 	b.HandleMessage(ctx, incoming{
 		Channel: "CGEN", User: "U1", TS: "400.2", ThreadTS: "400.1",
-		Text: "the one from yesterday",
+		Text: "conduit",
 	})
 
-	if texts := sc.texts(); len(texts) != 1 {
-		t.Fatalf("expected the question once, got %v", texts)
+	texts := sc.texts()
+	if len(texts) != 2 {
+		t.Fatalf("expected the question then an answer, got %v", texts)
+	}
+	if !strings.Contains(texts[0], "Which repo?") {
+		t.Fatalf("first reply should be the question: %q", texts[0])
+	}
+	want := "I don't know conduit. Repos on this box: agents-cli, aura. Run `agents init` from that repo to add it."
+	if texts[1] != want {
+		t.Fatalf("second reply:\n got %q\nwant %q", texts[1], want)
 	}
 	if !b.isPending("CGEN", "400.1") {
 		t.Fatal("the thread should still be waiting for a repo")
+	}
+}
+
+// The live bug: the bot stayed silent on every retry, so the thread only ever
+// logged ask_repo. Each attempt gets exactly one reply.
+func TestEveryUnknownRepoAttemptGetsOneReply(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	ctx := context.Background()
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+	for i, word := range []string{"conduit", "event-orbit", "app-clip-web"} {
+		b.HandleMessage(ctx, incoming{
+			Channel: "CGEN", User: "U1", TS: fmt.Sprintf("400.%d", i+2), ThreadTS: "400.1",
+			Text: word,
+		})
+	}
+
+	texts := sc.texts()
+	if len(texts) != 4 {
+		t.Fatalf("expected 1 question + 3 answers, got %d: %v", len(texts), texts)
+	}
+	for i, word := range []string{"conduit", "event-orbit", "app-clip-web"} {
+		if !strings.Contains(texts[i+1], "I don't know "+word+".") {
+			t.Fatalf("reply %d should name %q, got %q", i+1, word, texts[i+1])
+		}
+	}
+}
+
+func TestUnknownRepoReplyEchoesTheFirstWordNotTheMention(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	ctx := context.Background()
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.2", ThreadTS: "400.1",
+		Text: "<@UBOT> Conduit please, the API one",
+	})
+
+	texts := sc.texts()
+	if len(texts) != 2 {
+		t.Fatalf("got %v", texts)
+	}
+	// The user's own casing, and never the "<@UBOT>" mention.
+	if !strings.Contains(texts[1], "I don't know Conduit.") {
+		t.Fatalf("got %q", texts[1])
+	}
+	if strings.Contains(texts[1], "UBOT") {
+		t.Fatalf("the mention leaked into the reply: %q", texts[1])
+	}
+}
+
+func TestUnknownRepoReplyWhenTheBoxHasNoRepos(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	b.Config.Repos = nil
+	ctx := context.Background()
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", TS: "400.2", ThreadTS: "400.1",
+		Text: "aura",
+	})
+
+	texts := sc.texts()
+	if len(texts) != 2 || !strings.Contains(texts[1], "no repos on this box yet") {
+		t.Fatalf("got %v", texts)
+	}
+}
+
+// An empty reply is not an answer, so it gets nothing rather than a confusing
+// "I don't know ." line.
+func TestBlankReplyWhilePendingSaysNothing(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	ctx := context.Background()
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.2", ThreadTS: "400.1",
+		Text: "<@UBOT>",
+	})
+
+	if texts := sc.texts(); len(texts) != 1 {
+		t.Fatalf("expected only the question, got %v", texts)
+	}
+}
+
+// --- config reload ---
+
+// The live bug: the bot read config once at startup, so a repo added by
+// `agents init` afterwards stayed invisible until someone restarted it.
+func TestRepoAddedAfterStartupIsPickedUpWithoutARestart(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	ctx := context.Background()
+
+	// The file on disk, which `agents init` is about to rewrite. It is a whole
+	// fresh value each time, sharing no maps with what the bot already holds,
+	// so nothing here can pass without an actual reload.
+	onDisk := testConfig()
+	b.Config = testConfig()
+	b.Reload = func() (config.Config, error) { return onDisk, nil }
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", TS: "400.2", ThreadTS: "400.1",
+		Text: "conduit",
+	})
+	if texts := sc.texts(); !strings.Contains(texts[len(texts)-1], "I don't know conduit.") {
+		t.Fatalf("conduit should be unknown at this point, got %q", texts[len(texts)-1])
+	}
+
+	// `agents init` runs and syncs the config to the box.
+	onDisk = testConfig()
+	onDisk.Repos["conduit"] = config.Repo{URL: "git@github.com:lt/conduit.git"}
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", TS: "400.3", ThreadTS: "400.1",
+		Text: "conduit",
+	})
+
+	// No restart: the next reply is accepted and a session is attempted.
+	last := sc.texts()[len(sc.texts())-1]
+	if strings.Contains(last, "I don't know") {
+		t.Fatalf("the new repo should be known after the reload, got %q", last)
+	}
+	if b.isPending("CGEN", "400.1") {
+		t.Fatal("the thread should no longer be waiting for a repo")
+	}
+}
+
+func TestReloadPicksUpAllowlistAndChannelDefaultChanges(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	ctx := context.Background()
+
+	onDisk := testConfig()
+	onDisk.Slack.AllowedUserIDs = []string{"U1"}
+	b.Config = testConfig()
+	b.Config.Slack.AllowedUserIDs = []string{"U1"}
+	b.Reload = func() (config.Config, error) { return onDisk, nil }
+
+	// U7 is not on the allowlist yet, so nothing happens.
+	b.HandleMessage(ctx, incoming{
+		Channel: "CNEW", User: "U7", Mention: true, TS: "500.1",
+		Text: "<@UBOT> have a look",
+	})
+	if got := sc.texts(); len(got) != 0 {
+		t.Fatalf("a stranger should be ignored, got %v", got)
+	}
+
+	// Someone adds U7 and gives the channel a default repo.
+	onDisk = testConfig()
+	onDisk.Slack.AllowedUserIDs = []string{"U1", "U7"}
+	onDisk.Slack.DefaultRepoByChannel["CNEW"] = "aura"
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CNEW", User: "U7", Mention: true, TS: "500.2",
+		Text: "<@UBOT> have a look",
+	})
+	// U7 is allowed now, and the channel default answered the repo question,
+	// so this went straight to creating a session rather than asking.
+	for _, m := range sc.texts() {
+		if strings.Contains(m, "Which repo?") {
+			t.Fatalf("the channel default should have supplied the repo, got %v", sc.texts())
+		}
+	}
+	if len(sc.texts()) == 0 {
+		t.Fatal("expected the bot to act on U7 after the reload")
+	}
+}
+
+// A config file caught mid-write must not empty the allowlist or take the bot
+// down; the previous configuration stands.
+func TestReloadFailureKeepsTheLastGoodConfig(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	b.Reload = func() (config.Config, error) { return config.Config{}, errors.New("unexpected EOF") }
+
+	b.HandleMessage(context.Background(), incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+
+	if got := sc.texts(); len(got) != 1 || !strings.Contains(got[0], "Which repo?") {
+		t.Fatalf("the bot should still be using the last good config, got %v", got)
+	}
+}
+
+func TestNilReloadPinsTheConfig(t *testing.T) {
+	b, _, _, _ := testBot(t)
+	if b.Reload != nil {
+		t.Fatal("New should not wire a reload; only NewFromEnv does")
+	}
+	before := b.config()
+	b.reloadConfig()
+	if len(b.config().Repos) != len(before.Repos) {
+		t.Fatal("reloadConfig with a nil Reload must change nothing")
+	}
+}
+
+// --- repo matching ---
+
+func TestRepoMatchingIgnoresCaseAndATrailingRepoWord(t *testing.T) {
+	cfg := testConfig()
+
+	for _, in := range []string{
+		"aura", "AURA", "Aura", "the aura repo", "aura repo", "aura-repo", "aura_repo",
+	} {
+		if got := resolveRepo(in, "CGEN", "", cfg); got != "aura" {
+			t.Fatalf("resolveRepo(%q) = %q, want aura", in, got)
+		}
+	}
+}
+
+// The mirror image: a repo configured with "repo" in its name is found when
+// the user leaves it off.
+func TestRepoConfiguredWithATrailingRepoWordMatchesTheBareName(t *testing.T) {
+	cfg := testConfig()
+	cfg.Repos = map[string]config.Repo{"conduit-repo": {}}
+
+	for _, in := range []string{"conduit", "conduit-repo", "Conduit", "conduit repo"} {
+		if got := resolveRepo(in, "CGEN", "", cfg); got != "conduit-repo" {
+			t.Fatalf("resolveRepo(%q) = %q, want conduit-repo", in, got)
+		}
+	}
+}
+
+func TestTrimRepoWord(t *testing.T) {
+	cases := map[string]string{
+		"aura":       "aura",
+		"aura-repo":  "aura",
+		"aura_repo":  "aura",
+		"aura repo":  "aura",
+		"aura-REPO":  "aura",
+		"repo":       "repo", // nothing would be left
+		"repository": "repository",
+		"agents-cli": "agents-cli",
+		"reposition": "reposition",
+	}
+	for in, want := range cases {
+		if got := trimRepoWord(in); got != want {
+			t.Fatalf("trimRepoWord(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// "aurora" must not answer for "aura" just because a trailing word was trimmed.
+func TestRepoMatchingStillRefusesNearMisses(t *testing.T) {
+	cfg := testConfig()
+	for _, in := range []string{"aurora", "auras", "agents", "cli"} {
+		if got := resolveRepo(in, "CGEN", "", cfg); got != "" {
+			t.Fatalf("resolveRepo(%q) = %q, want no match", in, got)
+		}
+	}
+}
+
+func TestAnsweringWithATrailingRepoWordCreatesTheSession(t *testing.T) {
+	b, sc, _, _ := testBot(t)
+	ctx := context.Background()
+
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", Mention: true, TS: "400.1",
+		Text: "<@UBOT> have a look",
+	})
+	b.HandleMessage(ctx, incoming{
+		Channel: "CGEN", User: "U1", TS: "400.2", ThreadTS: "400.1",
+		Text: "the Aura repo",
+	})
+
+	for _, m := range sc.texts() {
+		if strings.Contains(m, "I don't know") {
+			t.Fatalf("\"the Aura repo\" should resolve to aura, got %v", sc.texts())
+		}
+	}
+	if b.isPending("CGEN", "400.1") {
+		t.Fatal("the repo was answered, so the thread should not still be pending")
 	}
 }

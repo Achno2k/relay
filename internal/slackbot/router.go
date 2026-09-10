@@ -188,6 +188,10 @@ func resolveRepo(text, channel, threadText string, cfg config.Config) string {
 	if r := repoFromText(text, cfg); r != "" {
 		return r
 	}
+	// "aura" should still find a repo configured as "aura-repo".
+	if r := repoByTrimmedName(text, cfg); r != "" {
+		return r
+	}
 	if r := cfg.Slack.DefaultRepoByChannel[channel]; r != "" {
 		return r
 	}
@@ -202,11 +206,63 @@ func repoFromText(s string, cfg config.Config) string {
 	}
 	best, bestAt := "", -1
 	for name := range cfg.Repos {
-		if at := wordIndex(s, name); at >= 0 && (bestAt < 0 || at < bestAt || (at == bestAt && len(name) > len(best))) {
-			best, bestAt = name, at
+		for _, alias := range repoAliases(name) {
+			at := wordIndex(s, alias)
+			if at < 0 {
+				continue
+			}
+			if bestAt < 0 || at < bestAt || (at == bestAt && len(name) > len(best)) {
+				best, bestAt = name, at
+			}
 		}
 	}
 	return best
+}
+
+// repoAliases is what counts as naming a repo: the configured name, and the
+// same name with a trailing "repo" word taken off. People write "the aura repo"
+// and they configure "aura-repo", and both should land on the same session.
+// Matching itself is case insensitive, which wordIndex handles.
+func repoAliases(name string) []string {
+	aliases := []string{name}
+	if trimmed := trimRepoWord(name); trimmed != "" && trimmed != name {
+		aliases = append(aliases, trimmed)
+	}
+	return aliases
+}
+
+// trimRepoWord drops a trailing "repo" that is a word of its own, so
+// "aura repo", "aura-repo" and "aura_repo" all become "aura". A name that is
+// only the word "repo" is left alone: there would be nothing left of it.
+func trimRepoWord(s string) string {
+	t := strings.TrimRight(s, " \t")
+	if len(t) < len("repo") || !strings.EqualFold(t[len(t)-4:], "repo") {
+		return t
+	}
+	head := t[:len(t)-4]
+	if head == "" {
+		return t
+	}
+	switch head[len(head)-1] {
+	case ' ', '-', '_':
+		return strings.TrimRight(head[:len(head)-1], " \t-_")
+	}
+	return t
+}
+
+// repoByTrimmedName matches a bare answer such as "aura" against configured
+// names once a trailing "repo" word is taken off each side.
+func repoByTrimmedName(s string, cfg config.Config) string {
+	want := trimRepoWord(strings.TrimSpace(s))
+	if want == "" {
+		return ""
+	}
+	for name := range cfg.Repos {
+		if strings.EqualFold(trimRepoWord(name), want) {
+			return name
+		}
+	}
+	return ""
 }
 
 // wordIndex finds needle in s on a word boundary, case insensitively.
