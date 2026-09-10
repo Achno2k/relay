@@ -164,3 +164,10 @@ func SyncConfig(ctx context.Context, r sshx.Runner, home string, cfg config.Conf
 		"chmod 0600 " + shellQuote(path) + "\n"
 	return run(ctx, r, script, "write config.toml")
 }
+
+// RestartBotIfActive restarts agents-bot.service when it is running, so a
+// freshly synced config takes effect. A stopped unit is left alone.
+func RestartBotIfActive(ctx context.Context, r sshx.Runner) error {
+	script := "if systemctl is-active --quiet agents-bot.service; then sudo -n systemctl restart agents-bot.service; fi\n"
+	return r.Run(ctx, script, io.Discard, io.Discard)
+}

@@ -173,6 +173,9 @@ func runInit(ctx context.Context, skipSlack, fresh bool) error {
 	if err := bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg); err != nil {
 		return err
 	}
+	if err := bootstrap.RestartBotIfActive(ctx, runner); err != nil {
+		ui.Warn("could not restart the bot to pick up the new config: " + err.Error())
+	}
 	initSummary(ctx, runner, cfg, repo)
 	return nil
 }
