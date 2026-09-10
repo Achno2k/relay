@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -78,26 +77,33 @@ func RunSteps(ctx context.Context, title string, steps []Step) error {
 			line(renderStepLine(col, i+1, len(steps), s.Name, state, 0))
 		}
 	} else {
-		runCtx, cancel := context.WithCancel(ctx)
-		m := &stepsModel{
-			steps:  steps,
-			states: make([]stepState, len(steps)),
-			logs:   logs,
-			col:    col,
-			failed: -1,
-			ctx:    runCtx,
-			cancel: cancel,
+		n := &stepsNode{names: names, states: make([]stepState, len(steps)), logs: logs, col: col}
+		owner := lv.begin()
+		lv.attach(n)
+		runCtx, cancel := lv.withCancel(ctx)
+
+		for i, s := range steps {
+			if runErr != nil {
+				lv.setStep(n, i, stateSkipped)
+				continue
+			}
+			lv.setStep(n, i, stateActive)
+			if err := runStep(runCtx, s, logs[i]); err != nil {
+				runErr, failed = err, i
+				lv.setStep(n, i, stateFailed)
+			} else {
+				lv.setStep(n, i, stateDone)
+			}
 		}
-		_, err := tea.NewProgram(m, tea.WithOutput(stdoutFile())).Run()
+
 		cancel()
-		if err != nil {
-			return err
+		if owner {
+			lv.end()
 		}
-		runErr, failed = m.err, m.failed
 	}
 
 	if runErr != nil && failed >= 0 {
-		printLogTail(stdout, logs[failed].tail())
+		printLogTail(logs[failed].tail())
 	}
 	return runErr
 }
@@ -217,11 +223,19 @@ func Spinner(ctx context.Context, label string, fn func(ctx context.Context) err
 		}
 		return err
 	}
-	m := &spinnerModel{label: label, fn: fn, ctx: ctx}
-	if _, err := tea.NewProgram(m, tea.WithOutput(stdoutFile())).Run(); err != nil {
-		return err
+	n := &spinnerNode{label: label}
+	owner := lv.begin()
+	lv.attach(n)
+	runCtx, cancel := lv.withCancel(ctx)
+
+	err := fn(runCtx)
+
+	cancel()
+	lv.setSpinner(n, err)
+	if owner {
+		lv.end()
 	}
-	return m.err
+	return err
 }
 
 // Plain text helpers. All write to stdout unless noted.
@@ -277,5 +291,41 @@ func pickerHeight(n int) int {
 // RunChecks, Spinner, text helpers) is indented one level under the title.
 // Phases nest. On error the title flips to [☠] and the error is returned.
 func Phase(ctx context.Context, title string, fn func(ctx context.Context) error) error {
-	return fn(ctx)
+	if fn == nil {
+		return nil
+	}
+	if !interactive() {
+		return plainPhase(ctx, title, fn)
+	}
+
+	n := &phaseNode{title: title}
+	owner := lv.begin()
+	lv.push(n)
+	runCtx, cancel := lv.withCancel(ctx)
+
+	err := fn(runCtx)
+
+	cancel()
+	lv.pop(n, err)
+	if owner {
+		lv.end()
+	}
+	return err
+}
+
+// plainPhase is Phase off a terminal: the title once, the body indented under
+// it, then a badged line saying how it went.
+func plainPhase(ctx context.Context, title string, fn func(ctx context.Context) error) error {
+	line(plainStyle().Render(title))
+
+	lv.pushPlain()
+	err := fn(ctx)
+	lv.popPlain()
+
+	if err != nil {
+		line(badgeFail() + " " + title)
+	} else {
+		line(badgeOK() + " " + title)
+	}
+	return err
 }

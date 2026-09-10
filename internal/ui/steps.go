@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -9,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -239,19 +237,19 @@ func truncateWidth(s string, max int) string {
 	return string(r) + "…"
 }
 
-// printLogTail dumps a failed step's log indented two spaces.
-func printLogTail(w io.Writer, lines []string) {
+// printLogTail dumps a failed step's log indented two spaces. It goes through
+// line so that inside a phase it lands under that phase rather than at the
+// left margin.
+func printLogTail(lines []string) {
 	if len(lines) == 0 {
 		return
 	}
-	outMu.Lock()
-	defer outMu.Unlock()
-	bw := bufio.NewWriter(w)
-	fmt.Fprintln(bw)
+	out := make([]string, 0, len(lines)+1)
+	out = append(out, "")
 	for _, l := range lines {
-		fmt.Fprintln(bw, "  "+mutedStyle().Render(l))
+		out = append(out, "  "+mutedStyle().Render(l))
 	}
-	bw.Flush()
+	line(strings.Join(out, "\n"))
 }
 
 // runStep executes one step, turning a panic into an error so a bad step
@@ -292,91 +290,4 @@ func timedOut(d time.Duration, log io.Writer) error {
 	err := fmt.Errorf("timed out after %s", d)
 	fmt.Fprintln(log, err.Error())
 	return err
-}
-
-// stepsModel is the animated (tty) renderer for RunSteps.
-type stepsModel struct {
-	steps  []Step
-	states []stepState
-	logs   []*tailWriter
-	col    int
-	cur    int
-	frame  int
-	err    error
-	failed int
-	ctx    context.Context
-	cancel context.CancelFunc
-}
-
-type stepDoneMsg struct {
-	idx int
-	err error
-}
-
-type tickMsg struct{}
-
-func (m *stepsModel) Init() tea.Cmd {
-	return tea.Batch(m.start(0), tick())
-}
-
-func tick() tea.Cmd {
-	return tea.Tick(loaderInterval, func(time.Time) tea.Msg { return tickMsg{} })
-}
-
-func (m *stepsModel) start(i int) tea.Cmd {
-	m.cur = i
-	m.states[i] = stateActive
-	return func() tea.Msg {
-		return stepDoneMsg{idx: i, err: runStep(m.ctx, m.steps[i], m.logs[i])}
-	}
-}
-
-func (m *stepsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
-			m.cancel()
-		}
-		return m, nil
-	case tickMsg:
-		m.frame++
-		return m, tick()
-	case stepDoneMsg:
-		if msg.err != nil {
-			m.states[msg.idx] = stateFailed
-			m.err = msg.err
-			m.failed = msg.idx
-			for i := msg.idx + 1; i < len(m.states); i++ {
-				m.states[i] = stateSkipped
-			}
-			return m, tea.Quit
-		}
-		m.states[msg.idx] = stateDone
-		if msg.idx+1 >= len(m.steps) {
-			return m, tea.Quit
-		}
-		return m, m.start(msg.idx + 1)
-	}
-	return m, nil
-}
-
-// View is the whole checklist. The step that is running carries the tail of
-// its log underneath; every other step carries nothing, so the lines collapse
-// away on their own the moment the step finishes.
-func (m *stepsModel) View() string {
-	var b strings.Builder
-	total := len(m.steps)
-	width := termWidth()
-	for i, s := range m.steps {
-		b.WriteString(renderStepLine(m.col, i+1, total, s.Name, m.states[i], m.frame))
-		b.WriteByte('\n')
-		if m.states[i] != stateActive {
-			continue
-		}
-		for _, l := range m.logs[i].lastLines(liveTailLines) {
-			b.WriteString(renderLogLine(l, width))
-			b.WriteByte('\n')
-		}
-	}
-	return b.String()
 }

@@ -57,6 +57,10 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 	ui.Title("Copyable command")
 	ui.Code("agents attach agents-cli-3")
 
+	if err := demoPhases(ctx); err != nil {
+		ui.Fail("phase demo: " + err.Error())
+	}
+
 	ui.Title("Step runner")
 	ui.Muted("each step streams its last 3 log lines, then collapses them")
 	ui.Muted("step 7 hangs on purpose, so ui.StepTimeout cuts it off at " + demoStepTimeout.String())
@@ -147,6 +151,54 @@ func demoPickers() error {
 	ui.Title("Summary")
 	ui.KV("ssh", "agents ssh", "attach", "agents attach <session>", "bot", "systemctl status agents-bot")
 	return nil
+}
+
+// demoPhases shows a phase inside a phase, with a checklist at the bottom.
+// The point is that every loader above the checklist keeps turning while the
+// checklist runs, which is only possible because one renderer owns the tree.
+func demoPhases(ctx context.Context) error {
+	ui.Title("Nested phases")
+	ui.Muted("both loaders keep turning while the checklist below them runs")
+
+	return ui.Phase(ctx, "Setting up dev environment", func(ctx context.Context) error {
+		ui.Muted("reading go.mod, package.json, Makefile")
+		if err := sleepCtx(ctx, demoSpinnerHold); err != nil {
+			return err
+		}
+
+		if err := ui.Phase(ctx, "Inferring steps", func(ctx context.Context) error {
+			return ui.RunSteps(ctx, "", []ui.Step{
+				{Name: "Installing Go", Run: streamer(
+					"mise use -g go@1.25",
+					"go version go1.25.0 linux/arm64",
+				)},
+				{Name: "Installing Python", Run: streamer(
+					"mise use -g python@3.13",
+					"Python 3.13.1",
+				)},
+				{Name: "go mod download", Run: streamer(
+					"downloading github.com/spf13/cobra v1.10.2",
+					"downloading github.com/slack-go/slack v0.17.3",
+				)},
+			})
+		}); err != nil {
+			return err
+		}
+
+		return ui.Phase(ctx, "Verifying", func(ctx context.Context) error {
+			failed, err := ui.RunChecks(ctx, "", []ui.Check{
+				{Name: "go", Run: func(context.Context) error { return nil }},
+				{Name: "python", Run: func(context.Context) error { return nil }},
+			})
+			if err != nil {
+				return err
+			}
+			if failed > 0 {
+				return fmt.Errorf("%d check(s) failed", failed)
+			}
+			return sleepCtx(ctx, time.Second)
+		})
+	})
 }
 
 // demoStepHold is how long every fake step holds the loader. Long enough that

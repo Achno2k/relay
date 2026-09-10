@@ -166,18 +166,44 @@ func warnStyle() lipgloss.Style   { return renderer.NewStyle().Foreground(colorW
 func mutedStyle() lipgloss.Style  { return renderer.NewStyle().Foreground(colorMuted) }
 func plainStyle() lipgloss.Style  { return renderer.NewStyle() }
 
-// line writes one styled line to stdout.
+// line writes one styled line. While a live tree is on screen the text becomes
+// a node in it, so it lands in the right place under its phase instead of
+// tearing the frame. Otherwise it goes straight to stdout, indented to the
+// phase nesting the non-tty path is tracking.
 func line(s string) {
+	if lv.emit(s) {
+		return
+	}
 	outMu.Lock()
 	defer outMu.Unlock()
-	io.WriteString(stdout, s+"\n")
+	io.WriteString(stdout, indentLines(s, lv.indent())+"\n")
 }
 
-// errLine writes one styled line to stderr.
+// errLine is line for stderr. Inside a live tree it has to join the tree like
+// everything else: a stray write to stderr would land in the middle of the
+// frame the renderer is repainting.
 func errLine(s string) {
+	if lv.emit(s) {
+		return
+	}
 	outMu.Lock()
 	defer outMu.Unlock()
-	io.WriteString(stderr, s+"\n")
+	io.WriteString(stderr, indentLines(s, lv.indent())+"\n")
+}
+
+// indentLines puts prefix in front of every non-empty line of s. Blank lines
+// stay blank rather than becoming runs of trailing spaces.
+func indentLines(s, prefix string) string {
+	if prefix == "" {
+		return s
+	}
+	parts := strings.Split(s, "\n")
+	for i, p := range parts {
+		if p != "" {
+			parts[i] = prefix + p
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 // stdoutFile returns stdout as a file for bubbletea, or nil when it is not one.

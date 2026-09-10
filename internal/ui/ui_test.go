@@ -244,22 +244,21 @@ func TestViewStreamsTheActiveStepAndCollapsesTheRest(t *testing.T) {
 	restore := setOutput(&bytes.Buffer{})
 	defer restore()
 
-	steps := []Step{{Name: "First"}, {Name: "Second"}, {Name: "Third"}}
 	logs := []*tailWriter{newTailWriter(logTailLines), newTailWriter(logTailLines), newTailWriter(logTailLines)}
 	for i := 1; i <= 5; i++ {
 		fmt.Fprintf(logs[0], "done line %d\n", i)
 		fmt.Fprintf(logs[1], "live line %d\n", i)
 	}
 
-	m := &stepsModel{
-		steps:  steps,
+	m := &stepsNode{
+		names:  []string{"First", "Second", "Third"},
 		states: []stepState{stateDone, stateActive, statePending},
 		logs:   logs,
 		col:    glyphColumn([]string{"First", "Second", "Third"}),
-		failed: -1,
 	}
+	view := func() string { return strings.Join(m.lines(0, 100), "\n") + "\n" }
 
-	out := m.View()
+	out := view()
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	if len(lines) != 3+liveTailLines {
 		t.Fatalf("got %d lines, want 3 steps plus %d live lines:\n%s", len(lines), liveTailLines, out)
@@ -276,12 +275,12 @@ func TestViewStreamsTheActiveStepAndCollapsesTheRest(t *testing.T) {
 
 	// Finishing the step drops the tail without touching the checklist.
 	m.states[1] = stateDone
-	after := strings.Split(strings.TrimRight(m.View(), "\n"), "\n")
+	after := strings.Split(strings.TrimRight(view(), "\n"), "\n")
 	if len(after) != 3 {
-		t.Fatalf("the tail should collapse, got %d lines:\n%s", len(after), m.View())
+		t.Fatalf("the tail should collapse, got %d lines:\n%s", len(after), view())
 	}
-	if strings.Contains(m.View(), "live line") {
-		t.Fatalf("no log should survive the step finishing:\n%s", m.View())
+	if strings.Contains(view(), "live line") {
+		t.Fatalf("no log should survive the step finishing:\n%s", view())
 	}
 }
 
@@ -570,5 +569,200 @@ func TestCancelledParentIsNotReportedAsATimeout(t *testing.T) {
 
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+}
+
+// --- Phase ---
+
+func TestPhaseNestingAndIndentationInPlainMode(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	err := Phase(context.Background(), "Setting up dev environment", func(ctx context.Context) error {
+		Info("checking the box")
+		return Phase(ctx, "Inferring steps", func(ctx context.Context) error {
+			Muted("asking the harness")
+			return RunSteps(ctx, "", []Step{
+				{Name: "Installing Go", Run: func(context.Context, io.Writer) error { return nil }},
+				{Name: "go mod download", Run: func(context.Context, io.Writer) error { return nil }},
+			})
+		})
+	})
+	if err != nil {
+		t.Fatalf("Phase: %v", err)
+	}
+
+	want := []string{
+		"Setting up dev environment",
+		"    checking the box",
+		"    Inferring steps",
+		"        asking the harness",
+		"        [1/2] Installing Go             [✓]",
+		"        [2/2] go mod download           [✓]",
+		"    [✓] Inferring steps",
+		"[✓] Setting up dev environment",
+	}
+	got := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if len(got) != len(want) {
+		t.Fatalf("got %d lines, want %d:\n%s", len(got), len(want), buf.String())
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("line %d:\n got %q\nwant %q\nfull output:\n%s", i, got[i], want[i], buf.String())
+		}
+	}
+}
+
+func TestPhaseIndentsFourSpacesPerLevel(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	_ = Phase(context.Background(), "one", func(ctx context.Context) error {
+		Info("at one")
+		return Phase(ctx, "two", func(ctx context.Context) error {
+			Info("at two")
+			return Phase(ctx, "three", func(context.Context) error {
+				Info("at three")
+				return nil
+			})
+		})
+	})
+
+	for depth, needle := range []string{"at one", "at two", "at three"} {
+		want := strings.Repeat(" ", indentWidth*(depth+1)) + needle
+		if !strings.Contains(buf.String(), want+"\n") {
+			t.Fatalf("expected %q at depth %d:\n%s", want, depth+1, buf.String())
+		}
+	}
+}
+
+func TestPhaseFailureFlipsTheTitleAndReturnsTheError(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	boom := errors.New("no network")
+	err := Phase(context.Background(), "Cloning", func(context.Context) error { return boom })
+	if !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want %v", err, boom)
+	}
+
+	got := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	want := []string{"Cloning", "[☠] Cloning"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// An inner failure must not be swallowed, and the levels above it have to show
+// they failed too.
+func TestPhaseFailurePropagatesOutwards(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	boom := errors.New("exit status 1")
+	err := Phase(context.Background(), "outer", func(ctx context.Context) error {
+		return Phase(ctx, "inner", func(context.Context) error { return boom })
+	})
+	if !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want %v", err, boom)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "    [☠] inner\n") {
+		t.Fatalf("inner should be marked failed and indented:\n%s", out)
+	}
+	if !strings.Contains(out, "[☠] outer\n") {
+		t.Fatalf("outer should be marked failed:\n%s", out)
+	}
+}
+
+func TestPhaseWithNilFuncIsANoOp(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	if err := Phase(context.Background(), "nothing", nil); err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("expected no output, got %q", buf.String())
+	}
+}
+
+func TestPhaseRestoresTheIndentAfterItReturns(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	_ = Phase(context.Background(), "inside", func(context.Context) error { return nil })
+	Info("back at the margin")
+
+	if !strings.HasSuffix(buf.String(), "\nback at the margin\n") {
+		t.Fatalf("indent leaked past the phase:\n%s", buf.String())
+	}
+}
+
+// --- the node tree the animated renderer draws ---
+
+func TestPhaseNodeIndentsChildrenOneLevel(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	inner := &phaseNode{title: "Inferring steps", children: []node{
+		&stepsNode{
+			names:  []string{"Installing Go"},
+			states: []stepState{stateActive},
+			logs:   []*tailWriter{newTailWriter(logTailLines)},
+			col:    minGlyphCol,
+		},
+	}}
+	outer := &phaseNode{title: "Setting up dev environment", children: []node{inner}}
+
+	got := outer.lines(0, 100)
+	want := []string{
+		"[⠋] Setting up dev environment",
+		"    [⠋] Inferring steps",
+		"        [1/1] Installing Go             [⠋]",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d lines, want %d: %q", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("line %d:\n got %q\nwant %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestPhaseNodeBadgeFollowsState(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	for state, want := range map[runState]string{
+		runActive: "[⠋]",
+		runDone:   "[✓]",
+		runFailed: "[☠]",
+	} {
+		p := &phaseNode{title: "t", state: state}
+		if got := p.lines(0, 100)[0]; got != want+" t" {
+			t.Fatalf("state %v: got %q, want %q", state, got, want+" t")
+		}
+	}
+}
+
+func TestSpinnerNodeAnimatesThenSettles(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	n := &spinnerNode{label: "Fetching"}
+	if got := n.lines(1, 100)[0]; got != "Fetching ⠙" {
+		t.Fatalf("got %q", got)
+	}
+	n.state = runFailed
+	if got := n.lines(0, 100)[0]; got != "[☠] Fetching" {
+		t.Fatalf("got %q", got)
 	}
 }

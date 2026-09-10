@@ -95,7 +95,13 @@ func runForm(field huh.Field) error {
 	if !interactive() {
 		form = form.WithAccessible(true)
 	}
+
+	// huh drives its own bubbletea program. Hand it the terminal for the
+	// duration, or the two renderers fight over the same rows.
+	restore := lv.suspend()
 	err := form.Run()
+	restore()
+
 	if errors.Is(err, huh.ErrUserAborted) {
 		return ErrCancelled
 	}
