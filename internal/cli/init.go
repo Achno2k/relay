@@ -262,7 +262,6 @@ func initSummary(ctx context.Context, runner sshx.Runner, cfg config.Config, rep
 	}
 }
 
-
 func pick(all []string, idx []int) []string {
 	out := make([]string, 0, len(idx))
 	for _, i := range idx {
