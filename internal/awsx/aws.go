@@ -30,9 +30,10 @@ func LoadConfig(ctx context.Context, profile, region string) (aws.Config, error)
 }
 
 // CredsValid reports whether the config can call sts:GetCallerIdentity.
+// An IAM denial is explained on the terminal and reduced to a DeniedError.
 func CredsValid(ctx context.Context, cfg aws.Config) error {
 	_, err := sts.NewFromConfig(cfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
-	return err
+	return explainDenied(err, "sts:GetCallerIdentity")
 }
 
 // EnsureCreds returns a usable config for the profile. If the credentials are
@@ -44,6 +45,10 @@ func EnsureCreds(ctx context.Context, p Profile, region string) (aws.Config, err
 		if err = CredsValid(ctx, cfg); err == nil {
 			return cfg, nil
 		}
+	}
+	var denied *DeniedError
+	if errors.As(err, &denied) {
+		return cfg, denied
 	}
 	if !p.SSO {
 		return cfg, fmt.Errorf("profile %q has no usable credentials: %w", p.Name, err)
@@ -59,6 +64,9 @@ func EnsureCreds(ctx context.Context, p Profile, region string) (aws.Config, err
 		return cfg, err
 	}
 	if err := CredsValid(ctx, cfg); err != nil {
+		if errors.As(err, &denied) {
+			return cfg, denied
+		}
 		return cfg, fmt.Errorf("still no usable credentials for %q after sso login: %w", p.Name, err)
 	}
 	return cfg, nil
@@ -121,7 +129,7 @@ func listInstances(ctx context.Context, cfg aws.Config) ([]instanceInfo, error) 
 	for pager.HasMorePages() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, explainDenied(err, "ec2:DescribeInstances")
 		}
 		for _, res := range page.Reservations {
 			for _, i := range res.Instances {

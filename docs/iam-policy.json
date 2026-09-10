@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AgentsCliRead",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "sts:GetCallerIdentity",
+        "ssm:DescribeInstanceInformation"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AgentsCliSsmTransportOptional",
+      "Effect": "Allow",
+      "Action": ["ssm:StartSession"],
+      "Resource": "*"
+    }
+  ]
+}
