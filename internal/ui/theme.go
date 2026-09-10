@@ -16,15 +16,25 @@ import (
 
 // Palette. Monochrome base with a single accent, spent only on the things the
 // user can act on: the "?" in front of a question, the loader frame, the
-// selected option, and section titles. Success, failure and warning own green,
-// red and amber; everything else is the terminal default or dim. Every colour
-// is adaptive so it stays legible on light and dark terminals.
+// chosen option, section titles and the Ready heading. Success, failure and
+// warning own green, red and orange; everything else is the terminal default
+// or dim. Every colour is adaptive so it stays legible on light and dark
+// terminals.
 var (
-	colorAccent = lipgloss.AdaptiveColor{Light: "#0F8B8D", Dark: "#2DD4BF"}
+	colorAccent = lipgloss.AdaptiveColor{Light: "#6D28D9", Dark: "#A78BFA"}
 	colorOK     = lipgloss.AdaptiveColor{Light: "#2E7D32", Dark: "#5FBF6A"}
 	colorFail   = lipgloss.AdaptiveColor{Light: "#C0392B", Dark: "#E05C4B"}
-	colorWarn   = lipgloss.AdaptiveColor{Light: "#A9701A", Dark: "#E0B34F"}
+	colorWarn   = lipgloss.AdaptiveColor{Light: "#C2410C", Dark: "#FB923C"}
 	colorMuted  = lipgloss.AdaptiveColor{Light: "#767676", Dark: "#8A8A8A"}
+)
+
+// Option markers, in the shape the Vercel CLI uses: a filled circle on the row
+// you are on or have chosen, a hollow one on the rest. No cursor arrow and no
+// brackets; the circle carries the whole signal.
+const (
+	markChosen   = "●"
+	markUnchosen = "○"
+	markCursor   = "▌" // the row a MultiSelect's cursor is on
 )
 
 // Status marks. They are always shown inside dim brackets, the way

@@ -227,8 +227,15 @@ func Secret(title string) (string, error) {
 
 // Confirm asks yes/no.
 func Confirm(title string, def bool) (bool, error) {
+	// Rendered as a two row list rather than huh's side by side buttons, so
+	// yes/no looks like every other choice in the CLI. The default lands on
+	// the row huh starts the cursor on, because it matches the current value.
 	v := def
-	field := huh.NewConfirm().Title(askTitle(title)).Affirmative("Yes").Negative("No").Value(&v)
+	field := huh.NewSelect[bool]().
+		Title(askTitle(title)).
+		Options(huh.NewOption("Yes", true), huh.NewOption("No", false)).
+		Height(pickerHeight(2)).
+		Value(&v)
 	if err := runForm(field); err != nil {
 		return false, err
 	}

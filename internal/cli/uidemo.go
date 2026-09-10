@@ -42,6 +42,7 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 	ui.Banner("v0.1.0-demo")
 
 	ui.Title("Text helpers")
+	ui.Muted("purple is the accent; green, red and orange carry status")
 	ui.Info("Info: plain line, monochrome base.")
 	ui.Success("Success: connected to i-0abc123 in eu-west-1")
 	ui.Warn("Warn: two harnesses selected, login is one prompt each")
@@ -112,7 +113,7 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 
 func demoPickers() error {
 	ui.Title("Pickers")
-	ui.Muted("every answer collapses to one \"? question  answer\" line")
+	ui.Muted("● is the chosen row, ○ the rest; every answer then collapses to one line")
 
 	regions := []string{"us-east-1", "us-west-2", "eu-west-1", "ap-south-1"}
 	if _, err := ui.Select("Region", regions); err != nil {

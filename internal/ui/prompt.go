@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
+
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -41,21 +43,37 @@ func formTheme() *huh.Theme {
 	t.Blurred.ErrorIndicator = t.Focused.ErrorIndicator
 	t.Blurred.ErrorMessage = t.Focused.ErrorMessage
 
-	t.Focused.SelectSelector = accentStyle().SetString("› ")
-	t.Blurred.SelectSelector = renderer.NewStyle().SetString("  ")
-	t.Focused.MultiSelectSelector = t.Focused.SelectSelector
-	t.Blurred.MultiSelectSelector = t.Blurred.SelectSelector
+	// Options are a plain vertical list: a filled circle on the row that is
+	// chosen or highlighted, a hollow one on the rest, and the text in the
+	// default colour. No cursor arrow, no brackets.
+	//
+	// huh reuses SelectedOption and UnselectedOption for both Select and
+	// MultiSelect, and in both the "selected" style is the one we want the
+	// filled circle on: the highlighted row in a Select, the checked rows in a
+	// MultiSelect. So the circles live there, and the selectors and prefixes
+	// are emptied out of the way.
+	chosen := renderer.NewStyle().SetString(accentStyle().Render(markChosen))
+	unchosen := renderer.NewStyle().SetString(mutedStyle().Render(markUnchosen))
+
+	t.Focused.SelectSelector = renderer.NewStyle()
+	t.Blurred.SelectSelector = renderer.NewStyle()
+	t.Focused.SelectedPrefix = renderer.NewStyle()
+	t.Focused.UnselectedPrefix = renderer.NewStyle()
+	t.Blurred.SelectedPrefix = renderer.NewStyle()
+	t.Blurred.UnselectedPrefix = renderer.NewStyle()
 
 	t.Focused.Option = plainStyle()
 	t.Blurred.Option = mutedStyle()
-	t.Focused.SelectedOption = accentStyle()
-	t.Focused.UnselectedOption = plainStyle()
-	t.Blurred.SelectedOption = mutedStyle()
-	t.Blurred.UnselectedOption = mutedStyle()
-	t.Focused.SelectedPrefix = okStyle().SetString(markOK + " ")
-	t.Focused.UnselectedPrefix = renderer.NewStyle().SetString("  ")
-	t.Blurred.SelectedPrefix = t.Focused.SelectedPrefix
-	t.Blurred.UnselectedPrefix = t.Focused.UnselectedPrefix
+	t.Focused.SelectedOption = chosen
+	t.Focused.UnselectedOption = unchosen
+	t.Blurred.SelectedOption = chosen
+	t.Blurred.UnselectedOption = unchosen
+
+	// A MultiSelect has a cursor as well as check marks, and huh gives the
+	// cursor row no text style of its own: the selector is the only hook. A
+	// bar marks it without reintroducing an arrow.
+	t.Focused.MultiSelectSelector = accentStyle().Bold(true).SetString(markCursor)
+	t.Blurred.MultiSelectSelector = renderer.NewStyle().SetString(" ")
 
 	t.Focused.NextIndicator = mutedStyle().MarginLeft(1).SetString("→")
 	t.Focused.PrevIndicator = mutedStyle().MarginRight(1).SetString("←")
@@ -86,11 +104,45 @@ func formTheme() *huh.Theme {
 	return t
 }
 
+// promptKeys trims huh's help line down to the keys that matter, and names the
+// ones we actually tell people to press. A binding with no help text is left
+// out of the line entirely, which is how the filter and select-all keys stay
+// available without cluttering it.
+func promptKeys() *huh.KeyMap {
+	km := huh.NewDefaultKeyMap()
+
+	// A binding with no keys is disabled, and bubbles' help leaves disabled
+	// bindings out of the line entirely. Blanking only the help text would
+	// leave the separators behind: "↑ up •   •   • enter confirm".
+	off := key.NewBinding()
+
+	km.MultiSelect.Toggle = key.NewBinding(
+		key.WithKeys(" ", "x"), key.WithHelp("space", "toggle"))
+	km.MultiSelect.Submit = key.NewBinding(
+		key.WithKeys("enter"), key.WithHelp("enter", "confirm"))
+	// A MultiSelect list is short enough that filtering is clutter.
+	km.MultiSelect.Filter = off
+	km.MultiSelect.SetFilter = off
+	km.MultiSelect.ClearFilter = off
+	km.MultiSelect.SelectAll = off
+	km.MultiSelect.Next = off
+	km.MultiSelect.Prev = off
+
+	// Select keeps its filter: an instance picker can be long.
+	km.Select.Submit = key.NewBinding(
+		key.WithKeys("enter"), key.WithHelp("enter", "confirm"))
+	km.Select.Next = off
+	km.Select.Prev = off
+
+	return km
+}
+
 // runForm runs a one-field form, falling back to huh's numbered stdin prompts
 // when we are not on a terminal.
 func runForm(field huh.Field) error {
 	form := huh.NewForm(huh.NewGroup(field)).
 		WithTheme(formTheme()).
+		WithKeyMap(promptKeys()).
 		WithShowHelp(true).
 		WithShowErrors(true).
 		WithInput(os.Stdin).

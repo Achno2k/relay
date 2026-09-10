@@ -771,10 +771,27 @@ func TestSpinnerNodeAnimatesThenSettles(t *testing.T) {
 
 // --- palette ---
 
-// Teal is the one accent, and it is spent only on things the user can act on.
-func TestAccentIsTeal(t *testing.T) {
-	if colorAccent.Light != "#0F8B8D" || colorAccent.Dark != "#2DD4BF" {
-		t.Fatalf("accent is %+v, want teal #0F8B8D / #2DD4BF", colorAccent)
+// Purple is the one accent, and it is spent only on things the user can act on.
+func TestPalette(t *testing.T) {
+	if colorAccent.Light != "#6D28D9" || colorAccent.Dark != "#A78BFA" {
+		t.Fatalf("accent is %+v, want purple #6D28D9 / #A78BFA", colorAccent)
+	}
+	if colorWarn.Light != "#C2410C" || colorWarn.Dark != "#FB923C" {
+		t.Fatalf("warning is %+v, want orange #C2410C / #FB923C", colorWarn)
+	}
+}
+
+// The Ready heading and the warning badge take their colour from the palette,
+// so a swap cannot leave one of them behind.
+func TestReadyHeadingUsesTheAccentAndWarnUsesOrange(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	if got := accentStyle().Bold(true).Render("Machine ready"); got != "Machine ready" {
+		t.Fatalf("off a terminal the heading should be plain, got %q", got)
+	}
+	if got := badgeWarn(); got != "[!]" {
+		t.Fatalf("warn badge = %q", got)
 	}
 }
 
@@ -999,22 +1016,178 @@ func TestBannerSpellsAgents(t *testing.T) {
 	}
 }
 
-func TestRevealToKeepsRowsRectangular(t *testing.T) {
-	rows := bannerLines()
-	width := bannerWidth()
-	for _, n := range []int{0, 1, width / 2, width, width + 5} {
-		for i, r := range revealTo(rows, n, width) {
-			if got := len([]rune(r)); got != width {
-				t.Fatalf("reveal %d row %d is %d columns, want %d", n, i, got, width)
+// Same seed, same frames. The animation has to be reproducible or it cannot
+// be tested at all.
+func TestBannerAnimationIsDeterministicUnderAFixedSeed(t *testing.T) {
+	frames := func(seed int64) []string {
+		a := newBannerAnim(seed)
+		var out []string
+		for i := range a.glyphs {
+			for f := 0; f < bannerGlitchCount; f++ {
+				a.set(i, a.glitchGlyph(i))
+				out = append(out, strings.Join(a.frame(), "\n"))
+			}
+			a.settle(i)
+			out = append(out, strings.Join(a.frame(), "\n"))
+		}
+		out = append(out, fmt.Sprint(a.pickFlicker(bannerFlickerN)))
+		return out
+	}
+
+	a, b := frames(42), frames(42)
+	if len(a) != len(b) {
+		t.Fatalf("frame counts differ: %d vs %d", len(a), len(b))
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			t.Fatalf("frame %d differs between two runs of seed 42", i)
+		}
+	}
+
+	// A different seed has to actually produce something different, otherwise
+	// the glitch is not random at all.
+	if strings.Join(frames(42), "|") == strings.Join(frames(7), "|") {
+		t.Fatal("seeds 42 and 7 produced identical animations")
+	}
+}
+
+func TestBannerLettersArriveLeftToRight(t *testing.T) {
+	a := newBannerAnim(42)
+	real := bannerLines()
+
+	for i := range a.glyphs {
+		a.settle(i)
+		got := a.frame()
+		for row := 0; row < bannerRows; row++ {
+			// Block characters are multibyte, so count in runes, not bytes.
+			gotRow, realRow := []rune(got[row]), []rune(real[row])
+
+			// Everything up to and including letter i matches the wordmark.
+			upto := (i+1)*bannerGlyphWidth + i*bannerGap
+			if string(gotRow[:upto]) != string(realRow[:upto]) {
+				t.Fatalf("after letter %d, row %d is %q, want prefix %q",
+					i, row, string(gotRow[:upto]), string(realRow[:upto]))
+			}
+			// Everything after it is still blank.
+			if rest := strings.TrimSpace(string(gotRow[upto:])); rest != "" {
+				t.Fatalf("after letter %d, row %d already shows %q", i, row, rest)
 			}
 		}
 	}
-	// Revealing nothing shows nothing; revealing everything shows the wordmark.
-	if strings.TrimSpace(strings.Join(revealTo(rows, 0, width), "")) != "" {
-		t.Fatal("a zero reveal should be blank")
+}
+
+func TestGlitchFramesUseOnlyBlockShadesAndStayInTheGlyphBox(t *testing.T) {
+	a := newBannerAnim(42)
+	allowed := map[rune]bool{' ': true}
+	for _, r := range bannerGlitchChars {
+		allowed[r] = true
 	}
-	if strings.Join(revealTo(rows, width, width), "\n") != strings.Join(rows, "\n") {
-		t.Fatal("a full reveal should be the wordmark")
+
+	for i := range a.glyphs {
+		for f := 0; f < 8; f++ {
+			g := a.glitchGlyph(i)
+			for row, l := range g {
+				if got := len([]rune(l)); got != bannerGlyphWidth {
+					t.Fatalf("letter %d row %d is %d columns, want %d", i, row, got, bannerGlyphWidth)
+				}
+				for _, ch := range l {
+					if !allowed[ch] {
+						t.Fatalf("letter %d row %d has %q, which is not a block shade", i, row, ch)
+					}
+				}
+			}
+		}
+	}
+}
+
+// A glitch frame has to look different from the finished letter, or there is
+// no glitch to see.
+func TestGlitchFramesDifferFromTheRealGlyph(t *testing.T) {
+	a := newBannerAnim(42)
+	join := func(g [bannerRows]string) string { return strings.Join(g[:], "\n") }
+
+	differed := 0
+	for i := range a.glyphs {
+		real := join(realGlyph(i))
+		for f := 0; f < bannerGlitchCount; f++ {
+			if join(a.glitchGlyph(i)) != real {
+				differed++
+			}
+		}
+	}
+	if want := len(bannerWord) * bannerGlitchCount; differed < want-2 {
+		t.Fatalf("only %d of %d glitch frames differed from the real glyph", differed, want)
+	}
+}
+
+func TestFlickerPicksSettledLettersOnly(t *testing.T) {
+	a := newBannerAnim(42)
+	if got := a.pickFlicker(bannerFlickerN); got != nil {
+		t.Fatalf("nothing has settled yet, got %v", got)
+	}
+	for i := range a.glyphs {
+		a.settle(i)
+	}
+	got := a.pickFlicker(bannerFlickerN)
+	if len(got) != bannerFlickerN {
+		t.Fatalf("got %d letters, want %d", len(got), bannerFlickerN)
+	}
+	seen := map[int]bool{}
+	for _, i := range got {
+		if i < 0 || i >= len(bannerWord) {
+			t.Fatalf("letter index %d out of range", i)
+		}
+		if seen[i] {
+			t.Fatalf("letter %d picked twice: %v", i, got)
+		}
+		seen[i] = true
+	}
+}
+
+func TestShadeGlyphKeepsTheLetterShape(t *testing.T) {
+	for i := range bannerWord {
+		real, shaded := realGlyph(i), shadeGlyph(i, '░')
+		for r := 0; r < bannerRows; r++ {
+			for c, ch := range []rune(real[r]) {
+				got := []rune(shaded[r])[c]
+				if ch == ' ' && got != ' ' {
+					t.Fatalf("letter %d row %d column %d should be blank", i, r, c)
+				}
+				if ch != ' ' && got != '░' {
+					t.Fatalf("letter %d row %d column %d = %q, want ░", i, r, c, got)
+				}
+			}
+		}
+	}
+}
+
+func TestFadeSub(t *testing.T) {
+	sub := "agents v1.2.3"
+	for step := 0; step < len(bannerFadeShades); step++ {
+		got := fadeSub(sub, step)
+		if len([]rune(got)) != len([]rune(sub)) {
+			t.Fatalf("step %d changes the width: %q", step, got)
+		}
+		if strings.Contains(got, "agents") {
+			t.Fatalf("step %d already shows the text: %q", step, got)
+		}
+	}
+	if got := fadeSub(sub, len(bannerFadeShades)); got != sub {
+		t.Fatalf("the last step should be the real text, got %q", got)
+	}
+}
+
+// The whole sequence has to stay under two seconds.
+func TestBannerAnimationBudget(t *testing.T) {
+	letters := time.Duration(len(bannerWord)) * bannerLetterGap
+	total := letters + bannerFlickerHold +
+		time.Duration(len(bannerFadeShades))*bannerFadeStep
+	if total >= 2*time.Second {
+		t.Fatalf("the banner takes %v, want under 2s", total)
+	}
+	if bannerLetterGap < bannerGlitchCount*bannerGlitchFrame {
+		t.Fatalf("a letter's glitch frames (%v) do not fit in its slot (%v)",
+			bannerGlitchCount*bannerGlitchFrame, bannerLetterGap)
 	}
 }
 
