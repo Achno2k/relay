@@ -118,6 +118,10 @@ p = os.path.expanduser("~/.claude.json")
 d = json.load(open(p)) if os.path.exists(p) else {}
 d["hasCompletedOnboarding"] = True
 d.setdefault("theme", "dark")
+# The user chose unattended mode in agents config; this records their
+# acceptance of Claude Code's bypass-permissions notice so a pane agent
+# does not stall on it. Harmless when the mode is not used.
+d["bypassPermissionsModeAccepted"] = True
 json.dump(d, open(p, "w"))
 AGENTS_PY`)
 		return r.Run(ctx, script, io.Discard, io.Discard)
