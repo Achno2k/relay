@@ -25,7 +25,7 @@ func DetectOrigin(ctx context.Context, dir string) (Origin, error) {
 	if err != nil {
 		return Origin{}, fmt.Errorf("no origin remote in %s: %w", dir, err)
 	}
-	o := Origin{URL: url, Name: RepoName(url), DefaultBranch: "main"}
+	o := Origin{URL: NormalizeOrigin(ctx, url), Name: RepoName(url), DefaultBranch: "main"}
 	if ref, err := gitOut(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
 		if b := strings.TrimPrefix(ref, "origin/"); b != "" {
 			o.DefaultBranch = b
@@ -71,6 +71,7 @@ func Clone(ctx context.Context, r sshx.Runner, workDir string, o Origin, log io.
 	script := "set -e\n" +
 		`export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" +
 		"dir=" + shellQuote(dir) + "\n" +
+		"gh auth setup-git >/dev/null 2>&1 || true\n" +
 		"mkdir -p \"$(dirname \"$dir\")\"\n" +
 		"if [ -d \"$dir/.git\" ]; then\n" +
 		"  echo \"already cloned: $dir\"\n" +
