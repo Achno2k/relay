@@ -55,8 +55,12 @@ func badgeWarn() string  { return badge(markWarn, warnStyle()) }
 func badgeEmpty() string { return badge(markEmpty, mutedStyle()) }
 func badgeWidth() int    { return 3 }
 func badgeActive(frame int) string {
-	return badge(loaderFrames[frame%len(loaderFrames)], accentStyle())
+	return badge(loaderFrames[frame%len(loaderFrames)], loaderStyle())
 }
+
+// loaderStyle colours the running loader. Orange, so motion reads apart from
+// the purple that marks things the user chooses.
+func loaderStyle() lipgloss.Style { return warnStyle() }
 
 // Prompt glyphs. The question mark leads anything the user answers; the
 // chevron leads anything we are telling them.

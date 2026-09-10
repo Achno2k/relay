@@ -102,7 +102,7 @@ type spinnerNode struct {
 
 func (s *spinnerNode) lines(frame, _ int) []string {
 	if s.state == runActive {
-		return []string{s.label + " " + accentStyle().Render(loaderFrames[frame%len(loaderFrames)])}
+		return []string{s.label + " " + loaderStyle().Render(loaderFrames[frame%len(loaderFrames)])}
 	}
 	return []string{stateBadge(s.state, frame) + " " + s.label}
 }
