@@ -183,6 +183,16 @@ func Input(title, placeholder string) (string, error) {
 	return strings.TrimSpace(v), nil
 }
 
+// Secret asks for a line of text without echoing it (tokens, passwords).
+func Secret(title string) (string, error) {
+	var v string
+	field := huh.NewInput().Title(title).EchoMode(huh.EchoModePassword).Value(&v)
+	if err := runForm(field); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(v), nil
+}
+
 // Confirm asks yes/no.
 func Confirm(title string, def bool) (bool, error) {
 	v := def
