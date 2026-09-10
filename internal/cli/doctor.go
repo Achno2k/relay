@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/Achno2k/agents-cli/internal/config"
 	"github.com/Achno2k/agents-cli/internal/sshx"
@@ -52,6 +56,26 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			}
 			if err := sshx.New(sshx.TargetFromConfig(cfg.AWS, cfg.Box)).Ping(ctx); err != nil {
 				return fmt.Errorf("ssh: %w", err)
+			}
+			return nil
+		}},
+		{Name: "box disk", Run: func(context.Context) error {
+			if cfgErr != nil || (cfg.Box.Host == "" && cfg.AWS.InstanceID == "") {
+				return errors.New("skipped, box not configured")
+			}
+			var out bytes.Buffer
+			r := sshx.New(sshx.TargetFromConfig(cfg.AWS, cfg.Box))
+			if err := r.Run(ctx, "df -k --output=avail,pcent / | tail -1", &out, io.Discard); err != nil {
+				return fmt.Errorf("df: %w", err)
+			}
+			f := strings.Fields(out.String())
+			if len(f) < 2 {
+				return fmt.Errorf("unexpected df output %q", out.String())
+			}
+			availKB, _ := strconv.ParseInt(f[0], 10, 64)
+			freeGB := float64(availKB) / (1024 * 1024)
+			if freeGB < 2 {
+				return fmt.Errorf("%.1fG free (%s used), grow the root volume", freeGB, f[1])
 			}
 			return nil
 		}},
