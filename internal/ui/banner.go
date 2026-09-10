@@ -236,8 +236,8 @@ func Banner(version string) {
 
 	if !interactive() {
 		line("")
-		for _, r := range bannerLines() {
-			line(plainStyle().Render(strings.TrimRight(r, " ")))
+		for _, r := range styledBannerLines() {
+			line(r)
 		}
 		line(mutedStyle().Render(sub))
 		line("")
@@ -247,8 +247,8 @@ func Banner(version string) {
 	a := newBannerAnim(bannerSeed())
 	rawLine("")
 	draw := func(subLine string) {
-		for _, r := range a.frame() {
-			rawLine(plainStyle().Render(r))
+		for _, r := range a.styledFrame() {
+			rawLine(r)
 		}
 		rawLine(mutedStyle().Render(subLine))
 	}
