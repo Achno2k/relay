@@ -58,7 +58,13 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 	ui.Code("agents attach agents-cli-3")
 
 	ui.Title("Step runner")
-	ui.Muted("the running step streams its last 3 log lines, then collapses them")
+	ui.Muted("each step streams its last 3 log lines, then collapses them")
+	ui.Muted("step 7 hangs on purpose, so ui.StepTimeout cuts it off at " + demoStepTimeout.String())
+
+	// Restore the caller's setting: this is a package level knob.
+	prevTimeout := ui.StepTimeout
+	ui.StepTimeout = demoStepTimeout
+	defer func() { ui.StepTimeout = prevTimeout }()
 
 	err := ui.RunSteps(ctx, "Bootstrapping the box...", demoSteps())
 	if err != nil {
@@ -77,12 +83,12 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 
 	ui.Title("Spinner")
 	if err := ui.Spinner(ctx, "Fetching instance list", func(ctx context.Context) error {
-		return sleepCtx(ctx, 1600*time.Millisecond)
+		return sleepCtx(ctx, demoSpinnerHold)
 	}); err != nil {
 		return err
 	}
 	if err := ui.Spinner(ctx, "Reaching the herdr socket", func(ctx context.Context) error {
-		if err := sleepCtx(ctx, 1100*time.Millisecond); err != nil {
+		if err := sleepCtx(ctx, demoSpinnerHold); err != nil {
 			return err
 		}
 		return errors.New("dial unix /run/herdr.sock: no such file")
@@ -143,10 +149,22 @@ func demoPickers() error {
 	return nil
 }
 
-// streamer returns a step that writes its lines one at a time with a pause
-// between them, so the live tail under the running step has something to show.
-func streamer(gap time.Duration, lines ...string) func(context.Context, io.Writer) error {
+// demoStepHold is how long every fake step holds the loader. Long enough that
+// the animation and the live tail are unmistakable rather than a flicker.
+const demoStepHold = 2500 * time.Millisecond
+
+// demoStepTimeout is what the demo sets ui.StepTimeout to, so the timeout path
+// is visible without making the run drag.
+const demoStepTimeout = 10 * time.Second
+
+// demoSpinnerHold keeps each spinner up for two seconds.
+const demoSpinnerHold = 2 * time.Second
+
+// streamer returns a step that holds the loader for demoStepHold, writing its
+// lines spread evenly across that window so the live tail keeps moving.
+func streamer(lines ...string) func(context.Context, io.Writer) error {
 	return func(ctx context.Context, log io.Writer) error {
+		gap := demoStepHold / time.Duration(len(lines)+1)
 		for _, l := range lines {
 			if err := sleepCtx(ctx, gap); err != nil {
 				return err
@@ -159,53 +177,53 @@ func streamer(gap time.Duration, lines ...string) func(context.Context, io.Write
 
 func demoSteps() []ui.Step {
 	return []ui.Step{
-		{Name: "Installing Git", Run: streamer(180*time.Millisecond,
+		{Name: "Installing Git", Run: streamer(
 			"apt-get install -y git",
 			"Reading package lists...",
 			"Setting up git (1:2.43.0-1ubuntu7)",
 			"git version 2.43.0",
 		)},
-		{Name: "Installing Go 1.25", Run: streamer(200*time.Millisecond,
+		{Name: "Installing Go 1.25", Run: streamer(
 			"mise use -g go@1.25",
 			"downloading go1.25.0.linux-arm64.tar.gz",
 			"verifying checksum",
 			"extracting to ~/.local/share/mise/installs/go/1.25.0",
 			"go version go1.25.0 linux/arm64",
 		)},
-		{Name: "Installing herdr", Run: streamer(160*time.Millisecond,
+		{Name: "Installing herdr", Run: streamer(
 			"curl -fsSL https://herdr.dev/install.sh | sh",
 			"installing to /usr/local/bin/herdr",
 			"herdr 0.9.2",
 		)},
-		{Name: "Installing claude", Run: streamer(170*time.Millisecond,
+		{Name: "Installing claude", Run: streamer(
 			"npm install -g @anthropic-ai/claude-code",
 			"added 1 package in 3s",
+			"claude 2.1.260",
 		)},
-		{Name: "Installing codex", Run: func(ctx context.Context, log io.Writer) error {
-			// A carriage return redraw, the way npm actually reports progress.
-			for i := 10; i <= 60; i += 10 {
-				if err := sleepCtx(ctx, 120*time.Millisecond); err != nil {
+		{Name: "Installing codex", Run: streamer(
+			"npm install -g @openai/codex",
+			"added 1 package in 4s",
+			"codex 0.149.1",
+		)},
+		{Name: "Writing systemd units", Run: streamer(
+			"agents-bot.service",
+			"herdr.service",
+			"systemctl --user daemon-reload",
+		)},
+		// Deliberately outlasts ui.StepTimeout, so the demo shows what a step
+		// that never finishes looks like. It reports progress with carriage
+		// returns, the way git actually does, which the live tail collapses to
+		// a single updating line.
+		{Name: "Cloning the repo", Run: func(ctx context.Context, log io.Writer) error {
+			fmt.Fprintln(log, "git clone --filter=blob:none git@github.com:Achno2k/agents-cli")
+			for pct := 0; ; pct = (pct + 3) % 100 {
+				if err := sleepCtx(ctx, 200*time.Millisecond); err != nil {
 					return err
 				}
-				fmt.Fprintf(log, "fetch https://registry.npmjs.org/codex %d%%\r", i)
+				fmt.Fprintf(log, "Receiving objects: %2d%% (of 41243), 12.40 MiB | 2.1 MiB/s\r", pct)
 			}
-			for _, l := range []string{
-				"",
-				"npm ERR! code EACCES",
-				"npm ERR! syscall mkdir",
-				"npm ERR! path /usr/lib/node_modules/codex",
-				"npm ERR! errno -13",
-			} {
-				if err := sleepCtx(ctx, 150*time.Millisecond); err != nil {
-					return err
-				}
-				fmt.Fprintln(log, l)
-			}
-			return errors.New("npm install codex: exit status 243")
 		}},
-		{Name: "Writing systemd units", Run: streamer(150*time.Millisecond, "agents-bot.service", "herdr.service")},
-		{Name: "Cloning the repo", Run: streamer(150*time.Millisecond, "git clone --filter=blob:none")},
-		{Name: "Starting herdr", Run: streamer(150*time.Millisecond, "systemctl --user start herdr")},
+		{Name: "Starting herdr", Run: streamer("systemctl --user start herdr")},
 	}
 }
 

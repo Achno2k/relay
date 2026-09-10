@@ -19,11 +19,21 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// StepTimeout bounds how long a single step in RunSteps may run. Zero, the
+// default, means no limit. It is a package variable rather than an argument
+// because the signatures in this file are a fixed contract; callers set it
+// once before the run.
+//
+// When it fires, the step is marked failed and reports "timed out after <d>",
+// which is also written into that step's log so it shows in the failure tail.
+var StepTimeout time.Duration
 
 // Step is one unit of work shown as "[n/N] <Name>" with a live status glyph.
 type Step struct {

@@ -255,7 +255,8 @@ func printLogTail(w io.Writer, lines []string) {
 }
 
 // runStep executes one step, turning a panic into an error so a bad step
-// cannot take the whole run down mid-render.
+// cannot take the whole run down mid-render, and applying StepTimeout when the
+// caller has set one.
 func runStep(ctx context.Context, s Step, log io.Writer) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -265,7 +266,32 @@ func runStep(ctx context.Context, s Step, log io.Writer) (err error) {
 	if s.Run == nil {
 		return nil
 	}
-	return s.Run(ctx, log)
+
+	timeout := StepTimeout
+	if timeout <= 0 {
+		return s.Run(ctx, log)
+	}
+
+	stepCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	err = s.Run(stepCtx, log)
+
+	// A step stopped by our own deadline reports the deadline, whatever it
+	// happened to return on the way out, including nil. A step stopped because
+	// the caller's context ended is not a timeout, so leave that error alone.
+	if ctx.Err() == nil && stepCtx.Err() == context.DeadlineExceeded {
+		return timedOut(timeout, log)
+	}
+	return err
+}
+
+// timedOut builds the deadline error and leaves a copy in the step's log, so
+// the reason appears in the failure tail on screen rather than only in the
+// error the caller gets back.
+func timedOut(d time.Duration, log io.Writer) error {
+	err := fmt.Errorf("timed out after %s", d)
+	fmt.Fprintln(log, err.Error())
+	return err
 }
 
 // stepsModel is the animated (tty) renderer for RunSteps.

@@ -112,20 +112,35 @@ func isTTY(w io.Writer) bool {
 
 // interactive reports whether we can drive an animated UI: stdout has to be a
 // terminal we may redraw, stdin has to be readable by a human, and the user
-// must not have asked for plain output. NO_COLOR counts as asking for plain
-// output, so it drops animation too, not just colour. Everything else gets
-// static lines and huh's numbered stdin prompts.
+// must not have asked for plain output with AGENTS_UI_PLAIN or a dumb TERM.
+// Everything else gets static lines and huh's numbered stdin prompts.
+//
+// NO_COLOR deliberately plays no part here. It asks for no colour, not for no
+// motion. Routing it through colorEnabled meant anyone with NO_COLOR in their
+// profile lost the loader entirely, which is how this function used to answer
+// "no animation" in a perfectly capable terminal.
 func interactive() bool {
-	if os.Getenv("AGENTS_UI_PLAIN") == "1" {
-		return false
-	}
-	if t := os.Getenv("TERM"); t == "" || t == "dumb" {
+	if !envAllowsAnimation() {
 		return false
 	}
 	outMu.Lock()
 	w := stdout
 	outMu.Unlock()
-	return colorEnabled(w) && isTTY(os.Stdin)
+	return isTTY(w) && isTTY(os.Stdin)
+}
+
+// envAllowsAnimation is the environment half of interactive(), split out so the
+// rules can be tested without a pty. It consults AGENTS_UI_PLAIN and TERM, and
+// nothing else: NO_COLOR governs colour, not motion.
+func envAllowsAnimation() bool {
+	if os.Getenv("AGENTS_UI_PLAIN") == "1" {
+		return false
+	}
+	switch os.Getenv("TERM") {
+	case "", "dumb":
+		return false
+	}
+	return true
 }
 
 // termWidth is the usable width, with a sane default off a terminal.

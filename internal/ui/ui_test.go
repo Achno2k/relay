@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // badgeIndex is the column the bracketed status badge starts at.
@@ -413,5 +415,160 @@ func TestTextHelpersAreUnstyledOffATerminal(t *testing.T) {
 	}, "\n")
 	if buf.String() != want {
 		t.Fatalf("output =\n%q\nwant\n%q", buf.String(), want)
+	}
+}
+
+// --- environment gating ---
+
+// NO_COLOR asks for no colour, not for no motion. Coupling the two is what
+// silently removed the loader for anyone who sets it in their profile.
+func TestNoColorDropsColourButNotAnimation(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("AGENTS_UI_PLAIN", "")
+
+	t.Setenv("NO_COLOR", "1")
+	if !envAllowsAnimation() {
+		t.Fatal("NO_COLOR must not disable the animation")
+	}
+	if colorEnabled(os.Stdout) {
+		t.Fatal("NO_COLOR must still disable colour")
+	}
+
+	os.Unsetenv("NO_COLOR")
+	if !envAllowsAnimation() {
+		t.Fatal("a plain terminal should allow animation")
+	}
+}
+
+func TestEnvAllowsAnimation(t *testing.T) {
+	cases := []struct {
+		name  string
+		term  string
+		plain string
+		want  bool
+	}{
+		{"normal terminal", "xterm-256color", "", true},
+		{"screen", "screen-256color", "", true},
+		{"dumb terminal", "dumb", "", false},
+		{"no TERM at all", "", "", false},
+		{"user asked for plain", "xterm-256color", "1", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TERM", tc.term)
+			t.Setenv("AGENTS_UI_PLAIN", tc.plain)
+			if got := envAllowsAnimation(); got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// --- StepTimeout ---
+
+func TestStepTimeoutIsOffByDefault(t *testing.T) {
+	if StepTimeout != 0 {
+		t.Fatalf("StepTimeout defaults to %v, want 0", StepTimeout)
+	}
+}
+
+func TestStepTimeoutFailsTheStepAndSkipsTheRest(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	prev := StepTimeout
+	StepTimeout = 60 * time.Millisecond
+	defer func() { StepTimeout = prev }()
+
+	ran := false
+	err := RunSteps(context.Background(), "", []Step{
+		{Name: "Quick", Run: func(context.Context, io.Writer) error { return nil }},
+		{Name: "Hangs", Run: func(ctx context.Context, log io.Writer) error {
+			fmt.Fprintln(log, "still working")
+			<-ctx.Done() // a well behaved step notices the deadline
+			return ctx.Err()
+		}},
+		{Name: "Never", Run: func(context.Context, io.Writer) error {
+			ran = true
+			return nil
+		}},
+	})
+
+	if err == nil || err.Error() != "timed out after 60ms" {
+		t.Fatalf("err = %v, want \"timed out after 60ms\"", err)
+	}
+	if ran {
+		t.Fatal("a step after the timeout must not run")
+	}
+
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if !strings.HasSuffix(lines[0], "[✓]") {
+		t.Fatalf("step 1: %q", lines[0])
+	}
+	if !strings.HasSuffix(lines[1], "[☠]") {
+		t.Fatalf("a timed out step should render as failed: %q", lines[1])
+	}
+	if !strings.HasSuffix(lines[2], "[ ]") {
+		t.Fatalf("step 3 should be skipped: %q", lines[2])
+	}
+	if !strings.Contains(buf.String(), "  timed out after 60ms") {
+		t.Fatalf("the reason should reach the failure tail:\n%s", buf.String())
+	}
+}
+
+// A step that ignores its context and returns success after the deadline is
+// still a timeout: we promised the caller a bound, so we report the bound.
+func TestStepTimeoutBeatsALateSuccess(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	prev := StepTimeout
+	StepTimeout = 40 * time.Millisecond
+	defer func() { StepTimeout = prev }()
+
+	err := runStep(context.Background(), Step{
+		Name: "Stubborn",
+		Run: func(context.Context, io.Writer) error {
+			time.Sleep(120 * time.Millisecond)
+			return nil
+		},
+	}, io.Discard)
+
+	if err == nil || !strings.Contains(err.Error(), "timed out after 40ms") {
+		t.Fatalf("err = %v, want a timeout", err)
+	}
+}
+
+func TestStepTimeoutLeavesAFastStepAlone(t *testing.T) {
+	prev := StepTimeout
+	StepTimeout = time.Second
+	defer func() { StepTimeout = prev }()
+
+	if err := runStep(context.Background(), Step{
+		Name: "Quick",
+		Run:  func(context.Context, io.Writer) error { return nil },
+	}, io.Discard); err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+}
+
+// Cancelling the caller's context is not a timeout, so the step's own error
+// has to survive.
+func TestCancelledParentIsNotReportedAsATimeout(t *testing.T) {
+	prev := StepTimeout
+	StepTimeout = 10 * time.Second
+	defer func() { StepTimeout = prev }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := runStep(ctx, Step{
+		Name: "Interrupted",
+		Run:  func(ctx context.Context, _ io.Writer) error { return ctx.Err() },
+	}, io.Discard)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
 	}
 }
