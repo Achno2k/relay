@@ -82,7 +82,9 @@ func runInit(ctx context.Context, skipSlack bool) error {
 	// 3. which harnesses.
 	ui.Title("Harnesses")
 	known := bootstrap.KnownHarnesses()
-	picked, err := ui.MultiSelect("Which harnesses should this box run?", known, allIndexes(known))
+	// Nothing preselected: an accidental Enter must not install every harness.
+	ui.Muted("space toggles, enter confirms")
+	picked, err := ui.MultiSelect("Which harnesses should this box run?", known, nil)
 	if err != nil {
 		return err
 	}
@@ -260,13 +262,6 @@ func initSummary(ctx context.Context, runner sshx.Runner, cfg config.Config, rep
 	}
 }
 
-func allIndexes(s []string) []int {
-	out := make([]int, len(s))
-	for i := range s {
-		out[i] = i
-	}
-	return out
-}
 
 func pick(all []string, idx []int) []string {
 	out := make([]string, 0, len(idx))

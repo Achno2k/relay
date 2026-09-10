@@ -14,7 +14,7 @@ func (Codex) IsInstalledCmd() string { return `command -v codex >/dev/null 2>&1`
 
 // LoginCmd is the interactive login. It needs a tty: run it through
 // sshx.Interactive so the user sees the URL and can paste the code back.
-func (Codex) LoginCmd() string { return `codex login` }
+func (Codex) LoginCmd() string { return `codex login --device-auth` }
 
 // IsLoggedInCmd exits 0 when stored credentials are valid.
 func (Codex) IsLoggedInCmd() string { return `codex login status >/dev/null 2>&1` }
