@@ -271,3 +271,11 @@ func pickerHeight(n int) int {
 	}
 	return n + 2 // title + padding
 }
+
+// Phase renders "[loader] title" that keeps animating until fn returns, then
+// flips to [✓] or [☠]. Everything rendered inside fn (nested Phase, RunSteps,
+// RunChecks, Spinner, text helpers) is indented one level under the title.
+// Phases nest. On error the title flips to [☠] and the error is returned.
+func Phase(ctx context.Context, title string, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
