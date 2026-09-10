@@ -5,6 +5,8 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/BurntSushi/toml"
 	"io"
 	"strings"
 	"text/template"
@@ -119,4 +121,27 @@ func run(ctx context.Context, r sshx.Runner, script, what string) error {
 // shellQuote wraps s in single quotes so it survives bash intact.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// SyncConfig writes the parts of the laptop config the box needs to
+// ~/.agents/config.toml on the box: harnesses, repos, work dir, slack and
+// session policy. AWS and ssh details are blanked so the box never tries to
+// proxy commands back over ssh.
+func SyncConfig(ctx context.Context, r sshx.Runner, home string, cfg config.Config) error {
+	boxCfg := cfg
+	boxCfg.AWS = config.AWS{}
+	boxCfg.Box = config.Box{User: cfg.Box.User, WorkDir: cfg.Box.WorkDir}
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(boxCfg); err != nil {
+		return err
+	}
+	path := home + "/.agents/config.toml"
+	script := "set -e\n" +
+		"umask 077\n" +
+		"mkdir -p " + shellQuote(home+"/.agents") + "\n" +
+		"cat > " + shellQuote(path) + " <<'AGENTS_CONFIG_EOF'\n" +
+		buf.String() +
+		"AGENTS_CONFIG_EOF\n" +
+		"chmod 0600 " + shellQuote(path) + "\n"
+	return run(ctx, r, script, "write config.toml")
 }

@@ -96,7 +96,7 @@ func init() {
 // envRun proxies to the box when this is the laptop, otherwise resolves the
 // repo directory and runs fn locally.
 func envRun(ctx context.Context, repoArg string, fn func(repo, dir string) error) error {
-	if os.Getenv("AGENTS_ON_BOX") != "1" {
+	if !config.OnBox() {
 		return envProxyToBox(ctx)
 	}
 	repo, dir, err := envResolveRepo(repoArg)

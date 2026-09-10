@@ -36,7 +36,7 @@ func botRun(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if os.Getenv("AGENTS_ON_BOX") != "1" {
+	if !config.OnBox() {
 		return botProxyToBox(ctx)
 	}
 

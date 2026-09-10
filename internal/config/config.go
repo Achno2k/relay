@@ -96,3 +96,14 @@ func Save(c Config) error {
 	defer f.Close()
 	return toml.NewEncoder(f).Encode(c)
 }
+
+// OnBox reports whether this binary is running on the EC2 box rather than a
+// laptop. bootstrap sets AGENTS_ON_BOX=1 in the shell profile and drops a
+// marker file; the marker covers non-login shells such as `ssh host cmd`.
+func OnBox() bool {
+	if os.Getenv("AGENTS_ON_BOX") == "1" {
+		return true
+	}
+	_, err := os.Stat(filepath.Join(Dir(), "on-box"))
+	return err == nil
+}

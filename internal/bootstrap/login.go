@@ -92,10 +92,10 @@ func KnownHarnesses() []string {
 // `ssh host bash -s` gets a non-login shell, so the mise shims are not on PATH
 // unless we put them there.
 func loginShell(cmd string) string {
-	return `export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" + cmd + "\n"
+	return `export AGENTS_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" + cmd + "\n"
 }
 
 // InteractiveCmd wraps a command for sshx.Interactive with the same PATH.
 func InteractiveCmd(cmd string) string {
-	return `export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"; ` + cmd
+	return `export AGENTS_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"; ` + cmd
 }

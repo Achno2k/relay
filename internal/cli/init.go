@@ -148,6 +148,10 @@ func runInit(ctx context.Context, skipSlack, fresh bool) error {
 		return err
 	}
 
+	if err := bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg); err != nil {
+		return err
+	}
+
 	// 7. environment plan. It needs harness auth and runs on the box.
 	if repo != "" {
 		ui.Title("Environment")
@@ -164,6 +168,9 @@ func runInit(ctx context.Context, skipSlack, fresh bool) error {
 	}
 
 	// 9. summary.
+	if err := bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg); err != nil {
+		return err
+	}
 	initSummary(ctx, runner, cfg, repo)
 	return nil
 }
@@ -378,4 +385,12 @@ func pick(all []string, idx []int) []string {
 		}
 	}
 	return out
+}
+
+// boxHome is the box user's home directory.
+func boxHome(cfg config.Config) string {
+	if cfg.Box.User == "" || cfg.Box.User == "root" {
+		return "/root"
+	}
+	return "/home/" + cfg.Box.User
 }

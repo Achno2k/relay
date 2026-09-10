@@ -184,6 +184,7 @@ bs_codex() { npm_global @openai/codex codex; }
 bs_agents_home() {
     mkdir -p "$AGENTS_DIR" "$AGENTS_DIR/plans"
     chmod 0700 "$AGENTS_DIR"
+    touch "$AGENTS_DIR/on-box"
 
     local line_env='export AGENTS_ON_BOX=1'
     local line_path="export PATH=\"\$HOME/.local/share/mise/shims:\$HOME/.local/bin:/usr/local/bin:\$PATH\""

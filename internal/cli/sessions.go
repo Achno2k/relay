@@ -94,7 +94,7 @@ func init() {
 // sessionsRun proxies to the box when this is the laptop, otherwise opens the
 // store and hands it to fn.
 func sessionsRun(ctx context.Context, fn func(context.Context, state.Store) error) error {
-	if os.Getenv("AGENTS_ON_BOX") != "1" {
+	if !config.OnBox() {
 		return sessionsProxyToBox(ctx)
 	}
 	st, err := state.Open(state.DefaultPath())
