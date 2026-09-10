@@ -83,13 +83,32 @@ func WriteSlackEnv(ctx context.Context, r sshx.Runner, home, botToken, appToken 
 	return run(ctx, r, script, "write slack.env")
 }
 
-// EnableBot enables and starts the Slack bot unit.
+// EnableBot enables and starts the Slack bot unit, then waits for it to settle.
+// The unit restarts on failure, so a bad token shows up as "activating" forever
+// rather than as a non-zero exit; this polls until systemd calls it either
+// active or failed and, when it is not active, puts the journal tail in the step
+// log so the failure line the user sees says why.
 func EnableBot(ctx context.Context, r sshx.Runner, log io.Writer) error {
 	script := "set -e\n" +
 		"sudo -n systemctl enable --now agents-bot.service\n" +
-		"sleep 1\n" +
-		"systemctl is-active agents-bot.service\n"
-	return r.Run(ctx, script, log, log)
+		"for _ in $(seq 1 10); do\n" +
+		"  state=$(systemctl is-active agents-bot.service || true)\n" +
+		"  case \"$state\" in\n" +
+		"    active|failed) break ;;\n" +
+		"  esac\n" +
+		"  sleep 1\n" +
+		"done\n" +
+		"state=$(systemctl is-active agents-bot.service || true)\n" +
+		"echo \"agents-bot.service: $state\"\n" +
+		"if [ \"$state\" != active ]; then\n" +
+		"  echo '--- journalctl -u agents-bot -n 20 ---'\n" +
+		"  sudo -n journalctl -u agents-bot -n 20 --no-pager 2>&1 || true\n" +
+		"  exit 1\n" +
+		"fi\n"
+	if err := r.Run(ctx, script, log, log); err != nil {
+		return fmt.Errorf("agents-bot.service did not come up: %w", err)
+	}
+	return nil
 }
 
 // BotStatus returns systemctl's one-word state for the bot unit, e.g. "active"

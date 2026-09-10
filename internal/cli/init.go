@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -294,7 +295,8 @@ func initGitHubToken(ctx context.Context, runner sshx.Runner) error {
 	return nil
 }
 
-// initSlack collects the two socket-mode tokens and starts the bot unit.
+// initSlack collects the two socket-mode tokens, proves they work before
+// anything is written to the box, takes the user allowlist, and starts the bot.
 func initSlack(ctx context.Context, runner sshx.Runner, cfg config.Config) error {
 	ui.Title("Slack")
 	want, err := ui.Confirm("Set up the Slack bot now?", false)
@@ -305,24 +307,32 @@ func initSlack(ctx context.Context, runner sshx.Runner, cfg config.Config) error
 		return err
 	}
 
-	botToken, err := ui.Input("Bot token", "xoxb-...")
+	botToken, appToken, err := askSlackTokens(ctx)
 	if err != nil {
 		return err
-	}
-	appToken, err := ui.Input("App-level token", "xapp-...")
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(botToken) == "" || strings.TrimSpace(appToken) == "" {
-		return errors.New("both a bot token and an app-level token are required")
 	}
 
-	home := "/home/" + cfg.Box.User
+	allowed, err := askSlackAllowlist()
+	if err != nil {
+		return err
+	}
+	cfg.Slack.AllowedUserIDs = allowed
+	if err := config.Save(cfg); err != nil {
+		return err
+	}
+
+	home := boxHome(cfg)
 	return ui.RunSteps(ctx, "Starting the bot", []ui.Step{
 		{
 			Name: "Writing " + bootstrap.SlackEnvPath(home),
 			Run: func(ctx context.Context, _ io.Writer) error {
 				return bootstrap.WriteSlackEnv(ctx, runner, home, botToken, appToken)
+			},
+		},
+		{
+			Name: "Syncing config to the box",
+			Run: func(ctx context.Context, _ io.Writer) error {
+				return bootstrap.SyncConfig(ctx, runner, home, cfg)
 			},
 		},
 		{
@@ -332,6 +342,69 @@ func initSlack(ctx context.Context, runner sshx.Runner, cfg config.Config) error
 			},
 		},
 	})
+}
+
+// askSlackTokens reads both tokens and checks them against Slack from the
+// laptop. A token Slack rejects here would otherwise reach the box and leave
+// systemd restart-looping on invalid_auth, which says nothing useful.
+func askSlackTokens(ctx context.Context) (botToken, appToken string, err error) {
+	const attempts = 3
+	for attempt := 1; ; attempt++ {
+		botToken, err = ui.Input("Bot token", "xoxb-...")
+		if err != nil {
+			return "", "", err
+		}
+		appToken, err = ui.Input("App-level token", "xapp-...")
+		if err != nil {
+			return "", "", err
+		}
+		if strings.TrimSpace(botToken) == "" || strings.TrimSpace(appToken) == "" {
+			ui.Fail("Both a bot token and an app-level token are required.")
+			if attempt == attempts {
+				return "", "", errors.New("no usable Slack tokens after " + strconv.Itoa(attempts) + " attempts")
+			}
+			continue
+		}
+
+		var team, user string
+		checkErr := ui.Spinner(ctx, "Checking tokens", func(ctx context.Context) error {
+			var err error
+			team, user, err = bootstrap.CheckSlackTokens(ctx, botToken, appToken)
+			return err
+		})
+		if checkErr == nil {
+			ui.Success("Signed in as " + user + " in " + team)
+			return botToken, appToken, nil
+		}
+
+		ui.Fail(checkErr.Error())
+		var tokErr *bootstrap.SlackTokenError
+		if errors.As(checkErr, &tokErr) {
+			ui.Muted(tokErr.Hint)
+		} else {
+			ui.Muted(bootstrap.BotTokenHint)
+			ui.Muted(bootstrap.AppTokenHint)
+		}
+		if attempt == attempts {
+			return "", "", checkErr
+		}
+	}
+}
+
+// askSlackAllowlist reads the Slack member IDs allowed to drive the bot. The
+// bot ignores everyone else, so an empty list would make it useless.
+func askSlackAllowlist() ([]string, error) {
+	ui.Muted("Slack profile → three dots → Copy member ID")
+	for {
+		raw, err := ui.Input("Slack member IDs allowed to use the bot (comma separated)", "U012ABCDEF, U345GHIJKL")
+		if err != nil {
+			return nil, err
+		}
+		if ids := bootstrap.ParseUserIDs(raw); len(ids) > 0 {
+			return ids, nil
+		}
+		ui.Fail("At least one member ID is required; the bot answers nobody else.")
+	}
 }
 
 // initSummary prints the handful of lines the user actually needs afterwards.
