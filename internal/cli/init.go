@@ -191,15 +191,8 @@ func initRepo(ctx context.Context, runner sshx.Runner, cfg *config.Config) (stri
 	}
 
 	if !bootstrap.GitHubReady(ctx, runner) {
-		ui.Warn("gh is not signed in on the box; a private repo will fail to clone.")
-		yes, err := ui.Confirm("Sign in to GitHub on the box now?", true)
-		if err != nil {
+		if err := initGitHubAuth(ctx, runner); err != nil {
 			return "", err
-		}
-		if yes {
-			if err := bootstrap.GitHubLogin(ctx, runner); err != nil {
-				return "", fmt.Errorf("gh auth login: %w", err)
-			}
 		}
 	}
 
@@ -221,6 +214,77 @@ func initRepo(ctx context.Context, runner sshx.Runner, cfg *config.Config) (stri
 		return "", err
 	}
 	return origin.Name, nil
+}
+
+// initGitHubAuth gives the box credentials for GitHub. A fine-grained token is
+// the default because a browser login hands the box the user's whole account.
+func initGitHubAuth(ctx context.Context, runner sshx.Runner) error {
+	ui.Warn("gh is not signed in on the box; a private repo will fail to clone.")
+
+	const (
+		optToken = iota
+		optBrowser
+		optSkip
+	)
+	choice, err := ui.Select("How should the box authenticate to GitHub?", []string{
+		"Fine-grained token (recommended)",
+		"Browser login (full account access)",
+		"Skip (public repos only)",
+	})
+	if err != nil {
+		return err
+	}
+
+	switch choice {
+	case optToken:
+		return initGitHubToken(ctx, runner)
+	case optBrowser:
+		if err := bootstrap.GitHubLogin(ctx, runner); err != nil {
+			return fmt.Errorf("gh auth login: %w", err)
+		}
+		return nil
+	default:
+		ui.Warn("Skipped. The box can only clone public repos until you run `gh auth login` on it.")
+		return nil
+	}
+}
+
+// initGitHubToken walks the user through creating a fine-grained token and
+// hands it to the box. One retry, since a mistyped or under-scoped token is the
+// likely failure.
+func initGitHubToken(ctx context.Context, runner sshx.Runner) error {
+	ui.Info("Create a fine-grained personal access token here:")
+	ui.Code(bootstrap.TokenURL)
+	ui.Info("Give it:")
+	for _, scope := range bootstrap.TokenScopes {
+		ui.Muted("  " + scope)
+	}
+
+	for attempt := 0; attempt < 2; attempt++ {
+		token, err := ui.Secret("Paste the token")
+		if err != nil {
+			return err
+		}
+		loginErr := bootstrap.GitHubTokenLogin(ctx, runner, token)
+		if loginErr == nil {
+			ui.Success("GitHub token accepted on the box")
+			return nil
+		}
+		ui.Fail("The box rejected that token: " + loginErr.Error())
+		if attempt == 1 {
+			return fmt.Errorf("gh auth login --with-token: %w", loginErr)
+		}
+
+		again, err := ui.Confirm("Try another token?", true)
+		if err != nil {
+			return err
+		}
+		if !again {
+			ui.Warn("Continuing without GitHub credentials; only public repos will clone.")
+			return nil
+		}
+	}
+	return nil
 }
 
 // initSlack collects the two socket-mode tokens and starts the bot unit.

@@ -136,3 +136,62 @@ func TestSlackEnvPath(t *testing.T) {
 		t.Errorf("SlackEnvPath = %q, want %q", got, want)
 	}
 }
+
+// The token must reach the box inside the heredoc and nowhere else: never as an
+// argument, so it stays out of the process list and shell history.
+func TestGitHubTokenScriptKeepsTokenOffTheCommandLine(t *testing.T) {
+	const token = "github_pat_11ABCDEF0123456789_secretvalue"
+
+	script, err := githubTokenScript(token)
+	if err != nil {
+		t.Fatalf("githubTokenScript: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimRight(script, "\n"), "\n")
+	openAt, closeAt := -1, -1
+	for i, line := range lines {
+		switch {
+		case strings.HasSuffix(line, "<<'"+ghTokenDelim+"'"):
+			openAt = i
+		case line == ghTokenDelim:
+			closeAt = i
+		}
+	}
+	if openAt < 0 || closeAt < 0 {
+		t.Fatalf("script has no %s heredoc:\n%s", ghTokenDelim, script)
+	}
+	if closeAt != openAt+2 {
+		t.Fatalf("heredoc body is not exactly one line (open %d, close %d):\n%s", openAt, closeAt, script)
+	}
+	if lines[openAt+1] != token {
+		t.Errorf("heredoc body = %q, want the token", lines[openAt+1])
+	}
+	for i, line := range lines {
+		if i == openAt+1 {
+			continue
+		}
+		if strings.Contains(line, token) {
+			t.Errorf("line %d puts the token on a command line: %q", i, line)
+		}
+	}
+	if strings.Contains(lines[openAt], token) {
+		t.Errorf("the gh invocation itself carries the token: %q", lines[openAt])
+	}
+
+	for _, want := range []string{"gh auth login --with-token", "gh auth setup-git", "gh auth status"} {
+		if !strings.Contains(script, want) {
+			t.Errorf("script missing %q", want)
+		}
+	}
+}
+
+func TestGitHubTokenScriptRejectsBadTokens(t *testing.T) {
+	for _, bad := range []string{"", "   ", "two\nlines", "carriage\rreturn"} {
+		if _, err := githubTokenScript(bad); err == nil {
+			t.Errorf("githubTokenScript(%q) accepted an invalid token", bad)
+		}
+	}
+	if _, err := githubTokenScript("  padded_token  "); err != nil {
+		t.Errorf("githubTokenScript trimmed token: %v", err)
+	}
+}

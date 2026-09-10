@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -90,9 +91,56 @@ func GitHubReady(ctx context.Context, r sshx.Runner) bool {
 }
 
 // GitHubLogin runs `gh auth login` on the box against the user's tty and wires
-// git to use gh's credentials.
+// git to use gh's credentials. This grants the box the user's whole GitHub
+// account; prefer GitHubTokenLogin with a fine-grained token.
 func GitHubLogin(ctx context.Context, r sshx.Runner) error {
 	return r.Interactive(ctx, InteractiveCmd("gh auth login && gh auth setup-git"))
+}
+
+// TokenURL is where a fine-grained personal access token is created.
+const TokenURL = "https://github.com/settings/personal-access-tokens/new"
+
+// TokenScopes is what such a token has to grant for the box to clone, push and
+// open pull requests.
+var TokenScopes = []string{
+	"Repository access: all repositories, or just the ones the box will work on",
+	"Permissions → Contents: read and write",
+	"Permissions → Pull requests: read and write",
+	"Permissions → Metadata: read",
+}
+
+// ghTokenDelim ends the heredoc that carries the token to the box.
+const ghTokenDelim = "AGENTS_GH_TOKEN_EOF"
+
+// GitHubTokenLogin authenticates gh on the box with a fine-grained personal
+// access token and wires git to use it. The token travels inside a quoted
+// heredoc, never as an argument, so it stays out of the box's process list and
+// out of any shell history.
+func GitHubTokenLogin(ctx context.Context, r sshx.Runner, token string) error {
+	script, err := githubTokenScript(token)
+	if err != nil {
+		return err
+	}
+	return run(ctx, r, script, "gh auth login --with-token")
+}
+
+// githubTokenScript builds that script. Split out so a test can prove the token
+// only ever appears on its own line inside the heredoc.
+func githubTokenScript(token string) (string, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return "", errors.New("empty GitHub token")
+	}
+	if strings.ContainsAny(token, "\n\r") {
+		return "", errors.New("GitHub token must be a single line")
+	}
+	return "set -e\n" +
+		`export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" +
+		"gh auth login --with-token <<'" + ghTokenDelim + "'\n" +
+		token + "\n" +
+		ghTokenDelim + "\n" +
+		"gh auth setup-git\n" +
+		"gh auth status\n", nil
 }
 
 func gitOut(ctx context.Context, dir string, args ...string) (string, error) {
