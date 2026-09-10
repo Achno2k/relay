@@ -190,3 +190,15 @@ func LooksLikeGitAuthFailure(out string) bool {
 	}
 	return false
 }
+
+// ClassicTokenURL creates a classic personal access token. Classic tokens are
+// account wide, which is the only way to reach repos in orgs that do not issue
+// fine-grained tokens, or to open PRs on repos the user does not own.
+const ClassicTokenURL = "https://github.com/settings/tokens/new?scopes=repo,read:org,workflow&description=agents-cli"
+
+// ClassicTokenScopes are the scopes a classic token needs.
+var ClassicTokenScopes = []string{
+	"repo            clone, push, open PRs on any repo you can access",
+	"read:org        lets gh list org repos",
+	"workflow        only if the agent edits .github/workflows",
+}

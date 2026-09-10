@@ -260,7 +260,7 @@ func initGitHubAuth(ctx context.Context, runner sshx.Runner) error {
 		optSkip
 	)
 	choice, err := ui.Select("How should the box authenticate to GitHub?", []string{
-		"Fine-grained token (recommended)",
+		"Personal access token, fine-grained or classic (recommended)",
 		"Browser login (full account access)",
 		"Skip (public repos only)",
 	})
@@ -286,12 +286,17 @@ func initGitHubAuth(ctx context.Context, runner sshx.Runner) error {
 // hands it to the box. One retry, since a mistyped or under-scoped token is the
 // likely failure.
 func initGitHubToken(ctx context.Context, runner sshx.Runner) error {
-	ui.Info("Create a fine-grained personal access token here:")
+	ui.Info("Fine-grained token, scoped to chosen repos of one account:")
 	ui.Code(bootstrap.TokenURL)
-	ui.Info("Give it:")
 	for _, scope := range bootstrap.TokenScopes {
 		ui.Muted("  " + scope)
 	}
+	ui.Info("Classic token, for every repo and org you can reach (ghp_...):")
+	ui.Code(bootstrap.ClassicTokenURL)
+	for _, scope := range bootstrap.ClassicTokenScopes {
+		ui.Muted("  " + scope)
+	}
+	ui.Muted("  Orgs with SAML SSO: click 'Configure SSO' next to the classic token and authorize each org.")
 
 	for attempt := 0; attempt < 2; attempt++ {
 		token, err := ui.Secret("Paste the token")
