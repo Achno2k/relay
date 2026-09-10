@@ -136,3 +136,9 @@ func (o Options) withDefaults() Options {
 	}
 	return o
 }
+
+//go:embed scripts/reset.sh
+var resetScript string
+
+// ResetScript is the bash that undoes everything bootstrap installed.
+func ResetScript() string { return resetScript }
