@@ -29,7 +29,7 @@ func (m *spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.frame++
-		return m, tea.Tick(tickInterval, func(time.Time) tea.Msg { return tickMsg{} })
+		return m, tea.Tick(loaderInterval, func(time.Time) tea.Msg { return tickMsg{} })
 	case spinnerDoneMsg:
 		m.done, m.err = true, msg.err
 		return m, tea.Quit
@@ -40,9 +40,11 @@ func (m *spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *spinnerModel) View() string {
 	if m.done {
 		if m.err != nil {
-			return failStyle().Render(glyphFail) + " " + m.label + "\n"
+			return badgeFail() + " " + m.label + "\n"
 		}
-		return okStyle().Render(glyphOK) + " " + m.label + "\n"
+		return badgeOK() + " " + m.label + "\n"
 	}
-	return m.label + " " + accentStyle().Render(dotFrames[m.frame%len(dotFrames)]) + "\n"
+	// While it runs the label leads and the loader trails, which is the shape
+	// the Spinner contract documents.
+	return m.label + " " + accentStyle().Render(loaderFrames[m.frame%len(loaderFrames)]) + "\n"
 }

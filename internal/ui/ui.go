@@ -112,10 +112,10 @@ func RunChecks(ctx context.Context, title string, checks []Check) (failed int, e
 		}
 		if runErr != nil {
 			failed++
-			line(failStyle().Render(glyphFail) + " " + c.Name + "  " + mutedStyle().Render(runErr.Error()))
+			line(badgeFail() + " " + c.Name + "  " + mutedStyle().Render(runErr.Error()))
 			continue
 		}
-		line(okStyle().Render(glyphOK) + " " + c.Name)
+		line(badgeOK() + " " + c.Name)
 	}
 	return failed, nil
 }
@@ -191,9 +191,9 @@ func Spinner(ctx context.Context, label string, fn func(ctx context.Context) err
 	if !interactive() {
 		err := fn(ctx)
 		if err != nil {
-			line(failStyle().Render(glyphFail) + " " + label)
+			line(badgeFail() + " " + label)
 		} else {
-			line(okStyle().Render(glyphOK) + " " + label)
+			line(badgeOK() + " " + label)
 		}
 		return err
 	}
@@ -207,14 +207,14 @@ func Spinner(ctx context.Context, label string, fn func(ctx context.Context) err
 // Plain text helpers. All write to stdout unless noted.
 func Title(s string) { line("\n" + accentStyle().Bold(true).Render(s)) } // section heading, accent
 func Info(s string)  { line(plainStyle().Render(s)) }
-func Success(s string) { // "✓ s"
-	line(okStyle().Render(glyphOK) + " " + s)
+func Success(s string) { // "[✓] s"
+	line(badgeOK() + " " + s)
 }
-func Warn(s string) { // "! s" amber
-	line(warnStyle().Render(glyphWarn) + " " + s)
+func Warn(s string) { // "[!] s" amber
+	line(badgeWarn() + " " + s)
 }
-func Fail(s string) { // "✗ s" red, stderr
-	errLine(failStyle().Render(glyphFail) + " " + s)
+func Fail(s string) { // "[☠] s" red, stderr
+	errLine(badgeFail() + " " + s)
 }
 func Muted(s string) { line(mutedStyle().Render(s)) } // dim
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/term"
@@ -22,17 +23,49 @@ var (
 	colorMuted  = lipgloss.AdaptiveColor{Light: "#767676", Dark: "#8A8A8A"}
 )
 
-// Glyphs.
+// Status marks. They are always shown inside dim brackets, the way
+// `flutter doctor` reports: the bracket pair holds the column, the mark inside
+// carries the colour.
 const (
-	glyphOK      = "✓"
-	glyphFail    = "✗"
-	glyphWarn    = "!"
-	glyphPending = "·"
-	glyphSkipped = "–"
+	markOK    = "✓"
+	markFail  = "☠"
+	markWarn  = "!"
+	markEmpty = " " // pending, and steps skipped after a failure
 )
 
-// dotFrames is the pulse used for the active step and the spinner.
-var dotFrames = []string{"·", "•", "●", "•"}
+// Rendered badges. Off a terminal these come out as plain "[✓]", "[☠]", "[!]"
+// and "[ ]", which is still readable in a log.
+func badgeOK() string    { return badge(markOK, okStyle()) }
+func badgeFail() string  { return badge(markFail, failStyle()) }
+func badgeWarn() string  { return badge(markWarn, warnStyle()) }
+func badgeEmpty() string { return badge(markEmpty, mutedStyle()) }
+func badgeWidth() int    { return 3 }
+func badgeActive(frame int) string {
+	return badge(loaderFrames[frame%len(loaderFrames)], accentStyle())
+}
+
+// badge wraps one mark in dim brackets.
+func badge(mark string, style lipgloss.Style) string {
+	dim := mutedStyle()
+	return dim.Render("[") + style.Render(mark) + dim.Render("]")
+}
+
+// loaderFrames is the "dots_1" loader from the npm package cli-loaders,
+// copied frame for frame instead of depended on: this is Go, and the whole
+// asset is ten strings and a number.
+//
+//	package  cli-loaders v3.0.0   https://www.npmjs.com/package/cli-loaders
+//	source   https://github.com/cbmongithub/cli-loaders
+//	licence  MIT, so copying the frames with attribution is fine
+//	upstream {speed: 80, keyframes: ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]}
+//
+// Verified against both the ESM and CJS builds in the published tarball, which
+// agree. dots_1 turns out to be the classic braille spinner, so the fallback
+// the brief allowed for and the real thing are the same ten frames either way.
+var loaderFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// loaderInterval is cli-loaders' dots_1 speed of 80ms per frame.
+const loaderInterval = 80 * time.Millisecond
 
 var (
 	outMu    sync.Mutex

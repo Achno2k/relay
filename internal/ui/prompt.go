@@ -33,8 +33,8 @@ func formTheme() *huh.Theme {
 	t.Blurred.NoteTitle = mutedStyle()
 	t.Blurred.Description = mutedStyle()
 
-	t.Focused.ErrorIndicator = failStyle().SetString(" " + glyphFail)
-	t.Focused.ErrorMessage = failStyle().SetString(" " + glyphFail)
+	t.Focused.ErrorIndicator = failStyle().SetString(" " + markFail)
+	t.Focused.ErrorMessage = failStyle().SetString(" " + markFail)
 	t.Blurred.ErrorIndicator = t.Focused.ErrorIndicator
 	t.Blurred.ErrorMessage = t.Focused.ErrorMessage
 
@@ -49,7 +49,7 @@ func formTheme() *huh.Theme {
 	t.Focused.UnselectedOption = plainStyle()
 	t.Blurred.SelectedOption = mutedStyle()
 	t.Blurred.UnselectedOption = mutedStyle()
-	t.Focused.SelectedPrefix = okStyle().SetString(glyphOK + " ")
+	t.Focused.SelectedPrefix = okStyle().SetString(markOK + " ")
 	t.Focused.UnselectedPrefix = renderer.NewStyle().SetString("  ")
 	t.Blurred.SelectedPrefix = t.Focused.SelectedPrefix
 	t.Blurred.UnselectedPrefix = t.Focused.UnselectedPrefix

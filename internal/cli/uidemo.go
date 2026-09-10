@@ -57,6 +57,9 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 	ui.Title("Copyable command")
 	ui.Code("agents attach agents-cli-3")
 
+	ui.Title("Step runner")
+	ui.Muted("the running step streams its last 3 log lines, then collapses them")
+
 	err := ui.RunSteps(ctx, "Bootstrapping the box...", demoSteps())
 	if err != nil {
 		ui.Fail("bootstrap failed: " + err.Error())
@@ -140,35 +143,69 @@ func demoPickers() error {
 	return nil
 }
 
-func demoSteps() []ui.Step {
-	fake := func(d time.Duration, lines ...string) func(context.Context, io.Writer) error {
-		return func(ctx context.Context, log io.Writer) error {
-			for _, l := range lines {
-				fmt.Fprintln(log, l)
-			}
-			return sleepCtx(ctx, d)
-		}
-	}
-	return []ui.Step{
-		{Name: "Installing Git", Run: fake(600*time.Millisecond, "apt-get install -y git", "git version 2.43.0")},
-		{Name: "Installing Go 1.25", Run: fake(900*time.Millisecond, "mise use -g go@1.25")},
-		{Name: "Installing herdr", Run: fake(700 * time.Millisecond)},
-		{Name: "Installing claude", Run: fake(800 * time.Millisecond)},
-		{Name: "Installing codex", Run: func(ctx context.Context, log io.Writer) error {
-			for i := 1; i <= 30; i++ {
-				fmt.Fprintf(log, "npm http fetch GET 200 https://registry.npmjs.org/codex chunk %d\n", i)
-			}
-			fmt.Fprintln(log, "npm ERR! code EACCES")
-			fmt.Fprintln(log, "npm ERR! syscall mkdir")
-			fmt.Fprintln(log, "npm ERR! path /usr/lib/node_modules/codex")
-			if err := sleepCtx(ctx, 900*time.Millisecond); err != nil {
+// streamer returns a step that writes its lines one at a time with a pause
+// between them, so the live tail under the running step has something to show.
+func streamer(gap time.Duration, lines ...string) func(context.Context, io.Writer) error {
+	return func(ctx context.Context, log io.Writer) error {
+		for _, l := range lines {
+			if err := sleepCtx(ctx, gap); err != nil {
 				return err
+			}
+			fmt.Fprintln(log, l)
+		}
+		return sleepCtx(ctx, gap)
+	}
+}
+
+func demoSteps() []ui.Step {
+	return []ui.Step{
+		{Name: "Installing Git", Run: streamer(180*time.Millisecond,
+			"apt-get install -y git",
+			"Reading package lists...",
+			"Setting up git (1:2.43.0-1ubuntu7)",
+			"git version 2.43.0",
+		)},
+		{Name: "Installing Go 1.25", Run: streamer(200*time.Millisecond,
+			"mise use -g go@1.25",
+			"downloading go1.25.0.linux-arm64.tar.gz",
+			"verifying checksum",
+			"extracting to ~/.local/share/mise/installs/go/1.25.0",
+			"go version go1.25.0 linux/arm64",
+		)},
+		{Name: "Installing herdr", Run: streamer(160*time.Millisecond,
+			"curl -fsSL https://herdr.dev/install.sh | sh",
+			"installing to /usr/local/bin/herdr",
+			"herdr 0.9.2",
+		)},
+		{Name: "Installing claude", Run: streamer(170*time.Millisecond,
+			"npm install -g @anthropic-ai/claude-code",
+			"added 1 package in 3s",
+		)},
+		{Name: "Installing codex", Run: func(ctx context.Context, log io.Writer) error {
+			// A carriage return redraw, the way npm actually reports progress.
+			for i := 10; i <= 60; i += 10 {
+				if err := sleepCtx(ctx, 120*time.Millisecond); err != nil {
+					return err
+				}
+				fmt.Fprintf(log, "fetch https://registry.npmjs.org/codex %d%%\r", i)
+			}
+			for _, l := range []string{
+				"",
+				"npm ERR! code EACCES",
+				"npm ERR! syscall mkdir",
+				"npm ERR! path /usr/lib/node_modules/codex",
+				"npm ERR! errno -13",
+			} {
+				if err := sleepCtx(ctx, 150*time.Millisecond); err != nil {
+					return err
+				}
+				fmt.Fprintln(log, l)
 			}
 			return errors.New("npm install codex: exit status 243")
 		}},
-		{Name: "Writing systemd units", Run: fake(400 * time.Millisecond)},
-		{Name: "Cloning the repo", Run: fake(400 * time.Millisecond)},
-		{Name: "Starting herdr", Run: fake(400 * time.Millisecond)},
+		{Name: "Writing systemd units", Run: streamer(150*time.Millisecond, "agents-bot.service", "herdr.service")},
+		{Name: "Cloning the repo", Run: streamer(150*time.Millisecond, "git clone --filter=blob:none")},
+		{Name: "Starting herdr", Run: streamer(150*time.Millisecond, "systemctl --user start herdr")},
 	}
 }
 

@@ -23,8 +23,9 @@ const glyphGap = 2
 // minGlyphCol keeps short runs from collapsing the status column onto the text.
 const minGlyphCol = 32
 
-// tickInterval drives the active-step pulse.
-const tickInterval = 130 * time.Millisecond
+// liveTailLines is how many log lines show under the step that is running.
+// Three is enough to see movement without burying the checklist.
+const liveTailLines = 3
 
 type stepState int
 
@@ -61,19 +62,19 @@ func glyphColumn(names []string) int {
 	return col
 }
 
-// stepGlyph is the status mark. frame only matters for the active step.
+// stepGlyph is the bracketed status badge. frame only matters while the step
+// is running, where it holds the loader.
 func stepGlyph(state stepState, frame int) string {
 	switch state {
 	case stateDone:
-		return okStyle().Render(glyphOK)
+		return badgeOK()
 	case stateFailed:
-		return failStyle().Render(glyphFail)
-	case stateSkipped:
-		return mutedStyle().Render(glyphSkipped)
+		return badgeFail()
 	case stateActive:
-		return accentStyle().Render(dotFrames[frame%len(dotFrames)])
+		return badgeActive(frame)
 	default:
-		return mutedStyle().Render(glyphPending)
+		// Pending and skipped read the same: nothing happened here.
+		return badgeEmpty()
 	}
 }
 
@@ -116,24 +117,126 @@ func (t *tailWriter) Write(p []byte) (int, error) {
 }
 
 func (t *tailWriter) push(s string) {
-	t.lines = append(t.lines, strings.TrimRight(s, "\r"))
+	t.lines = append(t.lines, lastDraw(s))
 	if len(t.lines) > t.n {
 		t.lines = t.lines[len(t.lines)-t.n:]
 	}
 }
 
-// tail returns the buffered lines, including any unterminated last line.
-func (t *tailWriter) tail() []string {
+// lastDraw keeps only what a terminal would still be showing: a carriage
+// return means the writer redrew the line over itself, which is how npm, git
+// and friends render progress.
+func lastDraw(s string) string {
+	if i := strings.LastIndex(s, "\r"); i >= 0 {
+		s = s[i+1:]
+	}
+	return s
+}
+
+// tail returns the whole buffer, including any unterminated last line.
+func (t *tailWriter) tail() []string { return t.lastLines(t.n) }
+
+// lastLines returns up to n buffered lines, oldest first, including the line
+// currently being written. It is what the live tail renders each frame.
+func (t *tailWriter) lastLines(n int) []string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	out := append([]string(nil), t.lines...)
-	if t.part.Len() > 0 {
-		out = append(out, t.part.String())
+	if n <= 0 {
+		return nil
 	}
-	if len(out) > t.n {
-		out = out[len(out)-t.n:]
+	out := append([]string(nil), t.lines...)
+	if part := lastDraw(t.part.String()); part != "" {
+		out = append(out, part)
+	}
+	if len(out) > n {
+		out = out[len(out)-n:]
 	}
 	return out
+}
+
+// renderLogLine is one line of live output: dim, indented two spaces, and cut
+// to the terminal so it can never wrap and break the redraw.
+func renderLogLine(s string, width int) string {
+	max := width - 3
+	if max < 8 {
+		max = 8
+	}
+	return "  " + mutedStyle().Render(truncateWidth(sanitizeLog(s), max))
+}
+
+// sanitizeLog drops the escape sequences and control characters a build tool
+// sprays at a terminal, which would otherwise corrupt the frame.
+func sanitizeLog(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c == 0x1b {
+			i += escapeLen(s[i:])
+			continue
+		}
+		if c == '\t' {
+			b.WriteString("    ")
+			i++
+			continue
+		}
+		if c < 0x20 || c == 0x7f {
+			i++
+			continue
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return strings.TrimRight(b.String(), " ")
+}
+
+// escapeLen is the length of the escape sequence starting at s[0], or 1 when
+// it is a lone ESC.
+func escapeLen(s string) int {
+	if len(s) < 2 {
+		return 1
+	}
+	switch s[1] {
+	case '[': // CSI: parameters, then a final byte in @ to ~
+		for i := 2; i < len(s); i++ {
+			if s[i] >= 0x40 && s[i] <= 0x7e {
+				return i + 1
+			}
+		}
+		return len(s)
+	case ']': // OSC: runs to BEL or ST
+		for i := 2; i < len(s); i++ {
+			if s[i] == 0x07 {
+				return i + 1
+			}
+			if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '\\' {
+				return i + 2
+			}
+		}
+		return len(s)
+	default:
+		return 2
+	}
+}
+
+// truncateWidth cuts s to max display columns, marking the cut with an
+// ellipsis. The rune count bounds the loop so wide characters cost a few
+// extra passes rather than one per character.
+func truncateWidth(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= max {
+		return s
+	}
+	r := []rune(s)
+	if len(r) > max {
+		r = r[:max]
+	}
+	for len(r) > 0 && lipgloss.Width(string(r))+1 > max {
+		r = r[:len(r)-1]
+	}
+	return string(r) + "…"
 }
 
 // printLogTail dumps a failed step's log indented two spaces.
@@ -191,7 +294,7 @@ func (m *stepsModel) Init() tea.Cmd {
 }
 
 func tick() tea.Cmd {
-	return tea.Tick(tickInterval, func(time.Time) tea.Msg { return tickMsg{} })
+	return tea.Tick(loaderInterval, func(time.Time) tea.Msg { return tickMsg{} })
 }
 
 func (m *stepsModel) start(i int) tea.Cmd {
@@ -231,12 +334,23 @@ func (m *stepsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View is the whole checklist. The step that is running carries the tail of
+// its log underneath; every other step carries nothing, so the lines collapse
+// away on their own the moment the step finishes.
 func (m *stepsModel) View() string {
 	var b strings.Builder
 	total := len(m.steps)
+	width := termWidth()
 	for i, s := range m.steps {
 		b.WriteString(renderStepLine(m.col, i+1, total, s.Name, m.states[i], m.frame))
 		b.WriteByte('\n')
+		if m.states[i] != stateActive {
+			continue
+		}
+		for _, l := range m.logs[i].lastLines(liveTailLines) {
+			b.WriteString(renderLogLine(l, width))
+			b.WriteByte('\n')
+		}
 	}
 	return b.String()
 }

@@ -1,3 +1,4 @@
 /agents
 /dist/
 *.db
+/bin/
