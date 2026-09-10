@@ -204,7 +204,7 @@ func initRepo(ctx context.Context, runner sshx.Runner, cfg *config.Config) (stri
 	}
 
 	err = ui.RunSteps(ctx, "Cloning "+origin.Name, []ui.Step{{
-		Name: "git clone into " + bootstrap.CheckoutDir(cfg.Box.WorkDir, origin.Name),
+		Name: "git clone into " + bootstrap.DisplayPath(bootstrap.CheckoutDir(cfg.Box.WorkDir, origin.Name)),
 		Run: func(ctx context.Context, log io.Writer) error {
 			return bootstrap.Clone(ctx, runner, cfg.Box.WorkDir, origin, log)
 		},
@@ -344,7 +344,7 @@ func initSummary(ctx context.Context, runner sshx.Runner, cfg config.Config, rep
 		"Bot", bootstrap.BotStatus(ctx, runner),
 	}
 	if repo != "" {
-		pairs = append(pairs, "Repo", bootstrap.CheckoutDir(cfg.Box.WorkDir, repo))
+		pairs = append(pairs, "Repo", bootstrap.DisplayPath(bootstrap.CheckoutDir(cfg.Box.WorkDir, repo)))
 	}
 	ui.KV(pairs...)
 

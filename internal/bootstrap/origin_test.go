@@ -25,3 +25,12 @@ func TestNormalizeOriginGitHubBecomesHTTPS(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestShellPathExpandsHome(t *testing.T) {
+	if got := shellPath("$HOME/work/a b/main"); got != `"$HOME"/'work/a b/main'` {
+		t.Fatalf("got %s", got)
+	}
+	if got := shellPath("/opt/x"); got != "'/opt/x'" {
+		t.Fatalf("got %s", got)
+	}
+}

@@ -71,7 +71,7 @@ func Clone(ctx context.Context, r sshx.Runner, workDir string, o Origin, log io.
 	dir := CheckoutDir(workDir, o.Name)
 	script := "set -e\n" +
 		`export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" +
-		"dir=" + shellQuote(dir) + "\n" +
+		"dir=" + shellPath(dir) + "\n" +
 		"gh auth setup-git >/dev/null 2>&1 || true\n" +
 		"mkdir -p \"$(dirname \"$dir\")\"\n" +
 		"if [ -d \"$dir/.git\" ]; then\n" +
@@ -152,4 +152,22 @@ func gitOut(ctx context.Context, dir string, args ...string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
+}
+
+// shellPath quotes a path for bash while letting a leading $HOME expand.
+// ExpandHome produces "$HOME/..." strings; shellQuote alone would keep the
+// dollar sign literal and create a directory called "$HOME".
+func shellPath(p string) string {
+	if p == "$HOME" {
+		return `"$HOME"`
+	}
+	if rest, ok := strings.CutPrefix(p, "$HOME/"); ok {
+		return `"$HOME"/` + shellQuote(rest)
+	}
+	return shellQuote(p)
+}
+
+// DisplayPath renders a box path for humans, with $HOME shown as ~.
+func DisplayPath(p string) string {
+	return strings.Replace(p, "$HOME", "~", 1)
 }
