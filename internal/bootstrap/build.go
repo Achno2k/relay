@@ -1,9 +1,13 @@
 package bootstrap
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,6 +52,10 @@ func BuildForBox(ctx context.Context, goarch string) (string, error) {
 // InstallBinary uploads a locally built binary and installs it as
 // /usr/local/bin/agents on the box.
 func InstallBinary(ctx context.Context, r sshx.Runner, localPath string) error {
+	same, err := boxHasBinary(ctx, r, localPath)
+	if err == nil && same {
+		return nil
+	}
 	if err := r.Copy(ctx, localPath, remoteUpload); err != nil {
 		return fmt.Errorf("upload agents binary: %w", err)
 	}
@@ -56,6 +64,26 @@ func InstallBinary(ctx context.Context, r sshx.Runner, localPath string) error {
 		"rm -f " + remoteUpload + "\n" +
 		"/usr/local/bin/agents version || true\n"
 	return run(ctx, r, script, "install agents binary")
+}
+
+// boxHasBinary reports whether /usr/local/bin/agents on the box has the same
+// sha256 as localPath, so an unchanged build is not uploaded again.
+func boxHasBinary(ctx context.Context, r sshx.Runner, localPath string) (bool, error) {
+	f, err := os.Open(localPath)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return false, err
+	}
+	local := hex.EncodeToString(h.Sum(nil))
+	var out bytes.Buffer
+	if err := r.Run(ctx, "sha256sum /usr/local/bin/agents 2>/dev/null | cut -d' ' -f1", &out, io.Discard); err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(out.String()) == local, nil
 }
 
 // ErrNoModuleSource means the agents source tree is not reachable from here, so
