@@ -1,7 +1,6 @@
 package slackbot
 
 import (
-	"path/filepath"
 	"strings"
 )
 
@@ -69,16 +68,11 @@ func BuildPrompt(in PromptInput) string {
 	return b.String()
 }
 
-// replyContract is appended to every prompt. It has to be repeated each turn
-// because agents forget file conventions between turns.
-func replyContract(worktree string) string {
-	path := ReplyRelPath
-	if worktree != "" {
-		path = filepath.Join(worktree, ReplyRelPath)
-	}
-	return "When you finish this turn, write your complete final reply as Markdown to " + path + ".\n" +
-		"Overwrite that file every turn: it is the only thing the person in Slack sees, " +
-		"and they cannot see your terminal. Keep it self contained and skip the tool by tool narration."
+// replyContract is appended to every prompt. It is one line now: the rules
+// themselves live in the global instruction file bootstrap installs on the
+// box, so the prompt only has to point at them.
+func replyContract(string) string {
+	return "Reply via " + ReplyRelPath + " as described in your global instructions."
 }
 
 // selectMessages drops bot posts, keeps only messages newer than since, and

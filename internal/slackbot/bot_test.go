@@ -150,7 +150,7 @@ func TestContinueSendsOnlyTheNewMessages(t *testing.T) {
 	if !strings.Contains(p, "aman: also add a test") {
 		t.Fatalf("the new message is missing:\n%s", p)
 	}
-	if !strings.Contains(p, "/work/agents-cli/a3f2/"+ReplyRelPath) {
+	if !strings.Contains(p, "Reply via "+ReplyRelPath) {
 		t.Fatalf("the reply contract is missing:\n%s", p)
 	}
 

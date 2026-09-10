@@ -88,7 +88,7 @@ func (c *apiClient) PostButtons(ctx context.Context, channel, threadTS, text str
 	}
 	blocks := []slack.Block{
 		slack.NewSectionBlock(slack.NewTextBlockObject(slack.MarkdownType, text, false, false), nil, nil),
-		slack.NewActionBlock(approvalBlockID, elements...),
+		slack.NewActionBlock(actionsBlockID, elements...),
 	}
 	opts := []slack.MsgOption{
 		slack.MsgOptionBlocks(blocks...),

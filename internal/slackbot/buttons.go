@@ -1,10 +1,23 @@
 package slackbot
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
-// approvalBlockID names the Block Kit action row so interaction callbacks can
-// be told apart from any other buttons the bot grows later.
-const approvalBlockID = "agents_approval"
+// actionsBlockID names the Block Kit action row. Callbacks are routed by
+// action id, not by block id, so both rows share it.
+const actionsBlockID = "agents_actions"
+
+// decisionActionPrefix keeps the agent's own decision buttons clear of the
+// harness approval row, which is answered with key presses rather than a
+// prompt.
+const decisionActionPrefix = "decide_"
+
+// decisionSep separates the fields packed into a decision button's value.
+// Slack round trips the value verbatim, and a unit separator will not appear
+// in an option the agent wrote.
+const decisionSep = "\x1f"
 
 // Approval action ids. The value carries the session id so a click needs no
 // lookup table on our side.
@@ -66,6 +79,67 @@ func approvalLabel(actionID string) string {
 	default:
 		return "Answered"
 	}
+}
+
+// decisionButtons is the row posted under a reply that ends in a decision
+// block. Slack allows five buttons in a row; the contract allows four.
+func decisionButtons(sessionID string, options []string) []Button {
+	if len(options) > maxDecisionOptions {
+		options = options[:maxDecisionOptions]
+	}
+	out := make([]Button, 0, len(options))
+	for i, opt := range options {
+		n := i + 1
+		b := Button{
+			Label:    decisionLabel(n, opt),
+			ActionID: decisionActionPrefix + strconv.Itoa(n),
+			Value:    encodeDecision(sessionID, n, opt),
+		}
+		// The first option is the agent's recommendation.
+		if i == 0 {
+			b.Style = "primary"
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+// decisionLabel keeps a button readable. Slack truncates hard at 75 characters
+// and an agent's option can run longer than that.
+func decisionLabel(n int, option string) string {
+	const maxLabel = 74
+	label := strconv.Itoa(n) + ". " + option
+	if r := []rune(label); len(r) > maxLabel {
+		label = string(r[:maxLabel-1]) + "…"
+	}
+	return label
+}
+
+// encodeDecision packs everything a click needs into the button value: which
+// session, which option, and the option text to send back.
+func encodeDecision(sessionID string, n int, option string) string {
+	return sessionID + decisionSep + strconv.Itoa(n) + decisionSep + option
+}
+
+// decodeDecision unpacks a value written by encodeDecision.
+func decodeDecision(value string) (sessionID string, n int, option string, ok bool) {
+	parts := strings.SplitN(value, decisionSep, 3)
+	if len(parts) != 3 {
+		return "", 0, "", false
+	}
+	n, err := strconv.Atoi(parts[1])
+	if err != nil || n < 1 {
+		return "", 0, "", false
+	}
+	if parts[0] == "" || strings.TrimSpace(parts[2]) == "" {
+		return "", 0, "", false
+	}
+	return parts[0], n, parts[2], true
+}
+
+// isDecisionAction reports whether an action id belongs to the decision row.
+func isDecisionAction(actionID string) bool {
+	return strings.HasPrefix(actionID, decisionActionPrefix)
 }
 
 // isApprovalAction reports whether an action id belongs to this row.

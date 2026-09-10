@@ -154,7 +154,7 @@ func TestWaitStatesExcludeTheCurrentOne(t *testing.T) {
 	}
 }
 
-func TestReplyReaderPrefersTheFileThenFallsBackToThePane(t *testing.T) {
+func TestReplyReaderReadsTheFileOncePerWrite(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0o755); err != nil {
 		t.Fatal(err)
@@ -164,19 +164,17 @@ func TestReplyReaderPrefersTheFileThenFallsBackToThePane(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := newFakeHerdr()
-	h.readText = "pane scrollback"
 	r := replyReader{worktree: dir}
 
-	text, source := r.read(context.Background(), h, "agents-cli-a3f2")
-	if source != "reply.md" || !strings.Contains(text, "Fixed the 500.") {
-		t.Fatalf("first read: got %q from %s", text, source)
+	text, ok := r.read()
+	if !ok || !strings.Contains(text, "Fixed the 500.") {
+		t.Fatalf("first read: got %q, ok=%v", text, ok)
 	}
 
-	// Unchanged file: the turn produced nothing new, so use the pane.
-	text, source = r.read(context.Background(), h, "agents-cli-a3f2")
-	if source != "pane" || text != "pane scrollback" {
-		t.Fatalf("second read: got %q from %s", text, source)
+	// Unchanged file: the turn wrote nothing, and there is no pane to fall
+	// back to any more.
+	if text, ok := r.read(); ok {
+		t.Fatalf("second read should report no reply, got %q", text)
 	}
 
 	// A rewrite is picked up again.
@@ -187,19 +185,30 @@ func TestReplyReaderPrefersTheFileThenFallsBackToThePane(t *testing.T) {
 	if err := os.Chtimes(path, later, later); err != nil {
 		t.Fatal(err)
 	}
-	text, source = r.read(context.Background(), h, "agents-cli-a3f2")
-	if source != "reply.md" || !strings.Contains(text, "Done again") {
-		t.Fatalf("third read: got %q from %s", text, source)
+	text, ok = r.read()
+	if !ok || !strings.Contains(text, "Done again") {
+		t.Fatalf("third read: got %q, ok=%v", text, ok)
 	}
 }
 
-func TestReplyReaderWithoutAWorktreeUsesThePane(t *testing.T) {
-	h := newFakeHerdr()
-	h.readText = "only the pane"
-	r := replyReader{}
-	text, source := r.read(context.Background(), h, "a")
-	if source != "pane" || text != "only the pane" {
-		t.Fatalf("got %q from %s", text, source)
+func TestReplyReaderReportsNothingWithoutAFile(t *testing.T) {
+	if _, ok := (&replyReader{}).read(); ok {
+		t.Fatal("no worktree means no reply")
+	}
+	if _, ok := (&replyReader{worktree: t.TempDir()}).read(); ok {
+		t.Fatal("a missing file means no reply")
+	}
+
+	// An empty file is not a reply either.
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ReplyRelPath), []byte("   \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := (&replyReader{worktree: dir}).read(); ok {
+		t.Fatal("a blank file means no reply")
 	}
 }
 
@@ -234,20 +243,5 @@ func TestStatsLineWithoutAWorktree(t *testing.T) {
 	got := statsLine(context.Background(), "", 92*time.Second)
 	if !strings.Contains(got, "no changes") || !strings.Contains(got, "1m32s") {
 		t.Fatalf("got %q", got)
-	}
-}
-
-func TestLastScreenKeepsTheTail(t *testing.T) {
-	var b strings.Builder
-	for i := 0; i < 100; i++ {
-		b.WriteString("line\n")
-	}
-	b.WriteString("Do you want to proceed?")
-	got := lastScreen(b.String())
-	if !strings.HasSuffix(got, "Do you want to proceed?") {
-		t.Fatalf("the prompt should be the last thing kept: %q", got)
-	}
-	if strings.Count(got, "\n") > 25 {
-		t.Fatalf("kept too many lines: %d", strings.Count(got, "\n"))
 	}
 }

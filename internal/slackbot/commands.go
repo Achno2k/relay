@@ -67,15 +67,23 @@ func (b *Bot) cmdShow(ctx context.Context, sess state.Session, arg string) {
 	b.deliver(ctx, sess, filepath.Base(rel), rel, string(body))
 }
 
+// cmdFull hands over everything the thread only saw a slice of: the whole
+// reply when there is one, and otherwise the pane, which is the one place
+// `full` is still allowed to look.
 func (b *Bot) cmdFull(ctx context.Context, sess state.Session) {
+	// A fresh reader has no last-seen stamp, so this always reads the file.
 	r := replyReader{worktree: sess.WorktreePath}
-	// Force a read of the file even when the watcher already consumed it.
-	text, _ := r.read(ctx, b.Herdr, sess.AgentName)
-	if strings.TrimSpace(text) == "" {
+	if text, ok := r.read(); ok {
+		b.deliver(ctx, sess, "reply.md", "full reply from "+sess.AgentName, text)
+		return
+	}
+
+	screen, err := b.Herdr.Read(ctx, sess.AgentName, 200)
+	if err != nil || strings.TrimSpace(screen) == "" {
 		b.say(ctx, sess.SlackChannel, sess.ThreadTS, "Nothing to show yet.")
 		return
 	}
-	b.deliver(ctx, sess, "reply.md", "full reply from "+sess.AgentName, text)
+	b.deliver(ctx, sess, "screen.txt", "screen for "+sess.AgentName, strings.TrimSpace(screen))
 }
 
 // cmdPR opens a pull request from the session branch using the gh CLI.
@@ -176,6 +184,16 @@ func excludeAgentsDir(ctx context.Context, worktreePath string) error {
 	defer f.Close()
 	_, err = f.WriteString("\n# written by agents: the bot's reply file\n.agents/\n")
 	return err
+}
+
+// ensureArtifactsDir creates <worktree>/.agents/artifacts. The agent is told to
+// put long documents there, so the directory should already exist when it
+// looks: one less thing for it to get wrong.
+func ensureArtifactsDir(worktreePath string) error {
+	if worktreePath == "" {
+		return errors.New("no worktree")
+	}
+	return os.MkdirAll(filepath.Join(worktreePath, ArtifactsRelPath), 0o755)
 }
 
 // safeJoin resolves rel inside root and refuses to escape it.

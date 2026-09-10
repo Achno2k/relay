@@ -53,6 +53,9 @@ func runDeploy(ctx context.Context) error {
 		{Name: "Syncing config", Run: func(ctx context.Context, _ io.Writer) error {
 			return bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg)
 		}},
+		{Name: "Syncing agent instructions", Run: func(ctx context.Context, log io.Writer) error {
+			return bootstrap.InstallInstructions(ctx, runner, boxHome(cfg), log)
+		}},
 		{Name: "Restarting bot", Run: func(ctx context.Context, _ io.Writer) error {
 			return bootstrap.RestartBotIfActive(ctx, runner)
 		}},

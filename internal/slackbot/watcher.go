@@ -127,10 +127,11 @@ func waitStates(prev herdr.AgentState, started bool) []herdr.AgentState {
 
 // replyReader gets an agent's final answer for a turn.
 //
-// The agent is asked to write it to <worktree>/.agents/reply.md, because
-// herdr's scrollback is empty for full screen agents like Claude Code and its
-// fallback only sees the last rendered screen. We read that file when it has
-// changed since the previous turn and drop back to the pane otherwise.
+// The agent is asked to write it to <worktree>/.agents/reply.md. There is no
+// fallback to the pane: herdr's scrollback is empty for full screen agents
+// like Claude Code, and its viewport holds a screen of TUI rather than an
+// answer. A turn that does not touch the file has not produced a reply, and
+// saying so is more use than pasting a terminal.
 type replyReader struct {
 	worktree string
 	lastMod  time.Time
@@ -139,24 +140,31 @@ type replyReader struct {
 
 func (r *replyReader) path() string { return filepath.Join(r.worktree, ReplyRelPath) }
 
-// read returns the reply text and where it came from.
-func (r *replyReader) read(ctx context.Context, h herdr.Client, agent string) (text, source string) {
-	if r.worktree != "" {
-		if fi, err := os.Stat(r.path()); err == nil {
-			fresh := !fi.ModTime().Equal(r.lastMod) || fi.Size() != r.lastSize
-			if fresh {
-				if b, err := os.ReadFile(r.path()); err == nil && strings.TrimSpace(string(b)) != "" {
-					r.lastMod, r.lastSize = fi.ModTime(), fi.Size()
-					return strings.TrimSpace(string(b)), "reply.md"
-				}
-			}
-		}
+// read returns the reply, and false when the file is missing, empty or
+// unchanged since the previous turn.
+func (r *replyReader) read() (string, bool) {
+	if r.worktree == "" {
+		return "", false
 	}
-	out, err := h.Read(ctx, agent, 200)
+	fi, err := os.Stat(r.path())
 	if err != nil {
-		return "", "pane"
+		return "", false
 	}
-	return strings.TrimSpace(out), "pane"
+	if fi.ModTime().Equal(r.lastMod) && fi.Size() == r.lastSize {
+		return "", false // the agent never wrote this turn
+	}
+	b, err := os.ReadFile(r.path())
+	if err != nil || strings.TrimSpace(string(b)) == "" {
+		return "", false
+	}
+	r.lastMod, r.lastSize = fi.ModTime(), fi.Size()
+	return strings.TrimSpace(string(b)), true
+}
+
+// artifactPath resolves a name from a reply against the artifacts directory,
+// refusing anything that would escape it.
+func (r *replyReader) artifactPath(name string) (string, error) {
+	return safeJoin(filepath.Join(r.worktree, ArtifactsRelPath), name)
 }
 
 // trimReply cuts a reply down to what belongs inline in a Slack thread.
@@ -172,6 +180,11 @@ func trimReply(s string) string {
 	// Prefer to break on a line end so a code fence is less likely to be split.
 	if i := strings.LastIndex(cut, "\n"); i > maxReplyChars/2 {
 		cut = cut[:i]
+	}
+	// Cutting inside a code block would leave Slack rendering the rest of the
+	// message as code, so close the fence we opened.
+	if insideFence(strings.Split(cut, "\n")) {
+		cut += "\n```"
 	}
 	return cut + "\n… (truncated, say `full` for everything)"
 }
@@ -220,9 +233,6 @@ type watcher struct {
 	m      machine
 	reply  replyReader
 	turnAt time.Time
-
-	// approvalTS is the last approval message posted, so a click can edit it.
-	approvalTS string
 }
 
 func newWatcher(b *Bot, s state.Session) *watcher {
@@ -291,23 +301,74 @@ func (w *watcher) setReaction(ctx context.Context, name string) {
 }
 
 func (w *watcher) postReply(ctx context.Context) {
-	text, _ := w.reply.read(ctx, w.bot.Herdr, w.session.AgentName)
-	body := trimReply(text) + "\n\n" + statsLine(ctx, w.session.WorktreePath, time.Since(w.turnAt))
-	if _, err := w.bot.Slack.PostMessage(ctx, w.session.SlackChannel, w.session.ThreadTS, body); err != nil {
-		w.bot.logf("post reply for %s: %v", w.session.ID, err)
+	raw, ok := w.reply.read()
+	if !ok {
+		w.say(ctx, noReplyMessage)
+		return
+	}
+
+	r := parseReply(raw)
+	body := trimReply(toMrkdwn(r.Text)) + "\n\n" +
+		statsLine(ctx, w.session.WorktreePath, time.Since(w.turnAt))
+	w.say(ctx, body)
+
+	w.uploadArtifacts(ctx, r.Artifacts)
+	w.postDecision(ctx, r.Decision)
+}
+
+// uploadArtifacts posts each referenced file as an attachment. A name that
+// does not resolve gets one line rather than silence, so the agent's mistake
+// is visible in the thread.
+func (w *watcher) uploadArtifacts(ctx context.Context, names []string) {
+	for _, name := range names {
+		path, err := w.reply.artifactPath(name)
+		if err != nil {
+			w.say(ctx, "artifact "+name+" not found")
+			continue
+		}
+		body, err := os.ReadFile(path)
+		if err != nil || strings.TrimSpace(string(body)) == "" {
+			w.say(ctx, "artifact "+name+" not found")
+			continue
+		}
+		if err := w.bot.Slack.UploadText(ctx,
+			w.session.SlackChannel, w.session.ThreadTS, name, name, string(body)); err != nil {
+			w.bot.logf("upload artifact %s for %s: %v", name, w.session.ID, err)
+			w.say(ctx, "artifact "+name+" could not be uploaded")
+		}
+	}
+}
+
+// postDecision turns the agent's options into buttons. Clicking one sends it
+// back as the next prompt, which is the whole point: the thread answers
+// without anyone typing.
+func (w *watcher) postDecision(ctx context.Context, options []string) {
+	if len(options) == 0 {
+		return
+	}
+	if _, err := w.bot.Slack.PostButtons(ctx, w.session.SlackChannel, w.session.ThreadTS,
+		"Pick one:", decisionButtons(w.session.ID, options)); err != nil {
+		w.bot.logf("post decision for %s: %v", w.session.ID, err)
+	}
+}
+
+// say posts one line into the session's thread.
+func (w *watcher) say(ctx context.Context, text string) {
+	if _, err := w.bot.Slack.PostMessage(ctx, w.session.SlackChannel, w.session.ThreadTS, text); err != nil {
+		w.bot.logf("post for %s: %v", w.session.ID, err)
 	}
 }
 
 func (w *watcher) postApproval(ctx context.Context) {
-	text, _ := w.reply.read(ctx, w.bot.Herdr, w.session.AgentName)
-	prompt := lastScreen(text)
-	body := "*" + w.session.AgentName + "* needs a decision:\n```\n" + prompt + "\n```"
-	ts, err := w.bot.Slack.PostButtons(ctx, w.session.SlackChannel, w.session.ThreadTS, body, approvalButtons(w.session.ID))
+	screen, err := w.bot.Herdr.Read(ctx, w.session.AgentName, 200)
 	if err != nil {
-		w.bot.logf("post approval for %s: %v", w.session.ID, err)
-		return
+		w.bot.logf("read pane for %s: %v", w.session.ID, err)
 	}
-	w.approvalTS = ts
+	body := "*" + w.session.AgentName + "* needs a decision:\n> " + lastQuestionLine(screen)
+	if _, err := w.bot.Slack.PostButtons(ctx, w.session.SlackChannel, w.session.ThreadTS,
+		body, approvalButtons(w.session.ID)); err != nil {
+		w.bot.logf("post approval for %s: %v", w.session.ID, err)
+	}
 }
 
 func (w *watcher) postPickup(ctx context.Context) {
@@ -328,22 +389,6 @@ func (w *watcher) currentAttachedBy(ctx context.Context) string {
 		return w.session.AttachedBy
 	}
 	return s.AttachedBy
-}
-
-// lastScreen keeps the tail of the pane, which is where the prompt is.
-func lastScreen(s string) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) > 25 {
-		lines = lines[len(lines)-25:]
-	}
-	out := strings.TrimSpace(strings.Join(lines, "\n"))
-	if out == "" {
-		return "(the pane is empty; check the box)"
-	}
-	if len(out) > maxReplyChars {
-		out = out[len(out)-maxReplyChars:]
-	}
-	return out
 }
 
 // recordStatus keeps the sqlite row roughly in step with herdr.

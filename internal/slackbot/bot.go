@@ -456,6 +456,11 @@ func (b *Bot) createSession(ctx context.Context, d decision, old *state.Session)
 	if err := excludeAgentsDir(ctx, path); err != nil {
 		b.logf("exclude .agents in %s: %v", path, err)
 	}
+	// The agent writes long documents here; it should not have to guess that
+	// it may create the directory itself.
+	if err := ensureArtifactsDir(path); err != nil {
+		b.logf("create artifacts dir in %s: %v", path, err)
+	}
 
 	// Claude Code asks whether to trust a new folder before doing anything,
 	// and every session is a new folder. Accept it up front.
@@ -618,10 +623,14 @@ func (b *Bot) HandleInteraction(ctx context.Context, cb slack.InteractionCallbac
 	}
 	b.reloadConfig()
 	act := cb.ActionCallback.BlockActions[0]
-	if !isApprovalAction(act.ActionID) {
+	if !allowed(cb.User.ID, b.config()) {
 		return
 	}
-	if !allowed(cb.User.ID, b.config()) {
+	if isDecisionAction(act.ActionID) {
+		b.handleDecision(ctx, cb, act)
+		return
+	}
+	if !isApprovalAction(act.ActionID) {
 		return
 	}
 	sess, err := b.Store.Get(ctx, act.Value)
@@ -650,6 +659,74 @@ func (b *Bot) HandleInteraction(ctx context.Context, cb slack.InteractionCallbac
 		return
 	}
 	b.say(ctx, sess.SlackChannel, sess.ThreadTS, text)
+}
+
+// handleDecision answers an agent's decision block. The picked option goes
+// back to the session as its next prompt, so the thread carries on without
+// anyone typing.
+func (b *Bot) handleDecision(ctx context.Context, cb slack.InteractionCallback, act *slack.BlockAction) {
+	sessionID, n, option, ok := decodeDecision(act.Value)
+	if !ok {
+		b.logf("undecodable decision value %q", act.Value)
+		return
+	}
+	sess, err := b.Store.Get(ctx, sessionID)
+	if err != nil {
+		b.logf("decision for unknown session %s", sessionID)
+		return
+	}
+	if !sess.Live() {
+		b.say(ctx, sess.SlackChannel, sess.ThreadTS,
+			"`"+sess.AgentName+"` is "+string(sess.Status)+", so that choice went nowhere.")
+		return
+	}
+
+	pick := decisionPrompt(n, option)
+	if err := b.sendRaw(ctx, sess, pick); err != nil {
+		b.say(ctx, sess.SlackChannel, sess.ThreadTS, "Could not send that choice: "+err.Error())
+		return
+	}
+
+	// Replace the buttons so the choice cannot be made twice.
+	name, _ := b.Slack.UserName(ctx, cb.User.ID)
+	if name == "" {
+		name = cb.User.ID
+	}
+	text := "Picked *" + pick + "* by " + name + "."
+	if cb.Message.Timestamp != "" {
+		if err := b.Slack.UpdateMessage(ctx, sess.SlackChannel, cb.Message.Timestamp, text); err != nil {
+			b.logf("update decision message: %v", err)
+		}
+		return
+	}
+	b.say(ctx, sess.SlackChannel, sess.ThreadTS, text)
+}
+
+// sendRaw hands the agent a literal line, with the same bookkeeping a thread
+// prompt gets so the watcher knows a reply is owed.
+func (b *Bot) sendRaw(ctx context.Context, sess state.Session, text string) error {
+	w := b.watcherFor(sess.ID)
+	if w == nil {
+		w = b.startWatcher(ctx, sess)
+	}
+	if w != nil {
+		w.noteTurnStart()
+	}
+	if err := b.Herdr.Prompt(ctx, sess.AgentName, text); err != nil {
+		return err
+	}
+	_ = b.Herdr.Notify(ctx, sess.AgentName, sess.AgentName+": choice from Slack")
+
+	b.mu.Lock()
+	if cur, err := b.Store.Get(ctx, sess.ID); err == nil {
+		cur.LastActive = time.Now()
+		cur.Status = state.StatusWorking
+		if err := b.Store.Update(ctx, cur); err != nil {
+			b.logf("update after decision for %s: %v", sess.ID, err)
+		}
+	}
+	b.mu.Unlock()
+	return nil
 }
 
 // startWatcher launches the goroutine that mirrors a session onto its thread.

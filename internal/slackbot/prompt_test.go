@@ -24,7 +24,7 @@ func TestBuildPromptTranscriptAndInstruction(t *testing.T) {
 		"aman: the login page 500s on an empty password",
 		"priya: only since the deploy this morning",
 		"Instruction:\n\nfix it",
-		"/work/agents-cli/a3f2/" + ReplyRelPath,
+		ReplyRelPath,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("prompt is missing %q:\n%s", want, got)
@@ -92,17 +92,25 @@ func TestBuildPromptCapsTheTranscript(t *testing.T) {
 	}
 }
 
-func TestBuildPromptAlwaysEndsWithTheReplyContract(t *testing.T) {
+// The per-turn contract is one line now. The rules themselves live in the
+// global instruction file on the box, so repeating them every turn is waste.
+func TestBuildPromptEndsWithTheOneLineReplyContract(t *testing.T) {
 	got := BuildPrompt(PromptInput{
 		Messages:     []Message{{TS: "1.1", UserID: "U1", Text: "hi"}},
 		Instruction:  "do it",
 		WorktreePath: "/work/aura/9c1d",
 	})
-	if !strings.Contains(got, "Overwrite that file every turn") {
-		t.Fatalf("the reply contract is missing:\n%s", got)
-	}
-	if !strings.HasSuffix(strings.TrimSpace(got), "narration.") {
+	want := "Reply via " + ReplyRelPath + " as described in your global instructions."
+	if !strings.HasSuffix(strings.TrimSpace(got), want) {
 		t.Fatalf("the contract should be the last thing the agent reads:\n%s", got)
+	}
+	if strings.Contains(got, "Overwrite that file every turn") {
+		t.Fatalf("the long contract should be gone:\n%s", got)
+	}
+	// One line, not a paragraph.
+	tail := strings.TrimSpace(got)
+	if n := strings.Count(tail[len(tail)-len(want):], "\n"); n != 0 {
+		t.Fatalf("the contract spans %d newlines, want one line", n+1)
 	}
 }
 

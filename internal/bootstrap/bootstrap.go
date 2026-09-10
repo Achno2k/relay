@@ -112,6 +112,13 @@ func Install(ctx context.Context, r sshx.Runner, o Options) error {
 	})
 
 	steps = append(steps, ui.Step{
+		Name: "Installing agent instructions",
+		Run: func(ctx context.Context, log io.Writer) error {
+			return InstallInstructions(ctx, r, o.Home, log)
+		},
+	})
+
+	steps = append(steps, ui.Step{
 		Name: "Installing systemd units",
 		Run: func(ctx context.Context, log io.Writer) error {
 			if err := InstallUnits(ctx, r, o.User, o.Home, log); err != nil {
