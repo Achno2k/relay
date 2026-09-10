@@ -39,6 +39,8 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 		ctx = context.Background()
 	}
 
+	ui.Banner("v0.1.0-demo")
+
 	ui.Title("Text helpers")
 	ui.Info("Info: plain line, monochrome base.")
 	ui.Success("Success: connected to i-0abc123 in eu-west-1")
@@ -110,47 +112,49 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 
 func demoPickers() error {
 	ui.Title("Pickers")
+	ui.Muted("every answer collapses to one \"? question  answer\" line")
 
 	regions := []string{"us-east-1", "us-west-2", "eu-west-1", "ap-south-1"}
-	i, err := ui.Select("Region", regions)
-	if err != nil {
+	if _, err := ui.Select("Region", regions); err != nil {
 		return quietCancel(err)
 	}
-	ui.Success("region " + regions[i])
 
 	harnesses := []string{"claude", "codex", "gemini", "amp"}
-	picked, err := ui.MultiSelect("Harnesses to install", harnesses, []int{0, 1})
-	if err != nil {
+	if _, err := ui.MultiSelect("Harnesses to install", harnesses, []int{0, 1}); err != nil {
 		return quietCancel(err)
 	}
-	names := make([]string, 0, len(picked))
-	for _, p := range picked {
-		names = append(names, harnesses[p])
-	}
-	ui.Success(fmt.Sprintf("harnesses %v", names))
 
-	repo, err := ui.Input("Repo to clone", "Achno2k/agents-cli")
-	if err != nil {
+	if _, err := ui.Input("Repo to clone", "Achno2k/agents-cli"); err != nil {
 		return quietCancel(err)
 	}
-	if repo == "" {
-		repo = "Achno2k/agents-cli"
-	}
-	ui.Success("repo " + repo)
 
-	ok, err := ui.Confirm("Enable the Slack bot on this box?", true)
-	if err != nil {
+	// The transcript shows the length and nothing else.
+	if _, err := ui.Secret("Slack bot token"); err != nil {
 		return quietCancel(err)
 	}
-	if ok {
-		ui.Success("slack bot enabled")
-	} else {
-		ui.Muted("slack bot left off")
+
+	if _, err := ui.Confirm("Enable the Slack bot on this box?", true); err != nil {
+		return quietCancel(err)
 	}
 
-	ui.Title("Summary")
-	ui.KV("ssh", "agents ssh", "attach", "agents attach <session>", "bot", "systemctl status agents-bot")
+	demoReady()
 	return nil
+}
+
+// demoReady is the block that ends a real `agents init`.
+func demoReady() {
+	ui.Ready("Machine ready",
+		"Box", "ubuntu@ec2-13-40-1-2.eu-west-1.compute.amazonaws.com (i-0abc123def456789)",
+		"Region", "eu-west-1",
+		"Repo", "~/work/agents-cli/main",
+		"Harnesses", "claude, codex",
+		"Bot", "running",
+	)
+	ui.Commands(
+		"agents attach <session>",
+		"agents ssh",
+	)
+	ui.Info("or mention the bot in Slack: @agents agents-cli fix the failing test")
 }
 
 // demoPhases shows a phase inside a phase, with a checklist at the bottom.

@@ -66,33 +66,45 @@ func RunSteps(ctx context.Context, title string, steps []Step) error {
 
 	if !interactive() {
 		for i, s := range steps {
-			state := stateSkipped
+			state, elapsed := stateSkipped, time.Duration(0)
 			if runErr == nil {
-				if err := runStep(ctx, s, logs[i]); err != nil {
+				started := time.Now()
+				err := runStep(ctx, s, logs[i])
+				elapsed = time.Since(started)
+				if err != nil {
 					runErr, failed, state = err, i, stateFailed
 				} else {
 					state = stateDone
 				}
 			}
-			line(renderStepLine(col, i+1, len(steps), s.Name, state, 0))
+			line(renderStepLine(col, i+1, len(steps), s.Name, state, 0, elapsed))
 		}
 	} else {
-		n := &stepsNode{names: names, states: make([]stepState, len(steps)), logs: logs, col: col}
+		n := &stepsNode{
+			names:   names,
+			states:  make([]stepState, len(steps)),
+			logs:    logs,
+			elapsed: make([]time.Duration, len(steps)),
+			col:     col,
+		}
 		owner := lv.begin()
 		lv.attach(n)
 		runCtx, cancel := lv.withCancel(ctx)
 
 		for i, s := range steps {
 			if runErr != nil {
-				lv.setStep(n, i, stateSkipped)
+				lv.setStep(n, i, stateSkipped, 0)
 				continue
 			}
-			lv.setStep(n, i, stateActive)
-			if err := runStep(runCtx, s, logs[i]); err != nil {
+			lv.setStep(n, i, stateActive, 0)
+			started := time.Now()
+			err := runStep(runCtx, s, logs[i])
+			elapsed := time.Since(started)
+			if err != nil {
 				runErr, failed = err, i
-				lv.setStep(n, i, stateFailed)
+				lv.setStep(n, i, stateFailed, elapsed)
 			} else {
-				lv.setStep(n, i, stateDone)
+				lv.setStep(n, i, stateDone, elapsed)
 			}
 		}
 
@@ -143,13 +155,14 @@ func Select(title string, options []string) (int, error) {
 	}
 	choice := 0
 	field := huh.NewSelect[int]().
-		Title(title).
+		Title(askTitle(title)).
 		Options(indexOptions(options, nil)...).
 		Height(pickerHeight(len(options))).
 		Value(&choice)
 	if err := runForm(field); err != nil {
 		return -1, err
 	}
+	answered(title, options[choice])
 	return choice, nil
 }
 
@@ -166,12 +179,21 @@ func MultiSelect(title string, options []string, preselected []int) ([]int, erro
 	}
 	chosen := []int{}
 	field := huh.NewMultiSelect[int]().
-		Title(title).
+		Title(askTitle(title)).
 		Options(indexOptions(options, sel)...).
 		Height(pickerHeight(len(options))).
 		Value(&chosen)
 	if err := runForm(field); err != nil {
 		return nil, err
+	}
+	picked := make([]string, 0, len(chosen))
+	for _, i := range chosen {
+		picked = append(picked, options[i])
+	}
+	if len(picked) == 0 {
+		answered(title, "none")
+	} else {
+		answered(title, strings.Join(picked, ", "))
 	}
 	return chosen, nil
 }
@@ -179,32 +201,41 @@ func MultiSelect(title string, options []string, preselected []int) ([]int, erro
 // Input asks for a line of text. Empty placeholder means none.
 func Input(title, placeholder string) (string, error) {
 	var v string
-	field := huh.NewInput().Title(title).Value(&v)
+	field := huh.NewInput().Title(askTitle(title)).Value(&v)
 	if placeholder != "" {
 		field = field.Placeholder(placeholder)
 	}
 	if err := runForm(field); err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(v), nil
+	v = strings.TrimSpace(v)
+	answered(title, v)
+	return v, nil
 }
 
 // Secret asks for a line of text without echoing it (tokens, passwords).
 func Secret(title string) (string, error) {
 	var v string
-	field := huh.NewInput().Title(title).EchoMode(huh.EchoModePassword).Value(&v)
+	field := huh.NewInput().Title(askTitle(title)).EchoMode(huh.EchoModePassword).Value(&v)
 	if err := runForm(field); err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(v), nil
+	v = strings.TrimSpace(v)
+	answered(title, maskSecret(v))
+	return v, nil
 }
 
 // Confirm asks yes/no.
 func Confirm(title string, def bool) (bool, error) {
 	v := def
-	field := huh.NewConfirm().Title(title).Affirmative("Yes").Negative("No").Value(&v)
+	field := huh.NewConfirm().Title(askTitle(title)).Affirmative("Yes").Negative("No").Value(&v)
 	if err := runForm(field); err != nil {
 		return false, err
+	}
+	if v {
+		answered(title, "Yes")
+	} else {
+		answered(title, "No")
 	}
 	return v, nil
 }
@@ -239,8 +270,8 @@ func Spinner(ctx context.Context, label string, fn func(ctx context.Context) err
 }
 
 // Plain text helpers. All write to stdout unless noted.
-func Title(s string) { line("\n" + accentStyle().Bold(true).Render(s)) } // section heading, accent
-func Info(s string)  { line(plainStyle().Render(s)) }
+func Title(s string) { line("\n" + accentStyle().Bold(true).Render(s)) }  // section heading, accent
+func Info(s string)  { line(glyphInfo() + " " + plainStyle().Render(s)) } // "> s"
 func Success(s string) { // "[✓] s"
 	line(badgeOK() + " " + s)
 }
@@ -270,11 +301,28 @@ func KV(pairs ...string) {
 	}
 }
 
-// Code prints a command the user can copy, indented and in the accent colour.
-func Code(s string) {
-	for _, l := range strings.Split(s, "\n") {
-		line("  " + accentStyle().Render(l))
+// Code prints a command the user can copy, indented and in the default colour.
+// The accent is reserved for things the user can act on right now.
+func Code(s string) { Commands(strings.Split(s, "\n")...) }
+
+// Commands prints copyable commands, indented two spaces, in the default
+// colour so they stand out against the dim prose around them.
+func Commands(lines ...string) {
+	for _, l := range lines {
+		line("  " + plainStyle().Render(l))
 	}
+}
+
+// Ready prints the block that ends a successful setup: a blank line, a green
+// tick and the title in bold accent, the pairs as an aligned table with dim
+// keys, then a blank line. Odd trailing keys get an empty value.
+func Ready(title string, pairs ...string) {
+	line("")
+	line(badgeOK() + " " + accentStyle().Bold(true).Render(title))
+	if len(pairs) > 0 {
+		KV(pairs...)
+	}
+	line("")
 }
 
 // pickerHeight keeps pickers compact but scrollable for long lists.

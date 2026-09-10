@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // badgeIndex is the column the bracketed status badge starts at.
@@ -93,7 +95,7 @@ func TestRenderStepLineAlignment(t *testing.T) {
 
 	first := -1
 	for i, name := range names {
-		line := renderStepLine(col, i+1, len(names), name, states[i], 0)
+		line := renderStepLine(col, i+1, len(names), name, states[i], 0, 0)
 		if !strings.HasPrefix(line, stepLabel(i+1, len(names), name)) {
 			t.Fatalf("line %d = %q, want prefix %q", i, line, stepLabel(i+1, len(names), name))
 		}
@@ -116,7 +118,7 @@ func TestRenderStepLineNeverCollidesWithLabel(t *testing.T) {
 	defer restore()
 
 	// col deliberately narrower than the label.
-	line := renderStepLine(4, 1, 1, "a very long step name", stateDone, 0)
+	line := renderStepLine(4, 1, 1, "a very long step name", stateDone, 0, 0)
 	if !strings.Contains(line, "step name [✓]") {
 		t.Fatalf("expected a single space before the badge, got %q", line)
 	}
@@ -402,7 +404,7 @@ func TestTextHelpersAreUnstyledOffATerminal(t *testing.T) {
 	Code("agents attach web-3")
 
 	want := strings.Join([]string{
-		"plain",
+		"> plain",
 		"[✓] done",
 		"[!] careful",
 		"[☠] broken",
@@ -595,7 +597,7 @@ func TestPhaseNestingAndIndentationInPlainMode(t *testing.T) {
 
 	want := []string{
 		"Setting up dev environment",
-		"    checking the box",
+		"    > checking the box",
 		"    Inferring steps",
 		"        asking the harness",
 		"        [1/2] Installing Go             [✓]",
@@ -630,7 +632,7 @@ func TestPhaseIndentsFourSpacesPerLevel(t *testing.T) {
 		})
 	})
 
-	for depth, needle := range []string{"at one", "at two", "at three"} {
+	for depth, needle := range []string{"> at one", "> at two", "> at three"} {
 		want := strings.Repeat(" ", indentWidth*(depth+1)) + needle
 		if !strings.Contains(buf.String(), want+"\n") {
 			t.Fatalf("expected %q at depth %d:\n%s", want, depth+1, buf.String())
@@ -700,7 +702,7 @@ func TestPhaseRestoresTheIndentAfterItReturns(t *testing.T) {
 	_ = Phase(context.Background(), "inside", func(context.Context) error { return nil })
 	Info("back at the margin")
 
-	if !strings.HasSuffix(buf.String(), "\nback at the margin\n") {
+	if !strings.HasSuffix(buf.String(), "\n> back at the margin\n") {
 		t.Fatalf("indent leaked past the phase:\n%s", buf.String())
 	}
 }
@@ -764,5 +766,280 @@ func TestSpinnerNodeAnimatesThenSettles(t *testing.T) {
 	n.state = runFailed
 	if got := n.lines(0, 100)[0]; got != "[☠] Fetching" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// --- palette ---
+
+// Teal is the one accent, and it is spent only on things the user can act on.
+func TestAccentIsTeal(t *testing.T) {
+	if colorAccent.Light != "#0F8B8D" || colorAccent.Dark != "#2DD4BF" {
+		t.Fatalf("accent is %+v, want teal #0F8B8D / #2DD4BF", colorAccent)
+	}
+}
+
+// --- prompt glyphs ---
+
+func TestPromptGlyphs(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	if got := glyphAsk(); got != "?" {
+		t.Fatalf("ask glyph = %q", got)
+	}
+	if got := glyphInfo(); got != ">" {
+		t.Fatalf("info glyph = %q", got)
+	}
+	if got := askTitle("Region"); got != "? Region" {
+		t.Fatalf("askTitle = %q", got)
+	}
+}
+
+func TestInfoLeadsWithADimChevron(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	Info("cloning the repo")
+	if buf.String() != "> cloning the repo\n" {
+		t.Fatalf("got %q", buf.String())
+	}
+}
+
+func TestAnsweredCollapsesToOneLine(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	answered("Region", "eu-west-1")
+	if buf.String() != "? Region  eu-west-1\n" {
+		t.Fatalf("got %q", buf.String())
+	}
+}
+
+func TestMaskSecretNeverShowsTheValue(t *testing.T) {
+	cases := map[string]string{
+		"":                    "(empty)",
+		"hunter2":             "•••••••",
+		"xoxb-1234567890-abc": "••••••••••••", // capped
+	}
+	for in, want := range cases {
+		got := maskSecret(in)
+		if got != want {
+			t.Fatalf("maskSecret(%q) = %q, want %q", in, got, want)
+		}
+		if in != "" && strings.Contains(got, in) {
+			t.Fatalf("the secret leaked into %q", got)
+		}
+	}
+}
+
+// --- step timing ---
+
+func TestShortDuration(t *testing.T) {
+	cases := map[time.Duration]string{
+		0:                        "",
+		400 * time.Millisecond:   "",
+		999 * time.Millisecond:   "",
+		time.Second:              "1s",
+		4 * time.Second:          "4s",
+		59500 * time.Millisecond: "1m00s",
+		62 * time.Second:         "1m02s",
+		9 * time.Minute:          "9m00s",
+	}
+	for in, want := range cases {
+		if got := shortDuration(in); got != want {
+			t.Fatalf("shortDuration(%v) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestStepLineShowsElapsedRightAligned(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	col := glyphColumn([]string{"Installing herdr", "Cloning"})
+
+	quick := renderStepLine(col, 1, 2, "Installing herdr", stateDone, 0, 4*time.Second)
+	slow := renderStepLine(col, 2, 2, "Cloning", stateDone, 0, 62*time.Second)
+
+	if !strings.HasSuffix(quick, "[✓]     4s") {
+		t.Fatalf("got %q", quick)
+	}
+	if !strings.HasSuffix(slow, "[✓]  1m02s") {
+		t.Fatalf("got %q", slow)
+	}
+	// Right-aligned means a short time and a long one end at the same column,
+	// so both rendered lines come out the same width.
+	if len([]rune(quick)) != len([]rune(slow)) {
+		t.Fatalf("times are not aligned:\n%q\n%q", quick, slow)
+	}
+}
+
+func TestStepLineOmitsSubSecondTimes(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	got := renderStepLine(minGlyphCol, 1, 1, "Quick", stateDone, 0, 300*time.Millisecond)
+	if !strings.HasSuffix(got, "[✓]") {
+		t.Fatalf("a sub second step should show no time column: %q", got)
+	}
+}
+
+func TestRunStepsRecordsElapsedInPlainMode(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	err := RunSteps(context.Background(), "", []Step{
+		{Name: "Slow", Run: func(context.Context, io.Writer) error {
+			time.Sleep(1050 * time.Millisecond)
+			return nil
+		}},
+		{Name: "Quick", Run: func(context.Context, io.Writer) error { return nil }},
+	})
+	if err != nil {
+		t.Fatalf("RunSteps: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if !strings.HasSuffix(lines[0], "1s") {
+		t.Fatalf("the slow step should report its time: %q", lines[0])
+	}
+	if !strings.HasSuffix(lines[1], "[✓]") {
+		t.Fatalf("the quick step should report none: %q", lines[1])
+	}
+}
+
+// --- Ready and Commands ---
+
+func TestReadyBlock(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	Ready("Machine ready",
+		"Box", "ubuntu@1.2.3.4",
+		"Region", "eu-west-1",
+		"Harnesses", "claude, codex",
+	)
+
+	want := strings.Join([]string{
+		"",
+		"[✓] Machine ready",
+		"Box        ubuntu@1.2.3.4",
+		"Region     eu-west-1",
+		"Harnesses  claude, codex",
+		"",
+		"",
+	}, "\n")
+	if buf.String() != want {
+		t.Fatalf("got\n%q\nwant\n%q", buf.String(), want)
+	}
+}
+
+func TestReadyWithNoPairsIsJustTheHeading(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	Ready("Machine ready")
+	if buf.String() != "\n[✓] Machine ready\n\n" {
+		t.Fatalf("got %q", buf.String())
+	}
+}
+
+func TestCommandsAreIndentedAndPlain(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	Commands("agents attach <session>", "agents ssh")
+	if buf.String() != "  agents attach <session>\n  agents ssh\n" {
+		t.Fatalf("got %q", buf.String())
+	}
+}
+
+// --- banner ---
+
+func TestBannerWordmarkIsRectangular(t *testing.T) {
+	rows := bannerLines()
+	if len(rows) != bannerRows {
+		t.Fatalf("got %d rows, want %d", len(rows), bannerRows)
+	}
+	want := bannerWidth()
+	for i, r := range rows {
+		if got := lipgloss.Width(r); got != want {
+			t.Fatalf("row %d is %d columns, want %d: %q", i, got, want, r)
+		}
+	}
+	if got := bannerVisualWidth(rows); got != want {
+		t.Fatalf("visual width %d, want %d", got, want)
+	}
+}
+
+func TestBannerSpellsAgents(t *testing.T) {
+	if bannerWord != "AGENTS" {
+		t.Fatalf("wordmark spells %q", bannerWord)
+	}
+	for _, r := range bannerWord {
+		g, ok := bannerGlyphs[r]
+		if !ok {
+			t.Fatalf("no glyph for %q", r)
+		}
+		for row, l := range g {
+			if len([]rune(l)) != bannerGlyphWidth {
+				t.Fatalf("glyph %q row %d is %d columns, want %d", r, row, len([]rune(l)), bannerGlyphWidth)
+			}
+		}
+		// A blank glyph would reveal as nothing at all.
+		if strings.TrimSpace(strings.Join(g[:], "")) == "" {
+			t.Fatalf("glyph %q is empty", r)
+		}
+	}
+}
+
+func TestRevealToKeepsRowsRectangular(t *testing.T) {
+	rows := bannerLines()
+	width := bannerWidth()
+	for _, n := range []int{0, 1, width / 2, width, width + 5} {
+		for i, r := range revealTo(rows, n, width) {
+			if got := len([]rune(r)); got != width {
+				t.Fatalf("reveal %d row %d is %d columns, want %d", n, i, got, width)
+			}
+		}
+	}
+	// Revealing nothing shows nothing; revealing everything shows the wordmark.
+	if strings.TrimSpace(strings.Join(revealTo(rows, 0, width), "")) != "" {
+		t.Fatal("a zero reveal should be blank")
+	}
+	if strings.Join(revealTo(rows, width, width), "\n") != strings.Join(rows, "\n") {
+		t.Fatal("a full reveal should be the wordmark")
+	}
+}
+
+func TestBannerPrintsAtOnceOffATerminal(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	start := time.Now()
+	Banner("v1.2.3")
+	if elapsed := time.Since(start); elapsed > 100*time.Millisecond {
+		t.Fatalf("off a terminal the banner should not animate, took %v", elapsed)
+	}
+
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if len(lines) != bannerRows+2 {
+		t.Fatalf("got %d lines, want %d:\n%s", len(lines), bannerRows+2, buf.String())
+	}
+	if lines[0] != "" {
+		t.Fatalf("banner should open with a blank line, got %q", lines[0])
+	}
+	if lines[len(lines)-1] != "agents v1.2.3" {
+		t.Fatalf("version line = %q", lines[len(lines)-1])
+	}
+	if !strings.Contains(buf.String(), "█") {
+		t.Fatalf("no block letters in:\n%s", buf.String())
 	}
 }

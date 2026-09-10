@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -26,8 +27,10 @@ func formTheme() *huh.Theme {
 	t.Focused.Card = indent
 	t.Blurred.Card = indent
 
-	t.Focused.Title = accentStyle()
-	t.Focused.NoteTitle = accentStyle()
+	// The question text stays in the default colour. The accent is spent on the
+	// "?" alone, which askTitle has already rendered into the string.
+	t.Focused.Title = plainStyle()
+	t.Focused.NoteTitle = plainStyle()
 	t.Focused.Description = mutedStyle()
 	t.Blurred.Title = mutedStyle()
 	t.Blurred.NoteTitle = mutedStyle()
@@ -106,6 +109,31 @@ func runForm(field huh.Field) error {
 		return ErrCancelled
 	}
 	return err
+}
+
+// askTitle is the question as huh shows it: a teal "?" and then the question
+// in the default colour.
+func askTitle(title string) string { return glyphAsk() + " " + title }
+
+// answered collapses a finished prompt to one line, so the scrollback reads as
+// a list of decisions rather than a graveyard of widgets. huh's own view is
+// empty once the form quits, so this line lands where the widget was.
+func answered(title, answer string) {
+	line(glyphAsk() + " " + plainStyle().Render(title) + "  " + plainStyle().Render(answer))
+}
+
+// maskSecret is what a secret looks like in the transcript: the length is a
+// useful hint that something was typed, the value never appears.
+func maskSecret(v string) string {
+	const maxDots = 12
+	n := len([]rune(v))
+	if n == 0 {
+		return "(empty)"
+	}
+	if n > maxDots {
+		n = maxDots
+	}
+	return strings.Repeat("•", n)
 }
 
 func indexOptions(options []string, selected map[int]bool) []huh.Option[int] {

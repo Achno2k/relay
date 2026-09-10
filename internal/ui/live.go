@@ -63,16 +63,26 @@ func (p *phaseNode) lines(frame, width int) []string {
 // stepsNode is one RunSteps checklist, including the live tail under whichever
 // step is running.
 type stepsNode struct {
-	names  []string
-	states []stepState
-	logs   []*tailWriter
-	col    int
+	names   []string
+	states  []stepState
+	logs    []*tailWriter
+	elapsed []time.Duration
+	col     int
+}
+
+// elapsedOf is zero for steps that have not finished, so the time column only
+// appears once there is something to report.
+func (s *stepsNode) elapsedOf(i int) time.Duration {
+	if s.elapsed == nil || i >= len(s.elapsed) {
+		return 0
+	}
+	return s.elapsed[i]
 }
 
 func (s *stepsNode) lines(frame, width int) []string {
 	var out []string
 	for i, name := range s.names {
-		out = append(out, renderStepLine(s.col, i+1, len(s.names), name, s.states[i], frame))
+		out = append(out, renderStepLine(s.col, i+1, len(s.names), name, s.states[i], frame, s.elapsedOf(i)))
 		if s.states[i] != stateActive {
 			continue
 		}
@@ -240,10 +250,11 @@ func (l *live) emit(s string) bool {
 
 // setStep records a step's state and is the only writer the renderer races
 // with, so it takes the same lock View does.
-func (l *live) setStep(n *stepsNode, i int, s stepState) {
+func (l *live) setStep(n *stepsNode, i int, s stepState, elapsed time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	n.states[i] = s
+	n.elapsed[i] = elapsed
 }
 
 func (l *live) setSpinner(n *spinnerNode, err error) {

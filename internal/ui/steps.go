@@ -76,8 +76,14 @@ func stepGlyph(state stepState, frame int) string {
 	}
 }
 
-// renderStepLine lays out one step: label on the left, glyph at col.
-func renderStepLine(col, n, total int, name string, state stepState, frame int) string {
+// timeColWidth is the column the elapsed times are right-aligned in. Five
+// digits holds "1m02s", which is longer than any step should take.
+const timeColWidth = 5
+
+// renderStepLine lays out one step: label on the left, glyph at col, and the
+// time it took right-aligned after the glyph. Steps under a second show no
+// time, since the number would be noise.
+func renderStepLine(col, n, total int, name string, state stepState, frame int, elapsed time.Duration) string {
 	label := stepLabel(n, total, name)
 	gap := col - lipgloss.Width(label)
 	if gap < 1 {
@@ -87,7 +93,17 @@ func renderStepLine(col, n, total int, name string, state stepState, frame int) 
 	if state == statePending || state == stateSkipped {
 		style = mutedStyle()
 	}
-	return style.Render(label) + pad(gap) + stepGlyph(state, frame)
+	return style.Render(label) + pad(gap) + stepGlyph(state, frame) + renderElapsed(elapsed)
+}
+
+// renderElapsed is the dim, right-aligned time column. It is empty, column and
+// all, when nothing has run long enough to be worth reporting.
+func renderElapsed(d time.Duration) string {
+	s := shortDuration(d)
+	if s == "" {
+		return ""
+	}
+	return "  " + pad(timeColWidth-lipgloss.Width(s)) + mutedStyle().Render(s)
 }
 
 // tailWriter keeps the last n lines written to it.

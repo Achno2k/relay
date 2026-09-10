@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -12,11 +14,13 @@ import (
 	"github.com/muesli/termenv"
 )
 
-// Palette. Monochrome base with a single accent; status colours only on the
-// three glyphs. Every colour is adaptive so it stays legible on light and dark
-// terminals.
+// Palette. Monochrome base with a single accent, spent only on the things the
+// user can act on: the "?" in front of a question, the loader frame, the
+// selected option, and section titles. Success, failure and warning own green,
+// red and amber; everything else is the terminal default or dim. Every colour
+// is adaptive so it stays legible on light and dark terminals.
 var (
-	colorAccent = lipgloss.AdaptiveColor{Light: "#B85A2E", Dark: "#E07A4F"}
+	colorAccent = lipgloss.AdaptiveColor{Light: "#0F8B8D", Dark: "#2DD4BF"}
 	colorOK     = lipgloss.AdaptiveColor{Light: "#2E7D32", Dark: "#5FBF6A"}
 	colorFail   = lipgloss.AdaptiveColor{Light: "#C0392B", Dark: "#E05C4B"}
 	colorWarn   = lipgloss.AdaptiveColor{Light: "#A9701A", Dark: "#E0B34F"}
@@ -42,6 +46,31 @@ func badgeEmpty() string { return badge(markEmpty, mutedStyle()) }
 func badgeWidth() int    { return 3 }
 func badgeActive(frame int) string {
 	return badge(loaderFrames[frame%len(loaderFrames)], accentStyle())
+}
+
+// Prompt glyphs. The question mark leads anything the user answers; the
+// chevron leads anything we are telling them.
+const (
+	markAsk  = "?"
+	markInfo = ">"
+)
+
+func glyphAsk() string  { return accentStyle().Render(markAsk) }
+func glyphInfo() string { return mutedStyle().Render(markInfo) }
+
+// shortDuration formats a step's elapsed time for the checklist. Anything
+// under a second is not worth a column, so it comes back empty.
+func shortDuration(d time.Duration) string {
+	if d < time.Second {
+		return ""
+	}
+	d = d.Round(time.Second)
+	if d < time.Minute {
+		return strconv.Itoa(int(d.Seconds())) + "s"
+	}
+	m := int(d / time.Minute)
+	sec := int((d % time.Minute) / time.Second)
+	return fmt.Sprintf("%dm%02ds", m, sec)
 }
 
 // badge wraps one mark in dim brackets.

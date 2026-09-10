@@ -47,6 +47,8 @@ func runInit(ctx context.Context, skipSlack, fresh bool) error {
 		return errors.New("`agents init` runs on your laptop, not on the box")
 	}
 
+	ui.Banner(Version)
+
 	cfg, err := config.Load()
 	if err != nil && !errors.Is(err, config.ErrNotInitialised) {
 		return err
@@ -439,26 +441,41 @@ func askSlackAllowlist() ([]string, error) {
 
 // initSummary prints the handful of lines the user actually needs afterwards.
 func initSummary(ctx context.Context, runner sshx.Runner, cfg config.Config, repo string) {
-	ui.Title("Ready")
-	pairs := []string{
-		"Instance", cfg.AWS.InstanceID + " (" + cfg.AWS.Region + ")",
-		"Box", cfg.Box.User + "@" + cfg.Box.Host,
-		"Harnesses", strings.Join(cfg.Harness, ", "),
-		"Bot", bootstrap.BotStatus(ctx, runner),
+	box := cfg.Box.User + "@" + cfg.Box.Host
+	if cfg.AWS.InstanceID != "" {
+		box += " (" + cfg.AWS.InstanceID + ")"
 	}
+	repoPath := "none yet"
 	if repo != "" {
-		pairs = append(pairs, "Repo", bootstrap.DisplayPath(bootstrap.CheckoutDir(cfg.Box.WorkDir, repo)))
+		repoPath = bootstrap.DisplayPath(bootstrap.CheckoutDir(cfg.Box.WorkDir, repo))
 	}
-	ui.KV(pairs...)
+	harnesses := strings.Join(cfg.Harness, ", ")
+	if harnesses == "" {
+		harnesses = "none"
+	}
 
-	ui.Info("Shell on the box")
-	ui.Code("agents ssh")
-	ui.Info("Attach to the box's herdr session")
-	ui.Code("herdr --remote " + cfg.Box.User + "@" + cfg.Box.Host)
-	if repo != "" {
-		ui.Info("Start work from Slack by mentioning the bot, or locally")
-		ui.Code("agents sessions list")
+	ui.Ready("Machine ready",
+		"Box", box,
+		"Region", cfg.AWS.Region,
+		"Repo", repoPath,
+		"Harnesses", harnesses,
+		"Bot", bootstrap.BotStatus(ctx, runner),
+	)
+
+	ui.Commands(
+		"agents attach <session>",
+		"agents ssh",
+	)
+	ui.Info("or mention the bot in Slack: @agents " + slackExample(repo))
+}
+
+// slackExample keeps the Slack hint concrete: a real repo name when we have
+// one, a placeholder when the box has no checkout yet.
+func slackExample(repo string) string {
+	if repo == "" {
+		return "<repo> fix the failing test"
 	}
+	return repo + " fix the failing test"
 }
 
 // resumePrompt describes the saved box so the user can tell at a glance whether
