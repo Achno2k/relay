@@ -471,9 +471,20 @@ func (b *Bot) createSession(ctx context.Context, d decision, old *state.Session)
 		return
 	}
 	extra := b.config().HarnessArgs[sess.Kind]
-	if err := b.Herdr.StartAgent(ctx, sess.AgentName, sess.Kind, paneID, extra...); err != nil {
+	// agent_not_ready means the harness is up but sitting on a startup
+	// dialog; that is not fatal, the wait below gives it time to settle.
+	if err := b.Herdr.StartAgent(ctx, sess.AgentName, sess.Kind, paneID, extra...); err != nil && !isNotReady(err) {
 		b.say(ctx, d.Channel, d.ThreadTS, "herdr could not start "+sess.Kind+": "+err.Error())
 		return
+	}
+	// A prompt sent while the harness is still on a startup screen is lost,
+	// so wait for it to reach an input prompt before sending anything.
+	settleCtx, cancel := context.WithTimeout(ctx, startupSettle)
+	st, werr := b.Herdr.Wait(settleCtx, sess.AgentName, herdr.StateIdle, herdr.StateDone)
+	cancel()
+	if werr != nil || (st != herdr.StateIdle && st != herdr.StateDone) {
+		b.say(ctx, d.Channel, d.ThreadTS, "Started `"+sess.AgentName+"` but "+sess.Kind+
+			" is stuck on a startup dialog in its pane. Answer it with `agents attach "+id+"`, then mention me again.")
 	}
 	if err := b.Store.Create(ctx, sess); err != nil {
 		// Without a row nothing can drive this agent, so do not leave it running.
@@ -696,4 +707,13 @@ func sortStrings(s []string) {
 			s[j], s[j-1] = s[j-1], s[j]
 		}
 	}
+}
+
+// startupSettle is how long a freshly started harness gets to reach its input
+// prompt before the first Slack prompt is sent.
+const startupSettle = 60 * time.Second
+
+func isNotReady(err error) bool {
+	var he *herdr.Error
+	return errors.As(err, &he) && he.Code == "agent_not_ready"
 }
