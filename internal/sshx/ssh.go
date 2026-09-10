@@ -3,9 +3,11 @@
 package sshx
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -177,12 +179,18 @@ func (r *runner) Copy(ctx context.Context, localPath, remotePath string) error {
 	}
 	argv := scpArgv(r.t, localPath, remotePath)
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Run()
+	// Never inherit the terminal: scp's progress meter would draw under the
+	// step runner's frame. Quiet mode plus captured stderr for the error.
+	var stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = io.Discard, &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("scp %s: %w: %s", filepath.Base(localPath), err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
 }
 
 func scpArgv(t Target, localPath, remotePath string) []string {
-	argv := []string{"scp"}
+	argv := []string{"scp", "-q"}
 	argv = append(argv, options(t)...)
 	argv = append(argv, localPath, destOf(t)+":"+remotePath)
 	return argv
