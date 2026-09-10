@@ -12,12 +12,16 @@ import (
 )
 
 type Config struct {
-	AWS      AWS             `toml:"aws"`
-	Box      Box             `toml:"box"`
-	Harness  []string        `toml:"harnesses"` // "claude", "codex"
-	Repos    map[string]Repo `toml:"repos"`     // key: short repo name
-	Slack    Slack           `toml:"slack"`
-	Sessions SessionPolicy   `toml:"sessions"`
+	AWS     AWS      `toml:"aws"`
+	Box     Box      `toml:"box"`
+	Harness []string `toml:"harnesses"` // "claude", "codex"
+	// HarnessArgs are extra CLI args per harness when the bot starts one,
+	// for example flags that make the harness run unattended. Empty means
+	// the harness's own defaults, with approval prompts relayed to Slack.
+	HarnessArgs map[string][]string `toml:"harness_args"`
+	Repos       map[string]Repo     `toml:"repos"` // key: short repo name
+	Slack       Slack               `toml:"slack"`
+	Sessions    SessionPolicy       `toml:"sessions"`
 }
 
 type AWS struct {
@@ -61,10 +65,11 @@ func Path() string { return filepath.Join(Dir(), "config.toml") }
 
 func Default() Config {
 	return Config{
-		Box:      Box{User: "ubuntu", Transport: "ssh", WorkDir: "~/work"},
-		Repos:    map[string]Repo{},
-		Slack:    Slack{DefaultRepoByChannel: map[string]string{}},
-		Sessions: SessionPolicy{IdleTTLHours: 24, MaxLive: 5},
+		Box:         Box{User: "ubuntu", Transport: "ssh", WorkDir: "~/work"},
+		Repos:       map[string]Repo{},
+		HarnessArgs: map[string][]string{},
+		Slack:       Slack{DefaultRepoByChannel: map[string]string{}},
+		Sessions:    SessionPolicy{IdleTTLHours: 24, MaxLive: 5},
 	}
 }
 
