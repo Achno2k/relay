@@ -51,33 +51,49 @@ const stepSchema = `{
   }
 }`
 
+// alreadyOnBox lists what `agents init` has already installed. The generator
+// is told to leave every one of these alone.
+const alreadyOnBox = `git, gh, curl, unzip, mise, node 22 (installed via mise), herdr in
+/usr/local/bin, the claude and codex CLIs, the agents binary, ~/.agents and its
+config, the systemd units, the aws cli and session-manager-plugin`
+
 // generatePrompt asks the harness to inspect the repo and write a plan.
 func generatePrompt(repoDir string) string {
-	return `Inspect the repository at ` + repoDir + ` and write a plan that makes a fresh
-Ubuntu 24.04 machine able to build, test and run it.
+	return `Inspect the repository at ` + repoDir + ` and write the plan that makes this
+Ubuntu 24.04 box able to build and test it.
 
 Read the repo first: package manifests, lockfiles, tool-version files, Dockerfile,
 docker-compose, CI workflows, Makefile and the README. Base every step on what you
-actually find, not on guesses.
+actually find in the repo, not on guesses.
 
-Rules for the plan:
-- Assume git, gh, curl, build-essential and mise are already installed. Do not
-  reinstall them.
-- Install language runtimes and their versions with mise (` + "`mise use -g <tool>@<version>`" + `),
-  pinned to the versions the repo asks for. Use apt only for system libraries that
-  mise cannot provide.
-- Every step must be idempotent: safe to re-run on a machine where it already ran.
+ALREADY INSTALLED AND WORKING ON THIS BOX. Do not install, upgrade, reinstall,
+reconfigure or verify any of it, and do not add a step that merely checks for it:
+` + alreadyOnBox + `.
+
+So the plan covers repo-level needs only:
+- language runtimes and versions this repo pins, installed with mise
+  (` + "`mise use -g <tool>@<version>`" + `) — but never node unless the repo pins a
+  version other than 22
+- system libraries the build genuinely needs (apt, only when mise cannot provide it)
+- downloading the project's dependencies
+- any code generation the build requires
+- one final step that builds or typechecks the project to prove the environment works
+
+Rules:
+- At most 10 steps. Fewer is better. If the repo needs nothing beyond what is
+  already on the box, return the build step alone.
+- Every step must be idempotent: safe to re-run on a box where it already ran.
 - Every step should carry a "verify" command: bash that exits 0 when that step is
   already satisfied.
 - Set "needs_sudo": true for any step that changes system state, and write the
   sudo into the "run" command itself (non-interactive, e.g. ` + "`sudo -n apt-get -y ...`" + `).
-- Include steps for project dependencies (install, vendor, tidy) and for anything
-  the app needs locally, such as a database or a .env file copied from an example.
+- Never edit shell profiles (.bashrc, .profile, .zshrc or anything in /etc/profile.d)
+  and never touch ~/.agents. mise is already activated for this shell.
 - Do not start long-running servers, do not run the test suite, do not clone the
   repo, and never do anything destructive.
-- End with a "verify" list: one short command per tool or service that proves the
-  environment is ready (for example "go version", "node --version", "pg_isready").
-- Keep it under 15 steps and order them so dependencies come first.`
+- End with a "verify" list: one short command per runtime or service that proves the
+  environment is ready (for example "go version", "python --version", "pg_isready").
+- Order the steps so dependencies come first.`
 }
 
 // repairPrompt asks the harness for a replacement for one failed step.

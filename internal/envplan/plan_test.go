@@ -130,6 +130,36 @@ func TestGeneratePromptContent(t *testing.T) {
 	}
 }
 
+func TestGeneratePromptNamesBoxExclusions(t *testing.T) {
+	p := generatePrompt("/home/ubuntu/work/api/main")
+
+	for _, want := range []string{
+		"git", "gh", "curl", "unzip", "mise",
+		"node 22",
+		"herdr in\n/usr/local/bin",
+		"claude and codex CLIs",
+		"the agents binary",
+		"~/.agents",
+		"systemd units",
+		"aws cli and session-manager-plugin",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("generate prompt does not name the pre-installed %q", want)
+		}
+	}
+
+	for _, want := range []string{
+		"Do not install, upgrade, reinstall",
+		"At most 10 steps",
+		"Never edit shell profiles",
+		"never touch ~/.agents",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("generate prompt missing instruction %q", want)
+		}
+	}
+}
+
 func TestRepairPromptContent(t *testing.T) {
 	failed := Step{Name: "Install Go", Run: "mise use -g go@1.25", Verify: "go version"}
 	lines := make([]string, 0, 101)

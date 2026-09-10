@@ -24,19 +24,22 @@ func (e *stubExecutor) Execute(ctx context.Context, p Plan, repoDir string, gen 
 
 func (e *stubExecutor) VerifyOnly(ctx context.Context, p Plan, repoDir string) error { return nil }
 
-// stubSetup swaps the Setup seams for the duration of a test.
-func stubSetup(t *testing.T, gen Generator, ex Executor, approve bool) {
+// stubSetup swaps the Setup seams for the duration of a test and records the
+// phase titles Setup opens, outermost first.
+func stubSetup(t *testing.T, gen Generator, ex Executor) *[]string {
 	t.Helper()
-	oldGen, oldExec, oldSpin, oldConfirm := newGenerator, newExecutor, spinnerFn, confirmFn
+	oldGen, oldExec, oldPhase := newGenerator, newExecutor, phaseFn
 	t.Cleanup(func() {
-		newGenerator, newExecutor, spinnerFn, confirmFn = oldGen, oldExec, oldSpin, oldConfirm
+		newGenerator, newExecutor, phaseFn = oldGen, oldExec, oldPhase
 	})
 	newGenerator = func(string) (Generator, error) { return gen, nil }
 	newExecutor = func() Executor { return ex }
-	spinnerFn = func(ctx context.Context, label string, fn func(ctx context.Context) error) error {
+	titles := &[]string{}
+	phaseFn = func(ctx context.Context, title string, fn func(ctx context.Context) error) error {
+		*titles = append(*titles, title)
 		return fn(ctx)
 	}
-	confirmFn = func(string, bool) (bool, error) { return approve, nil }
+	return titles
 }
 
 func TestSetupCachesPlanBeforeExecuting(t *testing.T) {
@@ -53,7 +56,7 @@ func TestSetupCachesPlanBeforeExecuting(t *testing.T) {
 	}
 	gen := &fakeGen{plan: generated}
 	ex := &stubExecutor{err: errors.New("step 1 failed")}
-	stubSetup(t, gen, ex, true)
+	titles := stubSetup(t, gen, ex)
 
 	if _, err := os.Stat(PlanPath("api")); !os.IsNotExist(err) {
 		t.Fatalf("plan should not exist yet: %v", err)
@@ -82,13 +85,20 @@ func TestSetupCachesPlanBeforeExecuting(t *testing.T) {
 	}
 
 	// A second run replays the cache instead of asking the harness again.
+	if len(*titles) != 2 || (*titles)[0] != "Setting up dev environment" || (*titles)[1] != "Inferring steps" {
+		t.Fatalf("phases = %v, want the outer phase then Inferring steps", *titles)
+	}
+
 	gen.generates = 0
 	ex2 := &stubExecutor{}
-	stubSetup(t, gen, ex2, true)
+	titles2 := stubSetup(t, gen, ex2)
 	if err := Setup(context.Background(), "api", "/repo", "claude", false); err != nil {
 		t.Fatalf("second Setup: %v", err)
 	}
 	if gen.generates != 0 {
 		t.Fatalf("cached plan should not regenerate, Generate called %d times", gen.generates)
+	}
+	if len(*titles2) != 2 || (*titles2)[1] != "Loading cached plan" {
+		t.Fatalf("phases = %v, want the cached-plan phase", *titles2)
 	}
 }
