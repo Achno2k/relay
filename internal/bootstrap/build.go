@@ -93,12 +93,22 @@ var ErrNoModuleSource = errors.New("cannot find the agents-cli source tree; set 
 // ModuleDir locates this module's source tree: $AGENTS_SRC first, then the
 // working directory and the running binary's directory, walking up for a go.mod
 // that declares ModulePath.
+// BuildSourceDir is the checkout this binary was built from, stamped by the
+// Makefile with -ldflags "-X .../bootstrap.BuildSourceDir=<dir>". It lets
+// `agents init` cross-compile the box binary from any working directory.
+var BuildSourceDir string
+
 func ModuleDir() (string, error) {
 	if src := os.Getenv("AGENTS_SRC"); src != "" {
 		if ok, _ := isModuleRoot(src); ok {
 			return src, nil
 		}
 		return "", fmt.Errorf("%w (AGENTS_SRC=%s is not it)", ErrNoModuleSource, src)
+	}
+	if BuildSourceDir != "" {
+		if ok, _ := isModuleRoot(BuildSourceDir); ok {
+			return BuildSourceDir, nil
+		}
 	}
 	var starts []string
 	if wd, err := os.Getwd(); err == nil {

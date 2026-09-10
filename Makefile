@@ -1,7 +1,7 @@
 BINARY := agents
 PKG := github.com/Achno2k/agents-cli
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X $(PKG)/internal/cli.Version=$(VERSION)
+LDFLAGS := -s -w -X $(PKG)/internal/cli.Version=$(VERSION) -X $(PKG)/internal/bootstrap.BuildSourceDir=$(CURDIR)
 
 .PHONY: build install test lint snapshot clean
 
