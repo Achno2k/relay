@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/Achno2k/agents-cli/internal/ui"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -65,10 +66,25 @@ func EnsureCreds(ctx context.Context, p Profile, region string) (aws.Config, err
 
 // ssoLogin runs the interactive SSO login for a profile on the user's terminal.
 func ssoLogin(ctx context.Context, profile string) error {
-	cmd := exec.CommandContext(ctx, "aws", "sso", "login", "--profile", profile)
+	return runAWS(ctx, "sso", "login", "--profile", profile)
+}
+
+// runAWS runs an aws subcommand attached to the user's terminal.
+func runAWS(ctx context.Context, args ...string) error {
+	cmd := exec.CommandContext(ctx, "aws", args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("aws sso login --profile %s: %w", profile, err)
+		return fmt.Errorf("aws %s: %w", strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+// requireAWSCLI reports a missing aws CLI with the install command.
+func requireAWSCLI() error {
+	if _, err := exec.LookPath("aws"); err != nil {
+		ui.Fail("the aws CLI is not on PATH")
+		ui.Code("brew install awscli")
+		return errors.New("aws CLI not found")
 	}
 	return nil
 }

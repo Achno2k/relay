@@ -155,3 +155,39 @@ func TestRegionOptionsPutsProfileRegionFirst(t *testing.T) {
 }
 
 func stringsReader(s string) *strings.Reader { return strings.NewReader(s) }
+
+func TestPreselectMovesAWSProfileFirst(t *testing.T) {
+	profs := []Profile{{Name: "default"}, {Name: "scratch"}, {Name: "work"}}
+
+	got := preselect(profs, "work")
+	if len(got) != 3 {
+		t.Fatalf("want 3 profiles, got %d", len(got))
+	}
+	if got[0].Name != "work" {
+		t.Errorf("first = %q, want work", got[0].Name)
+	}
+	if got[1].Name != "default" || got[2].Name != "scratch" {
+		t.Errorf("rest lost its order: %q %q", got[1].Name, got[2].Name)
+	}
+	if profs[0].Name != "default" {
+		t.Error("preselect must not reorder the caller's slice")
+	}
+}
+
+func TestPreselectLeavesOrderAlone(t *testing.T) {
+	profs := []Profile{{Name: "default"}, {Name: "work"}}
+	for _, name := range []string{"", "   ", "missing"} {
+		got := preselect(profs, name)
+		if len(got) != 2 || got[0].Name != "default" || got[1].Name != "work" {
+			t.Errorf("preselect(%q) reordered to %+v", name, got)
+		}
+	}
+}
+
+func TestPreselectFirstAlreadySelected(t *testing.T) {
+	profs := []Profile{{Name: "default"}, {Name: "work"}}
+	got := preselect(profs, "default")
+	if got[0].Name != "default" || got[1].Name != "work" {
+		t.Errorf("got %+v", got)
+	}
+}

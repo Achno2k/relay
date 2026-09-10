@@ -33,7 +33,7 @@ func PickTarget(ctx context.Context) (config.AWS, config.Box, error) {
 	var a config.AWS
 	var b config.Box
 
-	prof, err := pickProfile()
+	prof, err := pickProfile(ctx)
 	if err != nil {
 		return a, b, err
 	}
@@ -120,26 +120,85 @@ func InstanceArch(ctx context.Context, a config.AWS) (string, error) {
 	return normalizeArch(string(inst.Architecture)), nil
 }
 
-func pickProfile() (Profile, error) {
+func pickProfile(ctx context.Context) (Profile, error) {
 	profs, err := Profiles()
 	if err != nil {
 		return Profile{}, err
 	}
 	if len(profs) == 0 {
-		return Profile{}, errors.New("no AWS profiles found in ~/.aws/config or ~/.aws/credentials")
+		if err := configureFirstProfile(ctx); err != nil {
+			return Profile{}, err
+		}
+		if profs, err = Profiles(); err != nil {
+			return Profile{}, err
+		}
+		if len(profs) == 0 {
+			return Profile{}, errors.New("still no AWS profiles in ~/.aws/config or ~/.aws/credentials")
+		}
 	}
+	env := os.Getenv("AWS_PROFILE")
+	profs = preselect(profs, env)
 	if len(profs) == 1 {
 		return profs[0], nil
 	}
 	labels := make([]string, len(profs))
 	for i, p := range profs {
 		labels[i] = profileLabel(p)
+		if i == 0 && env != "" && p.Name == env {
+			labels[i] += "  (AWS_PROFILE)"
+		}
 	}
 	i, err := ui.Select("AWS profile", labels)
 	if err != nil {
 		return Profile{}, err
 	}
 	return profs[i], nil
+}
+
+// preselect moves the profile named by AWS_PROFILE to the front so the picker
+// opens on it. An empty or unknown name leaves the order untouched.
+func preselect(profs []Profile, name string) []Profile {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return profs
+	}
+	for i, p := range profs {
+		if p.Name != name {
+			continue
+		}
+		out := make([]Profile, 0, len(profs))
+		out = append(out, p)
+		out = append(out, profs[:i]...)
+		out = append(out, profs[i+1:]...)
+		return out
+	}
+	return profs
+}
+
+// signInMethods are the ways to create a first AWS profile.
+var signInMethods = []struct {
+	Label string
+	Args  []string
+}{
+	{"SSO (IAM Identity Center)", []string{"configure", "sso"}},
+	{"Access key and secret", []string{"configure"}},
+}
+
+// configureFirstProfile runs `aws configure` (or `aws configure sso`) on the
+// user's terminal when no profile exists yet. The caller re-scans afterwards.
+func configureFirstProfile(ctx context.Context) error {
+	if err := requireAWSCLI(); err != nil {
+		return err
+	}
+	labels := make([]string, len(signInMethods))
+	for i, m := range signInMethods {
+		labels[i] = m.Label
+	}
+	i, err := ui.Select("No AWS profiles found. How do you sign in?", labels)
+	if err != nil {
+		return err
+	}
+	return runAWS(ctx, signInMethods[i].Args...)
 }
 
 func profileLabel(p Profile) string {
