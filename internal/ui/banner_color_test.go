@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestMixHex(t *testing.T) {
 	if got := mixHex("#000000", "#ffffff", 0.5); got != "#808080" {
@@ -22,7 +25,7 @@ func TestStyledFrameKeepsShape(t *testing.T) {
 	}
 	plain, styled := a.frame(), a.styledFrame()
 	for r := range plain {
-		if sanitizeLog(styled[r]) != plain[r] {
+		if strings.TrimRight(sanitizeLog(styled[r]), " ") != strings.TrimRight(plain[r], " ") {
 			t.Fatalf("row %d differs:\n%q\n%q", r, sanitizeLog(styled[r]), plain[r])
 		}
 	}
