@@ -3,10 +3,16 @@ PKG := github.com/Achno2k/agents-cli
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X $(PKG)/internal/cli.Version=$(VERSION)
 
-.PHONY: build test lint snapshot clean
+.PHONY: build install test lint snapshot clean
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/agents
+
+# rm first: overwriting an existing Mach-O in place leaves macOS with a stale
+# cached code signature and the next run dies with SIGKILL (exit 137).
+install: build
+	rm -f $(HOME)/.local/bin/$(BINARY)
+	cp bin/$(BINARY) $(HOME)/.local/bin/$(BINARY)
 
 test:
 	go test ./...
