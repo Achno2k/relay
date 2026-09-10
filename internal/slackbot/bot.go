@@ -421,8 +421,13 @@ func (b *Bot) createSession(ctx context.Context, d decision, old *state.Session)
 	_ = repoCfg
 
 	// A fork releases the thread first so the unique index on (channel,
-	// thread) does not reject the new row.
+	// thread) does not reject the new row, and stops the old agent so two
+	// sessions are not left running against one thread. Its worktree stays.
 	if old != nil {
+		b.stopWatcher(old.ID)
+		if err := b.Herdr.KillAgent(ctx, old.AgentName); err != nil {
+			b.logf("kill forked-from %s: %v", old.AgentName, err)
+		}
 		b.unbindThread(ctx, *old)
 	}
 
@@ -452,12 +457,21 @@ func (b *Bot) createSession(ctx context.Context, d decision, old *state.Session)
 		b.logf("exclude .agents in %s: %v", path, err)
 	}
 
+	// Claude Code asks whether to trust a new folder before doing anything,
+	// and every session is a new folder. Accept it up front.
+	if sess.Kind == "claude" {
+		if err := trustWorktree(path); err != nil {
+			b.logf("trust worktree %s: %v", path, err)
+		}
+	}
+
 	paneID, err := b.Herdr.NewPane(ctx, path)
 	if err != nil {
 		b.say(ctx, d.Channel, d.ThreadTS, "herdr could not open a pane: "+err.Error())
 		return
 	}
-	if err := b.Herdr.StartAgent(ctx, sess.AgentName, sess.Kind, paneID); err != nil {
+	extra := b.config().HarnessArgs[sess.Kind]
+	if err := b.Herdr.StartAgent(ctx, sess.AgentName, sess.Kind, paneID, extra...); err != nil {
 		b.say(ctx, d.Channel, d.ThreadTS, "herdr could not start "+sess.Kind+": "+err.Error())
 		return
 	}

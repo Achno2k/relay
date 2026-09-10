@@ -65,11 +65,16 @@ func Path() string { return filepath.Join(Dir(), "config.toml") }
 
 func Default() Config {
 	return Config{
-		Box:         Box{User: "ubuntu", Transport: "ssh", WorkDir: "~/work"},
-		Repos:       map[string]Repo{},
-		HarnessArgs: map[string][]string{},
-		Slack:       Slack{DefaultRepoByChannel: map[string]string{}},
-		Sessions:    SessionPolicy{IdleTTLHours: 24, MaxLive: 5},
+		Box:   Box{User: "ubuntu", Transport: "ssh", WorkDir: "~/work"},
+		Repos: map[string]Repo{},
+		// Unattended by default: the box is the user's own and every session
+		// works in a throwaway worktree. Set a harness to [] to get prompts.
+		HarnessArgs: map[string][]string{
+			"claude": {"--dangerously-skip-permissions"},
+			"codex":  {"--full-auto"},
+		},
+		Slack:    Slack{DefaultRepoByChannel: map[string]string{}},
+		Sessions: SessionPolicy{IdleTTLHours: 24, MaxLive: 5},
 	}
 }
 
