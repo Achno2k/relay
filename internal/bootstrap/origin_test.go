@@ -34,3 +34,12 @@ func TestShellPathExpandsHome(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+func TestLooksLikeGitAuthFailure(t *testing.T) {
+	if !LooksLikeGitAuthFailure("remote: Repository not found.\nfatal: repository 'https://github.com/x/y.git/' not found") {
+		t.Fatal("not-found should count as auth")
+	}
+	if LooksLikeGitAuthFailure("fatal: unable to access: Could not resolve host: github.com") {
+		t.Fatal("dns failure is not auth")
+	}
+}

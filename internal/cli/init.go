@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -204,14 +205,35 @@ func initRepo(ctx context.Context, runner sshx.Runner, cfg *config.Config) (stri
 		}
 	}
 
-	err = ui.RunSteps(ctx, "Cloning "+origin.Name, []ui.Step{{
-		Name: "git clone into " + bootstrap.DisplayPath(bootstrap.CheckoutDir(cfg.Box.WorkDir, origin.Name)),
-		Run: func(ctx context.Context, log io.Writer) error {
-			return bootstrap.Clone(ctx, runner, cfg.Box.WorkDir, origin, log)
-		},
-	}})
-	if err != nil {
-		return "", err
+	// Clone, and on an auth-shaped failure offer to sign in to GitHub with a
+	// different account and retry. "Repository not found" over https is what
+	// GitHub returns for a private repo the current token cannot see.
+	for attempt := 0; ; attempt++ {
+		var cloneLog bytes.Buffer
+		err = ui.RunSteps(ctx, "Cloning "+origin.Name, []ui.Step{{
+			Name: "git clone into " + bootstrap.DisplayPath(bootstrap.CheckoutDir(cfg.Box.WorkDir, origin.Name)),
+			Run: func(ctx context.Context, log io.Writer) error {
+				return bootstrap.Clone(ctx, runner, cfg.Box.WorkDir, origin, io.MultiWriter(log, &cloneLog))
+			},
+		}})
+		if err == nil {
+			break
+		}
+		if attempt > 0 || !bootstrap.LooksLikeGitAuthFailure(cloneLog.String()) {
+			return "", err
+		}
+		ui.Warn("GitHub says " + origin.Name + " does not exist or is not visible to the account signed in on the box.")
+		ui.Info("If the repo belongs to another account or org, sign in with that one now. gh keeps both accounts and uses the new one for this clone.")
+		again, cerr := ui.Confirm("Sign in to GitHub with a different account and retry?", true)
+		if cerr != nil {
+			return "", cerr
+		}
+		if !again {
+			return "", err
+		}
+		if err := initGitHubAuth(ctx, runner); err != nil {
+			return "", err
+		}
 	}
 
 	if cfg.Repos == nil {

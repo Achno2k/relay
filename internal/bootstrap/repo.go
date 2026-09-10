@@ -171,3 +171,22 @@ func shellPath(p string) string {
 func DisplayPath(p string) string {
 	return strings.Replace(p, "$HOME", "~", 1)
 }
+
+// LooksLikeGitAuthFailure reports whether git output reads like a credential
+// or visibility problem rather than a network or disk one.
+func LooksLikeGitAuthFailure(out string) bool {
+	l := strings.ToLower(out)
+	for _, needle := range []string{
+		"repository not found",
+		"authentication failed",
+		"could not read username",
+		"permission denied",
+		"403",
+		"terminal prompts disabled",
+	} {
+		if strings.Contains(l, needle) {
+			return true
+		}
+	}
+	return false
+}
