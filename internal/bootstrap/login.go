@@ -12,30 +12,52 @@ import (
 	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
-// Login signs in to each named harness on the box. Already-authenticated
-// harnesses are skipped. Login is interactive by design: the harness prints a
-// URL, the user opens it locally and pastes the code back, so the command runs
-// on the local tty through sshx.Interactive rather than as a captured script.
-func Login(ctx context.Context, r sshx.Runner, names []string) error {
+// Login signs in to each named harness on the box and returns the names that
+// ended up authenticated. Already-authenticated harnesses are skipped. For the
+// rest the user is asked first and may skip; a failed or abandoned login is a
+// warning, not a fatal error, so one missing account never blocks init.
+// Login is interactive by design: the harness prints a URL, the user opens it
+// locally and pastes the code back, so the command runs on the local tty
+// through sshx.Interactive rather than as a captured script.
+func Login(ctx context.Context, r sshx.Runner, names []string) ([]string, error) {
+	var ok []string
 	for _, name := range names {
-		h, ok := harness.Registry[strings.ToLower(name)]
-		if !ok {
-			return fmt.Errorf("unknown harness %q", name)
+		h, found := harness.Registry[strings.ToLower(name)]
+		if !found {
+			return ok, fmt.Errorf("unknown harness %q", name)
 		}
 		if IsLoggedIn(ctx, r, h) {
 			ui.Success(h.Name() + " already signed in")
+			ok = append(ok, h.Name())
 			continue
 		}
-		ui.Info("Signing in to " + h.Name() + ". Open the URL it prints and paste the code back here.")
+		yes, err := ui.Confirm("Sign in to "+h.Name()+" now? (No skips it and drops it from this box)", true)
+		if err != nil {
+			return ok, err
+		}
+		if !yes {
+			ui.Warn(h.Name() + " skipped")
+			continue
+		}
+		ui.Info("Signing in to " + h.Name() + ". Open the URL it prints and paste the code back here. Ctrl-C to skip.")
 		if err := r.Interactive(ctx, InteractiveCmd(h.LoginCmd())); err != nil {
-			return fmt.Errorf("%s login: %w", h.Name(), err)
+			if ctx.Err() != nil {
+				return ok, ctx.Err()
+			}
+			ui.Warn(h.Name() + " login did not complete, skipping")
+			continue
 		}
 		if !IsLoggedIn(ctx, r, h) {
-			return fmt.Errorf("%s still reports signed out after login", h.Name())
+			ui.Warn(h.Name() + " still reports signed out, skipping")
+			continue
 		}
 		ui.Success(h.Name() + " signed in")
+		ok = append(ok, h.Name())
 	}
-	return nil
+	if len(ok) == 0 {
+		return ok, fmt.Errorf("no harness is signed in; at least one is needed")
+	}
+	return ok, nil
 }
 
 // IsLoggedIn reports whether the harness has valid auth on the box.

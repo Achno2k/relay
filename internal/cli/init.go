@@ -131,8 +131,15 @@ func runInit(ctx context.Context, skipSlack, fresh bool) error {
 
 	// 5. harness login, one interactive session each.
 	ui.Title("Sign in")
-	if err := bootstrap.Login(ctx, runner, cfg.Harness); err != nil {
+	signedIn, err := bootstrap.Login(ctx, runner, cfg.Harness)
+	if err != nil {
 		return err
+	}
+	if strings.Join(signedIn, ",") != strings.Join(cfg.Harness, ",") {
+		cfg.Harness = signedIn
+		if err := config.Save(cfg); err != nil {
+			return err
+		}
 	}
 
 	// 6. repo: detect here, confirm, clone there.
