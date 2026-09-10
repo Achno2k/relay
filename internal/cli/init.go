@@ -20,7 +20,7 @@ import (
 func init() { Register(newInitCmd()) }
 
 func newInitCmd() *cobra.Command {
-	var skipSlack bool
+	var skipSlack, fresh bool
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Set up the EC2 box: tools, harnesses, a repo and the Slack bot",
@@ -29,14 +29,15 @@ func newInitCmd() *cobra.Command {
 			"and optionally start the Slack bot.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runInit(cmd.Context(), skipSlack)
+			return runInit(cmd.Context(), skipSlack, fresh)
 		},
 	}
 	cmd.Flags().BoolVar(&skipSlack, "skip-slack", false, "don't ask for Slack tokens")
+	cmd.Flags().BoolVar(&fresh, "fresh", false, "ignore the saved box and pick an instance again")
 	return cmd
 }
 
-func runInit(ctx context.Context, skipSlack bool) error {
+func runInit(ctx context.Context, skipSlack, fresh bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -49,13 +50,27 @@ func runInit(ctx context.Context, skipSlack bool) error {
 		return err
 	}
 
-	// 1. profile → region → instance.
-	ui.Title("AWS")
-	aws, box, err := awsx.PickTarget(ctx)
-	if err != nil {
-		return err
+	// 0. offer to pick up where a previous run left off. Every later step is
+	// idempotent, so resuming only skips the two questions we already have
+	// answers for.
+	resume := false
+	if !fresh && cfg.AWS.InstanceID != "" {
+		yes, err := ui.Confirm(resumePrompt(cfg), true)
+		if err != nil {
+			return err
+		}
+		resume = yes
 	}
-	cfg.AWS, cfg.Box = aws, box
+
+	// 1. profile → region → instance.
+	if !resume {
+		ui.Title("AWS")
+		aws, box, err := awsx.PickTarget(ctx)
+		if err != nil {
+			return err
+		}
+		cfg.AWS, cfg.Box = aws, box
+	}
 	if cfg.Box.WorkDir == "" {
 		cfg.Box.WorkDir = config.Default().Box.WorkDir
 	}
@@ -79,21 +94,24 @@ func runInit(ctx context.Context, skipSlack bool) error {
 	}
 	ui.Success("Connected")
 
-	// 3. which harnesses.
-	ui.Title("Harnesses")
-	known := bootstrap.KnownHarnesses()
-	// Nothing preselected: an accidental Enter must not install every harness.
-	ui.Muted("space toggles, enter confirms")
-	picked, err := ui.MultiSelect("Which harnesses should this box run?", known, nil)
-	if err != nil {
-		return err
-	}
-	if len(picked) == 0 {
-		return errors.New("pick at least one harness")
-	}
-	cfg.Harness = pick(known, picked)
-	if err := config.Save(cfg); err != nil {
-		return err
+	// 3. which harnesses. A resumed run keeps the saved list, unless the
+	// previous run never got as far as answering.
+	if !resume || len(cfg.Harness) == 0 {
+		ui.Title("Harnesses")
+		known := bootstrap.KnownHarnesses()
+		// Nothing preselected: an accidental Enter must not install every harness.
+		ui.Muted("space toggles, enter confirms")
+		picked, err := ui.MultiSelect("Which harnesses should this box run?", known, nil)
+		if err != nil {
+			return err
+		}
+		if len(picked) == 0 {
+			return errors.New("pick at least one harness")
+		}
+		cfg.Harness = pick(known, picked)
+		if err := config.Save(cfg); err != nil {
+			return err
+		}
 	}
 
 	// 4. bootstrap: base tools, herdr, harnesses, agents binary, systemd units.
@@ -260,6 +278,25 @@ func initSummary(ctx context.Context, runner sshx.Runner, cfg config.Config, rep
 		ui.Info("Start work from Slack by mentioning the bot, or locally")
 		ui.Code("agents sessions list")
 	}
+}
+
+// resumePrompt describes the saved box so the user can tell at a glance whether
+// it is the one they mean.
+func resumePrompt(cfg config.Config) string {
+	harnesses := strings.Join(cfg.Harness, ", ")
+	if harnesses == "" {
+		harnesses = "none yet"
+	}
+	profile := cfg.AWS.Profile
+	if profile == "" {
+		profile = "default"
+	}
+	region := cfg.AWS.Region
+	if region == "" {
+		region = "unknown region"
+	}
+	return fmt.Sprintf("Resume with %s in %s (profile %s, harnesses %s)?",
+		cfg.AWS.InstanceID, region, profile, harnesses)
 }
 
 func pick(all []string, idx []int) []string {
