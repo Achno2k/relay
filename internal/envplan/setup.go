@@ -8,6 +8,15 @@ import (
 	"github.com/Achno2k/agents-cli/internal/ui"
 )
 
+// Seams for tests: the real ui and executor by default.
+var (
+	newGenerator  = NewGenerator
+	newExecutor   = NewLocalExecutor
+	spinnerFn     = ui.Spinner
+	confirmFn     = ui.Confirm
+	multiSelectFn = ui.MultiSelect
+)
+
 // Setup is the whole flow: load cached plan or generate, show for approval
 // via ui, execute, verify. Runs locally on the box.
 func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) error {
@@ -24,14 +33,14 @@ func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) e
 	if harnessName == "" {
 		harnessName = "claude"
 	}
-	gen, err := NewGenerator(harnessName)
+	gen, err := newGenerator(harnessName)
 	if err != nil {
 		return err
 	}
 
 	if !cached {
 		var made Plan
-		err := ui.Spinner(ctx, "Asking "+harnessName+" to plan the environment", func(ctx context.Context) error {
+		err := spinnerFn(ctx, "Asking "+harnessName+" to plan the environment", func(ctx context.Context) error {
 			var err error
 			made, err = gen.Generate(ctx, repoDir)
 			return err
@@ -47,13 +56,13 @@ func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) e
 
 	PrintPlan(p)
 
-	approved, err := ui.Confirm(fmt.Sprintf("Run these %d steps?", len(p.Steps)), true)
+	approved, err := confirmFn(fmt.Sprintf("Run these %d steps?", len(p.Steps)), true)
 	if err != nil {
 		return err
 	}
 	chosen := allIndices(len(p.Steps))
 	if !approved {
-		chosen, err = ui.MultiSelect("Pick the steps to run", stepLabels(p), chosen)
+		chosen, err = multiSelectFn("Pick the steps to run", stepLabels(p), chosen)
 		if err != nil {
 			return err
 		}
@@ -63,13 +72,19 @@ func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) e
 		}
 	}
 
+	// Cache the approved plan before running it, so a crash or ctrl-c
+	// part-way through replays this plan instead of regenerating one.
+	if err := Save(p); err != nil {
+		ui.Warn("could not cache plan: " + err.Error())
+	}
+
 	run := p
 	run.Steps = make([]Step, 0, len(chosen))
 	for _, i := range chosen {
 		run.Steps = append(run.Steps, p.Steps[i])
 	}
 
-	ex := NewLocalExecutor()
+	ex := newExecutor()
 	execErr := ex.Execute(ctx, run, repoDir, gen)
 	// Fold repaired steps back into the full plan before caching.
 	for j, i := range chosen {

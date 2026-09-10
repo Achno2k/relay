@@ -13,12 +13,18 @@ import (
 // fakeGen hands back a canned replacement step and counts repair calls.
 type fakeGen struct {
 	replacement Step
+	plan        Plan
 	err         error
 	calls       int
+	generates   int
 	lastStderr  string
 }
 
 func (g *fakeGen) Generate(ctx context.Context, repoDir string) (Plan, error) {
+	g.generates++
+	if len(g.plan.Steps) > 0 {
+		return g.plan, nil
+	}
 	return Plan{Repo: "api", Generated: "fake", Steps: []Step{g.replacement}}, nil
 }
 
