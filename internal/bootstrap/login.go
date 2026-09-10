@@ -54,6 +54,11 @@ func Login(ctx context.Context, r sshx.Runner, names []string) ([]string, error)
 		ui.Success(h.Name() + " signed in")
 		ok = append(ok, h.Name())
 	}
+	for _, name := range ok {
+		if err := postLogin(ctx, r, name); err != nil {
+			ui.Warn(name + ": post-login setup failed: " + err.Error())
+		}
+	}
 	if len(ok) == 0 {
 		return ok, fmt.Errorf("no harness is signed in; at least one is needed")
 	}
@@ -98,4 +103,24 @@ func loginShell(cmd string) string {
 // InteractiveCmd wraps a command for sshx.Interactive with the same PATH.
 func InteractiveCmd(cmd string) string {
 	return `export AGENTS_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"; ` + cmd
+}
+
+// postLogin applies per-harness settings that an interactive first run would
+// otherwise ask for. Claude Code's TUI runs onboarding when the flag is unset,
+// and onboarding opens with a login picker even when credentials exist, which
+// stalls an agent started in a herdr pane.
+func postLogin(ctx context.Context, r sshx.Runner, name string) error {
+	switch name {
+	case "claude":
+		script := loginShell(`python3 - <<'AGENTS_PY'
+import json, os
+p = os.path.expanduser("~/.claude.json")
+d = json.load(open(p)) if os.path.exists(p) else {}
+d["hasCompletedOnboarding"] = True
+d.setdefault("theme", "dark")
+json.dump(d, open(p, "w"))
+AGENTS_PY`)
+		return r.Run(ctx, script, io.Discard, io.Discard)
+	}
+	return nil
 }
