@@ -156,7 +156,7 @@ func Select(title string, options []string) (int, error) {
 	choice := 0
 	field := huh.NewSelect[int]().
 		Title(askTitle(title)).
-		Options(indexOptions(options, nil)...).
+		Options(indexOptions(options)...).
 		Height(pickerHeight(len(options))).
 		Value(&choice)
 	if err := runForm(field); err != nil {
@@ -168,24 +168,32 @@ func Select(title string, options []string) (int, error) {
 
 // MultiSelect shows a multi-choice picker. Returns chosen indices.
 func MultiSelect(title string, options []string, preselected []int) ([]int, error) {
+	return MultiSelectMarked(title, options, nil, preselected)
+}
+
+// MultiSelectMarked is MultiSelect with a note beside some of the options.
+// marks[i] is either empty or a short word such as "installed", shown after
+// the option as a green tick and a dim word. A short marks slice, or a nil
+// one, simply marks nothing.
+//
+// The cursor row is the one whose circle is in the accent colour; a filled
+// circle means chosen, a hollow one means not.
+func MultiSelectMarked(title string, options, marks []string, preselected []int) ([]int, error) {
 	if len(options) == 0 {
 		return nil, fmt.Errorf("ui: MultiSelect %q has no options", title)
 	}
-	sel := make(map[int]bool, len(preselected))
+	checked := make([]bool, len(options))
 	for _, i := range preselected {
 		if i >= 0 && i < len(options) {
-			sel[i] = true
+			checked[i] = true
 		}
 	}
-	chosen := []int{}
-	field := huh.NewMultiSelect[int]().
-		Title(askTitle(title)).
-		Options(indexOptions(options, sel)...).
-		Height(pickerHeight(len(options))).
-		Value(&chosen)
-	if err := runForm(field); err != nil {
+
+	chosen, err := runMarkedSelect(title, options, marks, checked)
+	if err != nil {
 		return nil, err
 	}
+
 	picked := make([]string, 0, len(chosen))
 	for _, i := range chosen {
 		picked = append(picked, options[i])

@@ -113,15 +113,18 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 
 func demoPickers() error {
 	ui.Title("Pickers")
-	ui.Muted("● is the chosen row, ○ the rest; every answer then collapses to one line")
+	ui.Muted("● is chosen, ○ is not; the accent circle is the cursor")
+	ui.Muted("every answer then collapses to one line")
 
 	regions := []string{"us-east-1", "us-west-2", "eu-west-1", "ap-south-1"}
 	if _, err := ui.Select("Region", regions); err != nil {
 		return quietCancel(err)
 	}
 
+	// Marked options are how `agents init` shows what the box already has.
 	harnesses := []string{"claude", "codex", "gemini", "amp"}
-	if _, err := ui.MultiSelect("Harnesses to install", harnesses, []int{0, 1}); err != nil {
+	marks := []string{"installed", "", "installed", ""}
+	if _, err := ui.MultiSelectMarked("Harnesses to install", harnesses, marks, []int{0, 2}); err != nil {
 		return quietCancel(err)
 	}
 

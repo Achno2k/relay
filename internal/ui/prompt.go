@@ -43,15 +43,14 @@ func formTheme() *huh.Theme {
 	t.Blurred.ErrorIndicator = t.Focused.ErrorIndicator
 	t.Blurred.ErrorMessage = t.Focused.ErrorMessage
 
-	// Options are a plain vertical list: a filled circle on the row that is
-	// chosen or highlighted, a hollow one on the rest, and the text in the
-	// default colour. No cursor arrow, no brackets.
+	// Options are a plain vertical list: a filled circle on the highlighted
+	// row, a hollow one on the rest, and the text in the default colour. No
+	// cursor arrow, no brackets. The circles live in the option styles, and
+	// the selector and prefixes are emptied out of the way.
 	//
-	// huh reuses SelectedOption and UnselectedOption for both Select and
-	// MultiSelect, and in both the "selected" style is the one we want the
-	// filled circle on: the highlighted row in a Select, the checked rows in a
-	// MultiSelect. So the circles live there, and the selectors and prefixes
-	// are emptied out of the way.
+	// Only Select and Confirm come through here now; MultiSelect has its own
+	// model, because it has to colour the circle by cursor and by checked
+	// state at once and this theme can only express one of the two.
 	chosen := renderer.NewStyle().SetString(accentStyle().Render(markChosen))
 	unchosen := renderer.NewStyle().SetString(mutedStyle().Render(markUnchosen))
 
@@ -68,12 +67,6 @@ func formTheme() *huh.Theme {
 	t.Focused.UnselectedOption = unchosen
 	t.Blurred.SelectedOption = chosen
 	t.Blurred.UnselectedOption = unchosen
-
-	// A MultiSelect has a cursor as well as check marks, and huh gives the
-	// cursor row no text style of its own: the selector is the only hook. A
-	// bar marks it without reintroducing an arrow.
-	t.Focused.MultiSelectSelector = accentStyle().Bold(true).SetString(markCursor)
-	t.Blurred.MultiSelectSelector = renderer.NewStyle().SetString(" ")
 
 	t.Focused.NextIndicator = mutedStyle().MarginLeft(1).SetString("→")
 	t.Focused.PrevIndicator = mutedStyle().MarginRight(1).SetString("←")
@@ -115,18 +108,6 @@ func promptKeys() *huh.KeyMap {
 	// bindings out of the line entirely. Blanking only the help text would
 	// leave the separators behind: "↑ up •   •   • enter confirm".
 	off := key.NewBinding()
-
-	km.MultiSelect.Toggle = key.NewBinding(
-		key.WithKeys(" ", "x"), key.WithHelp("space", "toggle"))
-	km.MultiSelect.Submit = key.NewBinding(
-		key.WithKeys("enter"), key.WithHelp("enter", "confirm"))
-	// A MultiSelect list is short enough that filtering is clutter.
-	km.MultiSelect.Filter = off
-	km.MultiSelect.SetFilter = off
-	km.MultiSelect.ClearFilter = off
-	km.MultiSelect.SelectAll = off
-	km.MultiSelect.Next = off
-	km.MultiSelect.Prev = off
 
 	// Select keeps its filter: an instance picker can be long.
 	km.Select.Submit = key.NewBinding(
@@ -188,10 +169,10 @@ func maskSecret(v string) string {
 	return strings.Repeat("•", n)
 }
 
-func indexOptions(options []string, selected map[int]bool) []huh.Option[int] {
+func indexOptions(options []string) []huh.Option[int] {
 	opts := make([]huh.Option[int], len(options))
 	for i, o := range options {
-		opts[i] = huh.NewOption(o, i).Selected(selected[i])
+		opts[i] = huh.NewOption(o, i)
 	}
 	return opts
 }

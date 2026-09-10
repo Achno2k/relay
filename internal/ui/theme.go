@@ -34,7 +34,6 @@ var (
 const (
 	markChosen   = "●"
 	markUnchosen = "○"
-	markCursor   = "▌" // the row a MultiSelect's cursor is on
 )
 
 // Status marks. They are always shown inside dim brackets, the way

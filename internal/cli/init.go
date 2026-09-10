@@ -15,6 +15,7 @@ import (
 	"github.com/Achno2k/agents-cli/internal/awsx"
 	"github.com/Achno2k/agents-cli/internal/bootstrap"
 	"github.com/Achno2k/agents-cli/internal/config"
+	"github.com/Achno2k/agents-cli/internal/harness"
 	"github.com/Achno2k/agents-cli/internal/sshx"
 	"github.com/Achno2k/agents-cli/internal/ui"
 )
@@ -103,9 +104,20 @@ func runInit(ctx context.Context, skipSlack, fresh bool) error {
 	if !resume || len(cfg.Harness) == 0 {
 		ui.Title("Harnesses")
 		known := bootstrap.KnownHarnesses()
-		// Nothing preselected: an accidental Enter must not install every harness.
+
+		// Ask the box what it already has, so a rerun does not look like a
+		// fresh install and the obvious answer is preselected.
+		var marks []string
+		var installed []int
+		if err := ui.Spinner(ctx, "Checking installed harnesses", func(ctx context.Context) error {
+			marks, installed = harnessMarks(ctx, runner, known)
+			return nil
+		}); err != nil {
+			return err
+		}
+
 		ui.Muted("space toggles, enter confirms")
-		picked, err := ui.MultiSelect("Which harnesses should this box run?", known, nil)
+		picked, err := ui.MultiSelectMarked("Which harnesses should this box run?", known, marks, installed)
 		if err != nil {
 			return err
 		}
@@ -495,6 +507,22 @@ func resumePrompt(cfg config.Config) string {
 	}
 	return fmt.Sprintf("Resume with %s in %s (profile %s, harnesses %s)?",
 		cfg.AWS.InstanceID, region, profile, harnesses)
+}
+
+// harnessMarks asks the box which harnesses are already on it. Returns the
+// per-option mark for the picker ("installed" or empty) and the indices to
+// preselect. An unreachable check just reads as not installed.
+func harnessMarks(ctx context.Context, runner sshx.Runner, known []string) (marks []string, installed []int) {
+	marks = make([]string, len(known))
+	for i, name := range known {
+		h, ok := harness.Registry[name]
+		if !ok || !bootstrap.IsInstalled(ctx, runner, h) {
+			continue
+		}
+		marks[i] = "installed"
+		installed = append(installed, i)
+	}
+	return marks, installed
 }
 
 func pick(all []string, idx []int) []string {
