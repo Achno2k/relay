@@ -199,9 +199,20 @@ func toIncoming(api slackevents.EventsAPIEvent) (incoming, bool) {
 			ThreadTS: e.ThreadTimeStamp,
 			BotID:    e.BotID,
 			SubType:  e.SubType,
+			// A direct message is addressed to the bot by definition, so
+			// there is nobody to mention. Without this the router sees an
+			// unbound thread with no mention and drops every DM.
+			Mention: isDM(e.ChannelType, e.Channel),
 		}, true
 	}
 	return incoming{}, false
+}
+
+// isDM reports whether a message arrived in a direct message channel. Slack
+// sets channel_type on the event; the id prefix is the fallback for the
+// payloads that leave it out.
+func isDM(channelType, channel string) bool {
+	return channelType == "im" || strings.HasPrefix(channel, "D")
 }
 
 // HandleMessage routes one message. It is exported so tests can drive the bot

@@ -3,6 +3,8 @@ package slackbot
 import (
 	"testing"
 
+	"github.com/slack-go/slack/slackevents"
+
 	"github.com/Achno2k/agents-cli/internal/config"
 	"github.com/Achno2k/agents-cli/internal/state"
 )
@@ -240,5 +242,137 @@ func TestThreadKeyFallsBackToTheMessageTS(t *testing.T) {
 	}
 	if got := (incoming{TS: "1.2", ThreadTS: "1.1"}).ThreadKey(); got != "1.1" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// A direct message has nobody to mention, so toIncoming marks it as one.
+// Without that the router treats it as chatter in an unbound thread and drops
+// it, which is how DMs to the bot went unanswered.
+func TestDirectMessagesCountAsMentions(t *testing.T) {
+	cfg := testConfig()
+
+	cases := []struct {
+		name string
+		in   incoming
+		want decision
+	}{
+		{
+			name: "top level DM starts a session keyed by its own ts",
+			in: incoming{
+				Channel: "D123", User: "U1", Mention: true, TS: "700.1",
+				Text: "fix the login bug in agents-cli",
+			},
+			want: decision{Action: actCreate, Channel: "D123", ThreadTS: "700.1",
+				Repo: "agents-cli", Text: "fix the login bug in agents-cli"},
+		},
+		{
+			name: "a DM with no repo still asks rather than ignoring",
+			in: incoming{
+				Channel: "D123", User: "U1", Mention: true, TS: "701.1",
+				Text: "have a look",
+			},
+			want: decision{Action: actAskRepo, Channel: "D123", ThreadTS: "701.1",
+				Text:   "have a look",
+				Reason: "no repo in the mention, the channel default or the thread"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := decide(tc.in, nil, false, cfg); got != tc.want {
+				t.Fatalf("decide()\n got %+v\nwant %+v", got, tc.want)
+			}
+		})
+	}
+
+	// Once the thread is bound, a reply carries on without a mention, exactly
+	// as it does in a channel.
+	bound := boundSession()
+	bound.SlackChannel, bound.ThreadTS = "D123", "700.1"
+	reply := incoming{
+		Channel: "D123", User: "U1", Mention: true, TS: "700.2", ThreadTS: "700.1",
+		Text: "also add a test",
+	}
+	want := decision{Action: actContinue, Channel: "D123", ThreadTS: "700.1", Text: "also add a test"}
+	if got := decide(reply, bound, false, cfg); got != want {
+		t.Fatalf("reply in a bound DM thread:\n got %+v\nwant %+v", got, want)
+	}
+
+	// Commands work the same in a DM.
+	cmd := incoming{
+		Channel: "D123", User: "U1", Mention: true, TS: "700.3", ThreadTS: "700.1",
+		Text: "diff",
+	}
+	wantCmd := decision{Action: actCommand, Channel: "D123", ThreadTS: "700.1",
+		Command: "diff", Text: "diff"}
+	if got := decide(cmd, bound, false, cfg); got != wantCmd {
+		t.Fatalf("command in a DM:\n got %+v\nwant %+v", got, wantCmd)
+	}
+}
+
+func TestIsDM(t *testing.T) {
+	cases := []struct {
+		channelType, channel string
+		want                 bool
+	}{
+		{"im", "D123", true},
+		{"im", "", true},       // channel_type is the authority
+		{"", "D0ABC123", true}, // fallback for payloads without it
+		{"channel", "CGEN", false},
+		{"group", "GPRIV", false},
+		{"", "CGEN", false},
+		{"mpim", "G123", false}, // a group DM is not a one to one DM
+	}
+	for _, tc := range cases {
+		if got := isDM(tc.channelType, tc.channel); got != tc.want {
+			t.Fatalf("isDM(%q, %q) = %v, want %v", tc.channelType, tc.channel, got, tc.want)
+		}
+	}
+}
+
+// A message event in a normal channel must still need a real mention.
+func TestChannelMessagesAreNotTreatedAsMentions(t *testing.T) {
+	got := decide(incoming{
+		Channel: "CGEN", User: "U1", TS: "800.2", ThreadTS: "800.1",
+		Text: "anyone looked at this yet",
+	}, nil, false, testConfig())
+
+	if got.Action != actIgnore {
+		t.Fatalf("channel chatter should still be ignored, got %+v", got)
+	}
+}
+
+// The router tests build an incoming directly, so this covers the wiring that
+// actually sets Mention on a real Slack payload.
+func TestToIncomingMarksDirectMessages(t *testing.T) {
+	dm := slackevents.EventsAPIEvent{InnerEvent: slackevents.EventsAPIInnerEvent{
+		Data: &slackevents.MessageEvent{
+			Channel: "D123", ChannelType: "im", User: "U1",
+			Text: "fix the login bug", TimeStamp: "700.1",
+		},
+	}}
+	got, ok := toIncoming(dm)
+	if !ok || !got.Mention {
+		t.Fatalf("a DM should arrive as a mention: %+v (ok=%v)", got, ok)
+	}
+
+	channel := slackevents.EventsAPIEvent{InnerEvent: slackevents.EventsAPIInnerEvent{
+		Data: &slackevents.MessageEvent{
+			Channel: "CGEN", ChannelType: "channel", User: "U1",
+			Text: "just chatting", TimeStamp: "800.1",
+		},
+	}}
+	got, ok = toIncoming(channel)
+	if !ok || got.Mention {
+		t.Fatalf("channel chatter is not a mention: %+v (ok=%v)", got, ok)
+	}
+
+	// An app_mention is a mention wherever it lands.
+	mention := slackevents.EventsAPIEvent{InnerEvent: slackevents.EventsAPIInnerEvent{
+		Data: &slackevents.AppMentionEvent{
+			Channel: "CGEN", User: "U1", Text: "<@UBOT> go", TimeStamp: "800.1",
+		},
+	}}
+	if got, ok := toIncoming(mention); !ok || !got.Mention {
+		t.Fatalf("app_mention should stay a mention: %+v (ok=%v)", got, ok)
 	}
 }
