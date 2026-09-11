@@ -147,5 +147,38 @@ func (o Options) withDefaults() Options {
 //go:embed scripts/reset.sh
 var resetScript string
 
-// ResetScript is the bash that undoes everything bootstrap installed.
-func ResetScript() string { return resetScript }
+// ResetPhases are the box-side reset phases, in the order they must run.
+// Each maps to one function in reset.sh and one ui.Step.
+func ResetPhases() []Task {
+	return []Task{
+		{"Stopping units", "rs_units"},
+		{"Signing out of the harnesses and GitHub", "rs_signout"},
+		{"Removing binaries", "rs_binaries"},
+		{"Removing runtimes and state", "rs_runtimes"},
+		{"Cleaning shell profiles", "rs_profiles"},
+	}
+}
+
+// ResetScript returns reset.sh with a call to one phase appended, the same way
+// Script works for bootstrap.sh.
+func ResetScript(phase string) string {
+	return resetScript + "\n" + phase + "\n"
+}
+
+// ResetSteps turns the reset phases into ui.Steps that run over r. Every phase
+// writes to the step's log writer, so nothing lands on the terminal directly
+// and a failure shows its own tail.
+func ResetSteps(r sshx.Runner) []ui.Step {
+	phases := ResetPhases()
+	steps := make([]ui.Step, 0, len(phases))
+	for _, p := range phases {
+		phase := p.Func
+		steps = append(steps, ui.Step{
+			Name: p.Name,
+			Run: func(ctx context.Context, log io.Writer) error {
+				return r.Run(ctx, ResetScript(phase), log, log)
+			},
+		})
+	}
+	return steps
+}
