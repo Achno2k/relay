@@ -114,9 +114,17 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 func demoPickers() error {
 	ui.Title("Pickers")
 	ui.Muted("● is chosen, ○ is not; the accent circle is the cursor")
+	ui.Muted("long lists scroll one row at a time; / filters a single choice list")
 	ui.Muted("every answer then collapses to one line")
 
-	regions := []string{"us-east-1", "us-west-2", "eu-west-1", "ap-south-1"}
+	// Longer than the ten row cap on purpose: the list should hold still while
+	// the circle moves, and only shift once the cursor reaches an edge.
+	regions := []string{
+		"us-east-1", "us-east-2", "us-west-1", "us-west-2",
+		"eu-west-1", "eu-west-2", "eu-central-1", "eu-north-1",
+		"ap-south-1", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
+		"sa-east-1", "ca-central-1",
+	}
 	if _, err := ui.Select("Region", regions); err != nil {
 		return quietCancel(err)
 	}

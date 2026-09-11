@@ -153,14 +153,12 @@ func Select(title string, options []string) (int, error) {
 	if len(options) == 0 {
 		return -1, fmt.Errorf("ui: Select %q has no options", title)
 	}
-	choice := 0
-	field := huh.NewSelect[int]().
-		Title(askTitle(title)).
-		Options(indexOptions(options)...).
-		Height(pickerHeight(len(options))).
-		Value(&choice)
-	if err := runForm(field); err != nil {
+	choice, err := runPickOne(title, options, nil, 0)
+	if err != nil {
 		return -1, err
+	}
+	if choice < 0 {
+		return -1, ErrCancelled
 	}
 	answered(title, options[choice])
 	return choice, nil
@@ -189,7 +187,7 @@ func MultiSelectMarked(title string, options, marks []string, preselected []int)
 		}
 	}
 
-	chosen, err := runMarkedSelect(title, options, marks, checked)
+	chosen, err := runPickMany(title, options, marks, checked)
 	if err != nil {
 		return nil, err
 	}
@@ -236,23 +234,22 @@ func Secret(title string) (string, error) {
 // Confirm asks yes/no.
 func Confirm(title string, def bool) (bool, error) {
 	// Rendered as a two row list rather than huh's side by side buttons, so
-	// yes/no looks like every other choice in the CLI. The default lands on
-	// the row huh starts the cursor on, because it matches the current value.
-	v := def
-	field := huh.NewSelect[bool]().
-		Title(askTitle(title)).
-		Options(huh.NewOption("Yes", true), huh.NewOption("No", false)).
-		Height(pickerHeight(2)).
-		Value(&v)
-	if err := runForm(field); err != nil {
+	// yes/no looks like every other choice in the CLI. The default is the row
+	// the cursor starts on.
+	options := []string{"Yes", "No"}
+	start := 1
+	if def {
+		start = 0
+	}
+	choice, err := runPickOne(title, options, nil, start)
+	if err != nil {
 		return false, err
 	}
-	if v {
-		answered(title, "Yes")
-	} else {
-		answered(title, "No")
+	if choice < 0 {
+		return false, ErrCancelled
 	}
-	return v, nil
+	answered(title, options[choice])
+	return choice == 0, nil
 }
 
 // Spinner runs fn while showing "<label> ●" animation. Returns fn's error.
@@ -338,15 +335,6 @@ func Ready(title string, pairs ...string) {
 		KV(pairs...)
 	}
 	line("")
-}
-
-// pickerHeight keeps pickers compact but scrollable for long lists.
-func pickerHeight(n int) int {
-	const maxRows = 10
-	if n > maxRows {
-		n = maxRows
-	}
-	return n + 2 // title + padding
 }
 
 // Phase renders "[loader] title" that keeps animating until fn returns, then
