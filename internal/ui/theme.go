@@ -68,6 +68,14 @@ const (
 	markInfo = ">"
 )
 
+// otherOption is the extra row SelectOrOther adds to a list, and inputPrompt
+// is what leads a text field. They match, so typing a value looks like a
+// continuation of the row that opened it.
+const (
+	otherOption = "other…"
+	inputPrompt = markInfo + " "
+)
+
 func glyphAsk() string  { return accentStyle().Render(markAsk) }
 func glyphInfo() string { return mutedStyle().Render(markInfo) }
 

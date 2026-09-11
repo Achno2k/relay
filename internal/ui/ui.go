@@ -16,6 +16,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -164,7 +165,66 @@ func Select(title string, options []string) (int, error) {
 	return choice, nil
 }
 
-// MultiSelect shows a multi-choice picker. Returns chosen indices.
+// SelectOrOther is Select with a way out: the list carries an extra last row,
+// and picking it asks for a value instead.
+//
+// Backing out of that text field, with esc or an empty enter, returns to the
+// list with the cursor back on the last row rather than cancelling the whole
+// question. Only esc in the list itself cancels. Either way one answer is
+// recorded at the end, the option or the typed text, never the last row's own
+// label.
+func SelectOrOther(title string, options []string, placeholder string) (string, error) {
+	return selectOrOther(title, options,
+		func(start int) (int, error) {
+			return runPickOne(title, append(append([]string(nil), options...), otherOption), nil, start)
+		},
+		func() (string, error) {
+			return textPrompt{title: title, placeholder: placeholder, escSubmits: true}.run()
+		})
+}
+
+// selectOrOther is the loop behind SelectOrOther, with the two steps passed in
+// so the way back from the text field can be tested without a terminal.
+func selectOrOther(title string, options []string,
+	pick func(start int) (int, error),
+	ask func() (string, error),
+) (string, error) {
+	if len(options) == 0 {
+		return "", fmt.Errorf("ui: SelectOrOther %q has no options", title)
+	}
+	start := 0
+
+	for {
+		choice, err := pick(start)
+		if err != nil {
+			return "", err
+		}
+		if choice < 0 {
+			return "", ErrCancelled
+		}
+		if choice < len(options) {
+			answered(title, options[choice])
+			return options[choice], nil
+		}
+
+		// The last row: ask for a value instead.
+		text, err := ask()
+		if err != nil && !errors.Is(err, ErrCancelled) {
+			return "", err
+		}
+		// Trim here as well as in the field: whether whitespace counts as an
+		// empty answer is this loop's rule to make.
+		if text = strings.TrimSpace(text); err == nil && text != "" {
+			answered(title, text)
+			return text, nil
+		}
+		// Backed out with esc or an empty enter. Reopen the list with the
+		// cursor on the row they came from, rather than cancelling.
+		start = len(options)
+	}
+}
+
+// MultiSelect shows a multi-choice picker.// MultiSelect shows a multi-choice picker. Returns chosen indices.
 func MultiSelect(title string, options []string, preselected []int) ([]int, error) {
 	return MultiSelectMarked(title, options, nil, preselected)
 }
@@ -206,27 +266,52 @@ func MultiSelectMarked(title string, options, marks []string, preselected []int)
 
 // Input asks for a line of text. Empty placeholder means none.
 func Input(title, placeholder string) (string, error) {
-	var v string
-	field := huh.NewInput().Title(askTitle(title)).Value(&v)
-	if placeholder != "" {
-		field = field.Placeholder(placeholder)
-	}
-	if err := runForm(field); err != nil {
+	v, err := textPrompt{title: title, placeholder: placeholder}.run()
+	if err != nil {
 		return "", err
 	}
-	v = strings.TrimSpace(v)
 	answered(title, v)
 	return v, nil
 }
 
-// Secret asks for a line of text without echoing it (tokens, passwords).
-func Secret(title string) (string, error) {
+// textPrompt is a one line text field. It adds no collapsed line of its own,
+// so a caller that asks more than one question can record a single answer at
+// the end.
+type textPrompt struct {
+	title       string
+	placeholder string
+	secret      bool
+	// escSubmits ends the field on esc with whatever is in it, which for an
+	// untouched field is nothing. Callers that can do something useful with
+	// "nothing was typed" set it; the rest leave esc inert, as huh does.
+	escSubmits bool
+}
+
+func (t textPrompt) run() (string, error) {
 	var v string
-	field := huh.NewInput().Title(askTitle(title)).EchoMode(huh.EchoModePassword).Value(&v)
-	if err := runForm(field); err != nil {
+	field := huh.NewInput().Title(askTitle(t.title)).Prompt(inputPrompt).Value(&v)
+	if t.secret {
+		field = field.EchoMode(huh.EchoModePassword)
+	}
+	if t.placeholder != "" {
+		field = field.Placeholder(t.placeholder)
+	}
+	var km *huh.KeyMap
+	if t.escSubmits {
+		km = escSubmitsKeys()
+	}
+	if err := runFormWithKeys(field, km); err != nil {
 		return "", err
 	}
-	v = strings.TrimSpace(v)
+	return strings.TrimSpace(v), nil
+}
+
+// Secret asks for a line of text without echoing it (tokens, passwords).
+func Secret(title string) (string, error) {
+	v, err := textPrompt{title: title, secret: true}.run()
+	if err != nil {
+		return "", err
+	}
 	answered(title, maskSecret(v))
 	return v, nil
 }

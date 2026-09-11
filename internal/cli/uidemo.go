@@ -125,7 +125,9 @@ func demoPickers() error {
 		"ap-south-1", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
 		"sa-east-1", "ca-central-1",
 	}
-	if _, err := ui.Select("Region", regions); err != nil {
+	// SelectOrOther: the list carries an "other…" row that opens a text field,
+	// and backing out of that field returns to the list.
+	if _, err := ui.SelectOrOther("Region", regions, "me-central-1"); err != nil {
 		return quietCancel(err)
 	}
 

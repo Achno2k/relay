@@ -239,18 +239,8 @@ func regionOptions(profileRegion string) []string {
 	return out
 }
 
-const otherRegion = "other…"
-
 func pickRegion(p Profile) (string, error) {
-	opts := append(regionOptions(p.Region), otherRegion)
-	i, err := ui.Select("Region", opts)
-	if err != nil {
-		return "", err
-	}
-	if opts[i] != otherRegion {
-		return opts[i], nil
-	}
-	r, err := ui.Input("Region", "us-east-1")
+	r, err := ui.SelectOrOther("Region", regionOptions(p.Region), "us-east-1")
 	if err != nil {
 		return "", err
 	}

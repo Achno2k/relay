@@ -2,6 +2,8 @@ package ui
 
 import (
 	"errors"
+
+	"github.com/charmbracelet/bubbles/key"
 	"os"
 	"strings"
 
@@ -54,7 +56,10 @@ func formTheme() *huh.Theme {
 	t.Blurred.FocusedButton = t.Focused.BlurredButton
 	t.Blurred.BlurredButton = t.Focused.BlurredButton
 
-	t.Focused.TextInput.Prompt = mutedStyle().SetString("› ")
+	// Style only, no SetString: huh renders its own prompt string through this
+	// style, so a glyph here is drawn on top of that one and the field comes
+	// out reading "›  > placeholder".
+	t.Focused.TextInput.Prompt = mutedStyle()
 	t.Focused.TextInput.Placeholder = mutedStyle()
 	t.Focused.TextInput.Cursor = accentStyle()
 	t.Focused.TextInput.Text = plainStyle()
@@ -72,15 +77,36 @@ func formTheme() *huh.Theme {
 	return t
 }
 
+// escSubmitsKeys makes esc end a text field with whatever is in it, which for
+// an untouched field is nothing.
+//
+// huh binds esc to nothing at all, and routing it to Quit instead is worse:
+// huh cancels with tea.Interrupt, which kills the program without a final
+// render, so the abandoned field stays on the screen. Submitting empty takes
+// the ordinary exit, clears the frame, and lands on the same "nothing was
+// typed" branch an empty enter does.
+func escSubmitsKeys() *huh.KeyMap {
+	km := huh.NewDefaultKeyMap()
+	km.Input.Submit = key.NewBinding(key.WithKeys("enter", "esc"), key.WithHelp("enter", "submit"))
+	km.Input.Next = key.NewBinding(key.WithKeys("enter", "tab", "esc"), key.WithHelp("enter", "next"))
+	return km
+}
+
 // runForm runs a one-field form, falling back to huh's numbered stdin prompts
 // when we are not on a terminal.
-func runForm(field huh.Field) error {
+func runForm(field huh.Field) error { return runFormWithKeys(field, nil) }
+
+// runFormWithKeys is runForm with a key map; nil takes huh's defaults.
+func runFormWithKeys(field huh.Field, km *huh.KeyMap) error {
 	form := huh.NewForm(huh.NewGroup(field)).
 		WithTheme(formTheme()).
 		WithShowHelp(true).
 		WithShowErrors(true).
 		WithInput(os.Stdin).
 		WithOutput(os.Stdout)
+	if km != nil {
+		form = form.WithKeyMap(km)
+	}
 	if !interactive() {
 		form = form.WithAccessible(true)
 	}

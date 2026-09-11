@@ -2,11 +2,13 @@ package ui
 
 import (
 	"bytes"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -609,4 +611,274 @@ func TestMultiSelectHelpStillSaysSpace(t *testing.T) {
 	if strings.Contains(got, "/ filter") {
 		t.Fatalf("a multi-select should not advertise a filter:\n%s", got)
 	}
+}
+
+// --- SelectOrOther ---
+
+// pickScript replays a sequence of picker results, recording the cursor each
+// call was opened with.
+type pickScript struct {
+	results []int
+	errs    []error
+	starts  []int
+	n       int
+}
+
+func (p *pickScript) pick(start int) (int, error) {
+	p.starts = append(p.starts, start)
+	i := p.n
+	p.n++
+	if i >= len(p.results) {
+		return -1, ErrCancelled
+	}
+	var err error
+	if i < len(p.errs) {
+		err = p.errs[i]
+	}
+	return p.results[i], err
+}
+
+type askScript struct {
+	texts []string
+	errs  []error
+	n     int
+}
+
+func (a *askScript) ask() (string, error) {
+	i := a.n
+	a.n++
+	var (
+		text string
+		err  error
+	)
+	if i < len(a.texts) {
+		text = a.texts[i]
+	}
+	if i < len(a.errs) {
+		err = a.errs[i]
+	}
+	return text, err
+}
+
+func TestSelectOrOtherPicksAnOption(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	options := []string{"us-east-1", "eu-west-1"}
+	pick := &pickScript{results: []int{1}}
+	ask := &askScript{}
+
+	got, err := selectOrOther("Region", options, pick.pick, ask.ask)
+	if err != nil || got != "eu-west-1" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	if ask.n != 0 {
+		t.Fatal("picking a listed option should not open the text field")
+	}
+	if buf.String() != "? Region  eu-west-1\n" {
+		t.Fatalf("output = %q", buf.String())
+	}
+}
+
+func TestSelectOrOtherTakesTypedText(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	options := []string{"us-east-1"}
+	pick := &pickScript{results: []int{1}} // the "other…" row
+	ask := &askScript{texts: []string{"me-central-1"}}
+
+	got, err := selectOrOther("Region", options, pick.pick, ask.ask)
+	if err != nil || got != "me-central-1" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	if buf.String() != "? Region  me-central-1\n" {
+		t.Fatalf("output = %q", buf.String())
+	}
+	if strings.Contains(buf.String(), otherOption) {
+		t.Fatalf("the answer must never be the row label: %q", buf.String())
+	}
+}
+
+// Esc in the text field goes back to the list, it does not cancel the
+// question, and the cursor lands back on the row that opened it.
+func TestSelectOrOtherEscInTheInputGoesBack(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	options := []string{"us-east-1", "eu-west-1"}
+	pick := &pickScript{results: []int{2, 0}} // other…, then the first option
+	ask := &askScript{texts: []string{""}, errs: []error{ErrCancelled}}
+
+	got, err := selectOrOther("Region", options, pick.pick, ask.ask)
+	if err != nil || got != "us-east-1" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	if pick.n != 2 {
+		t.Fatalf("the list should have reopened, opened %d times", pick.n)
+	}
+	if want := []int{0, len(options)}; !equalInts(pick.starts, want) {
+		t.Fatalf("cursor starts = %v, want %v (back on the last row)", pick.starts, want)
+	}
+	if buf.String() != "? Region  us-east-1\n" {
+		t.Fatalf("exactly one answer line, got %q", buf.String())
+	}
+}
+
+// An empty enter behaves the same as esc: back to the list.
+func TestSelectOrOtherEmptyInputGoesBack(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	options := []string{"us-east-1"}
+	pick := &pickScript{results: []int{1, 1}}
+	ask := &askScript{texts: []string{"   ", "sa-east-1"}}
+
+	got, err := selectOrOther("Region", options, pick.pick, ask.ask)
+	if err != nil || got != "sa-east-1" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	if pick.n != 2 || ask.n != 2 {
+		t.Fatalf("picker ran %d times, input %d times, want 2 and 2", pick.n, ask.n)
+	}
+	if want := []int{0, 1}; !equalInts(pick.starts, want) {
+		t.Fatalf("cursor starts = %v, want %v", pick.starts, want)
+	}
+	if buf.String() != "? Region  sa-east-1\n" {
+		t.Fatalf("output = %q", buf.String())
+	}
+}
+
+// Going back and forth still records exactly one answer.
+func TestSelectOrOtherRecordsOneAnswerAfterSeveralTrips(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	options := []string{"a", "b"}
+	pick := &pickScript{results: []int{2, 2, 2}}
+	ask := &askScript{
+		texts: []string{"", "", "typed"},
+		errs:  []error{ErrCancelled, nil, nil},
+	}
+
+	got, err := selectOrOther("Region", options, pick.pick, ask.ask)
+	if err != nil || got != "typed" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	if n := strings.Count(buf.String(), "? Region"); n != 1 {
+		t.Fatalf("got %d answer lines, want 1:\n%s", n, buf.String())
+	}
+}
+
+// Esc in the list itself does cancel.
+func TestSelectOrOtherEscInThePickerCancels(t *testing.T) {
+	var buf bytes.Buffer
+	restore := setOutput(&buf)
+	defer restore()
+
+	pick := &pickScript{results: []int{0}, errs: []error{ErrCancelled}}
+	ask := &askScript{}
+
+	got, err := selectOrOther("Region", []string{"a"}, pick.pick, ask.ask)
+	if !errors.Is(err, ErrCancelled) {
+		t.Fatalf("got %q, %v, want ErrCancelled", got, err)
+	}
+	if ask.n != 0 {
+		t.Fatal("a cancelled list should not open the text field")
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("a cancelled question records nothing, got %q", buf.String())
+	}
+}
+
+// A real failure from the text field is not a way back; it is an error.
+func TestSelectOrOtherPropagatesAnInputError(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	boom := errors.New("tty gone")
+	pick := &pickScript{results: []int{1}}
+	ask := &askScript{errs: []error{boom}}
+
+	if _, err := selectOrOther("Region", []string{"a"}, pick.pick, ask.ask); !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want %v", err, boom)
+	}
+}
+
+func TestSelectOrOtherNeedsOptions(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	if _, err := SelectOrOther("Region", nil, ""); err == nil {
+		t.Fatal("an empty list should error")
+	}
+}
+
+// The list the user sees is the options plus one extra row.
+func TestSelectOrOtherAddsTheOtherRow(t *testing.T) {
+	restore := setOutput(&bytes.Buffer{})
+	defer restore()
+
+	options := []string{"us-east-1", "eu-west-1"}
+	rows := append(append([]string(nil), options...), otherOption)
+	p := newPicker(pickOne, "Region", rows, nil, make([]bool, len(rows)))
+
+	if len(p.view) != 3 {
+		t.Fatalf("view = %v, want three rows", p.view)
+	}
+	if got := p.options[p.view[2]]; got != otherOption {
+		t.Fatalf("last row = %q, want %q", got, otherOption)
+	}
+	// Building the rows must not disturb the caller's slice.
+	if len(options) != 2 {
+		t.Fatalf("options grew to %v", options)
+	}
+}
+
+func equalInts(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// esc has to reach the same "nothing was typed" branch an empty enter does.
+// Routing it to huh's Quit instead would cancel with tea.Interrupt, which
+// exits without a final render and leaves the abandoned field on screen.
+func TestEscSubmitsKeysBindEscToSubmitNotQuit(t *testing.T) {
+	km := escSubmitsKeys()
+
+	if !hasKey(km.Input.Submit.Keys(), "esc") {
+		t.Fatalf("submit keys = %v, want esc among them", km.Input.Submit.Keys())
+	}
+	if !hasKey(km.Input.Submit.Keys(), "enter") {
+		t.Fatalf("enter must still submit: %v", km.Input.Submit.Keys())
+	}
+	if hasKey(km.Quit.Keys(), "esc") {
+		t.Fatalf("esc must not be a quit key: %v", km.Quit.Keys())
+	}
+
+	// The default map leaves esc inert, which is what Input and Secret keep.
+	if hasKey(huh.NewDefaultKeyMap().Input.Submit.Keys(), "esc") {
+		t.Fatal("huh's default already submits on esc; this shim is redundant")
+	}
+}
+
+func hasKey(keys []string, want string) bool {
+	for _, k := range keys {
+		if k == want {
+			return true
+		}
+	}
+	return false
 }
