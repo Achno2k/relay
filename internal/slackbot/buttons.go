@@ -14,10 +14,10 @@ const actionsBlockID = "agents_actions"
 // prompt.
 const decisionActionPrefix = "decide_"
 
-// decisionSep separates the fields packed into a decision button's value.
-// Slack round trips the value verbatim, and a unit separator will not appear
-// in an option the agent wrote.
-const decisionSep = "\x1f"
+// decisionIDSep separates the session and the option number inside a decision
+// action id. Session ids are hex and option numbers are digits, so an
+// underscore cannot appear in either.
+const decisionIDSep = "_"
 
 // Approval action ids. The value carries the session id so a click needs no
 // lookup table on our side.
@@ -92,8 +92,8 @@ func decisionButtons(sessionID string, options []string) []Button {
 		n := i + 1
 		b := Button{
 			Label:    decisionLabel(n, opt),
-			ActionID: decisionActionPrefix + strconv.Itoa(n),
-			Value:    encodeDecision(sessionID, n, opt),
+			ActionID: decisionActionID(sessionID, n),
+			Value:    opt,
 		}
 		// The first option is the agent's recommendation.
 		if i == 0 {
@@ -115,26 +115,39 @@ func decisionLabel(n int, option string) string {
 	return label
 }
 
-// encodeDecision packs everything a click needs into the button value: which
-// session, which option, and the option text to send back.
-func encodeDecision(sessionID string, n int, option string) string {
-	return sessionID + decisionSep + strconv.Itoa(n) + decisionSep + option
+// decisionActionID identifies which session and which option a button answers.
+//
+// This used to be packed into the button value with a unit separator, which
+// Slack silently strips: a click came back as "539c1Apply the doc changes…"
+// with the fields run together and nothing left to split on. The action id
+// round trips intact, so the structured half lives there and the value carries
+// only the option text, where free-form text belongs.
+func decisionActionID(sessionID string, n int) string {
+	return decisionActionPrefix + sessionID + decisionIDSep + strconv.Itoa(n)
 }
 
-// decodeDecision unpacks a value written by encodeDecision.
-func decodeDecision(value string) (sessionID string, n int, option string, ok bool) {
-	parts := strings.SplitN(value, decisionSep, 3)
-	if len(parts) != 3 {
+// decodeDecision unpacks a click: the session and option number out of the
+// action id, the option text out of the value.
+func decodeDecision(actionID, value string) (sessionID string, n int, option string, ok bool) {
+	if !isDecisionAction(actionID) {
 		return "", 0, "", false
 	}
-	n, err := strconv.Atoi(parts[1])
+	rest := strings.TrimPrefix(actionID, decisionActionPrefix)
+
+	at := strings.LastIndex(rest, decisionIDSep)
+	if at <= 0 || at == len(rest)-1 {
+		return "", 0, "", false
+	}
+	sessionID = rest[:at]
+
+	n, err := strconv.Atoi(rest[at+1:])
 	if err != nil || n < 1 {
 		return "", 0, "", false
 	}
-	if parts[0] == "" || strings.TrimSpace(parts[2]) == "" {
+	if strings.TrimSpace(value) == "" {
 		return "", 0, "", false
 	}
-	return parts[0], n, parts[2], true
+	return sessionID, n, value, true
 }
 
 // isDecisionAction reports whether an action id belongs to the decision row.

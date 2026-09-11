@@ -307,23 +307,63 @@ func TestDecisionButtonLabelIsTruncatedForSlack(t *testing.T) {
 	}
 }
 
-func TestDecisionValueRoundTrips(t *testing.T) {
+func TestDecisionClickRoundTrips(t *testing.T) {
 	const option = "Rewrite the query, then re-run the suite"
-	v := encodeDecision("a3f2", 2, option)
+	id := decisionActionID("a3f2", 2)
 
-	id, n, opt, ok := decodeDecision(v)
-	if !ok || id != "a3f2" || n != 2 || opt != option {
-		t.Fatalf("decode(%q) = %q, %d, %q, %v", v, id, n, opt, ok)
+	sess, n, opt, ok := decodeDecision(id, option)
+	if !ok || sess != "a3f2" || n != 2 || opt != option {
+		t.Fatalf("decode(%q, %q) = %q, %d, %q, %v", id, option, sess, n, opt, ok)
 	}
 	if got := decisionPrompt(n, opt); got != "2. "+option {
 		t.Fatalf("prompt = %q", got)
 	}
 }
 
+// The regression this replaced: Slack strips control characters out of a
+// button value, so nothing structural may live in it.
+func TestDecisionButtonValuesCarryNoControlCharacters(t *testing.T) {
+	btns := decisionButtons("539c", []string{
+		"Apply the doc changes on a feature branch (no PR yet)",
+		"Open a PR",
+	})
+	for i, b := range btns {
+		for _, r := range b.Value {
+			if r < 0x20 || r == 0x7f {
+				t.Fatalf("button %d value holds %q, which Slack will strip: %q", i, r, b.Value)
+			}
+		}
+		if b.Value != []string{
+			"Apply the doc changes on a feature branch (no PR yet)",
+			"Open a PR",
+		}[i] {
+			t.Fatalf("button %d value = %q, want the option text alone", i, b.Value)
+		}
+	}
+
+	// A click reconstructed from what Slack sends back still decodes.
+	sess, n, opt, ok := decodeDecision(btns[0].ActionID, btns[0].Value)
+	if !ok || sess != "539c" || n != 1 || opt != btns[0].Value {
+		t.Fatalf("decode = %q, %d, %q, %v", sess, n, opt, ok)
+	}
+}
+
 func TestDecodeDecisionRejectsJunk(t *testing.T) {
-	for _, v := range []string{"", "a3f2", "a3f2\x1fx\x1fopt", "a3f2\x1f0\x1fopt", "\x1f1\x1fopt", "a3f2\x1f1\x1f  "} {
-		if _, _, _, ok := decodeDecision(v); ok {
-			t.Fatalf("decodeDecision(%q) should have failed", v)
+	cases := []struct{ actionID, value string }{
+		{"", "opt"},              // not a decision at all
+		{"approve_allow", "opt"}, // the other row
+		{"decide_", "opt"},       // nothing packed
+		{"decide_a3f2", "opt"},   // no option number
+		{"decide_a3f2_", "opt"},  // empty option number
+		{"decide__1", "opt"},     // empty session
+		{"decide_a3f2_x", "opt"}, // option number is not a number
+		{"decide_a3f2_0", "opt"}, // options are one based
+		{"decide_a3f2_1", ""},    // no option text
+		{"decide_a3f2_1", "   "}, // blank option text
+	}
+	for _, tc := range cases {
+		if _, _, _, ok := decodeDecision(tc.actionID, tc.value); ok {
+			t.Fatalf("decodeDecision(%q, %q) should have failed", tc.actionID, tc.value)
 		}
 	}
 }
@@ -498,8 +538,8 @@ func TestDecisionClickSendsThePickAsTheNextPrompt(t *testing.T) {
 		Message: slack.Message{Msg: slack.Msg{Timestamp: "ts-buttons"}},
 		ActionCallback: slack.ActionCallbacks{
 			BlockActions: []*slack.BlockAction{{
-				ActionID: decisionActionPrefix + "2",
-				Value:    encodeDecision("a3f2", 2, "Add an index"),
+				ActionID: decisionActionID("a3f2", 2),
+				Value:    "Add an index",
 			}},
 		},
 	})
@@ -527,8 +567,8 @@ func TestDecisionClickIgnoresStrangers(t *testing.T) {
 		User: slack.User{ID: "U9"},
 		ActionCallback: slack.ActionCallbacks{
 			BlockActions: []*slack.BlockAction{{
-				ActionID: decisionActionPrefix + "1",
-				Value:    encodeDecision("a3f2", 1, "Ship it"),
+				ActionID: decisionActionID("a3f2", 1),
+				Value:    "Ship it",
 			}},
 		},
 	})
@@ -549,8 +589,8 @@ func TestDecisionClickOnADeadSessionSaysSo(t *testing.T) {
 		User: slack.User{ID: "U1"},
 		ActionCallback: slack.ActionCallbacks{
 			BlockActions: []*slack.BlockAction{{
-				ActionID: decisionActionPrefix + "1",
-				Value:    encodeDecision("a3f2", 1, "Ship it"),
+				ActionID: decisionActionID("a3f2", 1),
+				Value:    "Ship it",
 			}},
 		},
 	})
@@ -591,5 +631,22 @@ func TestTrimReplyClosesAnOpenFence(t *testing.T) {
 	}
 	if insideFence(strings.Split(got, "\n")) {
 		t.Fatalf("the fence was left open:\n%s", got[len(got)-120:])
+	}
+}
+
+// Slack requires action ids to be unique within a message.
+func TestDecisionButtonActionIDsAreDistinct(t *testing.T) {
+	btns := decisionButtons("539c", []string{"a", "b", "c", "d"})
+	seen := map[string]bool{}
+	for i, b := range btns {
+		if seen[b.ActionID] {
+			t.Fatalf("button %d repeats action id %q", i, b.ActionID)
+		}
+		seen[b.ActionID] = true
+
+		sess, n, _, ok := decodeDecision(b.ActionID, b.Value)
+		if !ok || sess != "539c" || n != i+1 {
+			t.Fatalf("button %d: decode(%q) = %q, %d, ok=%v", i, b.ActionID, sess, n, ok)
+		}
 	}
 }

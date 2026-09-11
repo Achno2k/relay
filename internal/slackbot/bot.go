@@ -676,9 +676,9 @@ func (b *Bot) HandleInteraction(ctx context.Context, cb slack.InteractionCallbac
 // back to the session as its next prompt, so the thread carries on without
 // anyone typing.
 func (b *Bot) handleDecision(ctx context.Context, cb slack.InteractionCallback, act *slack.BlockAction) {
-	sessionID, n, option, ok := decodeDecision(act.Value)
+	sessionID, n, option, ok := decodeDecision(act.ActionID, act.Value)
 	if !ok {
-		b.logf("undecodable decision value %q", act.Value)
+		b.logf("undecodable decision click: action %q value %q", act.ActionID, act.Value)
 		return
 	}
 	sess, err := b.Store.Get(ctx, sessionID)
