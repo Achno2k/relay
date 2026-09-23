@@ -3,12 +3,14 @@ import HerdKit
 import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
-/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`.
+/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`, `-pair <herd:// link>`.
 struct LaunchOptions {
     var mock = false
     var demo: String?
     var agent: String?
     var replay = true
+    /// A `herd://pair` link handled at launch, same path as `onOpenURL`.
+    var pairLink: URL?
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -22,6 +24,7 @@ struct LaunchOptions {
         demo = value("-demo")
         agent = value("-agent")
         replay = value("-replay") != "off"
+        pairLink = value("-pair").flatMap(URL.init(string:))
         #endif
     }
 
@@ -51,6 +54,7 @@ final class AppModel {
         if let pairing = PairingStore.load() {
             store = Self.makeStore(pairing)
         }
+        if let link = options.pairLink { handle(url: link) }
     }
 
     private static func makeStore(_ pairing: Pairing) -> AppStore {
