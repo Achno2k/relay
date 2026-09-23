@@ -4,11 +4,12 @@ import XCTest
 /// Skipped unless the runner passes `TEST_RUNNER_HERD_E2E_LINK` (a herd://pair link) and
 /// `TEST_RUNNER_HERD_E2E_AGENT` (the agent's pane id). `TEST_RUNNER_HERD_E2E_SHOTS` is an optional
 /// directory for screenshots.
+@MainActor
 final class LiveE2ETests: XCTestCase {
     private var env: [String: String] { ProcessInfo.processInfo.environment }
     private var app: XCUIApplication!
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         continueAfterFailure = false
         guard let link = env["HERD_E2E_LINK"], let agent = env["HERD_E2E_AGENT"] else {
             throw XCTSkip("HERD_E2E_LINK / HERD_E2E_AGENT not set")

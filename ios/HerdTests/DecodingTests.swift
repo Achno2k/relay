@@ -80,6 +80,19 @@ struct DecodingTests {
         #expect(events[3] == .agentClosed(agentId: "w2:p3"))
     }
 
+    @Test func approvalStepAndFreeText() throws {
+        let json = #"""
+        {"agentId":"w14:p2","question":"Focus?","step":{"index":2,"count":3,"title":"Focus"},
+         "options":[{"label":"Deep work","keys":["1"]},{"label":"Type something.","keys":["3"]},{"label":"Other","keys":["4"],"freeText":true}]}
+        """#
+        let approval = try HerdJSON.decoder().decode(Approval.self, from: Data(json.utf8))
+        #expect(approval.step == ApprovalStep(index: 2, count: 3, title: "Focus"))
+        #expect(approval.options.map(\.isFreeText) == [false, true, true])
+        let fixture = try FixtureFiles.decode(Approval.self, "approval.json")
+        #expect(fixture.step == nil)
+        #expect(fixture.options.allSatisfy { !$0.isFreeText })
+    }
+
     @Test func unknownValuesDontBreakDecoding() throws {
         let json = #"""
         {"id":"m","role":"assistant","createdAt":"2026-09-23T13:00:00.250+02:00","blocks":[{"type":"image","url":"x"},{"type":"text","text":"hi"}]}
