@@ -1,0 +1,1 @@
+{"agentId":"w1:p2","question":"Do you want to run `npm test -- checkout`?","options":[{"label":"Yes","keys":["1"]},{"label":"Yes, and don't ask again for npm test","keys":["2"]},{"label":"No, tell Claude what to do differently","keys":["esc"]}]}

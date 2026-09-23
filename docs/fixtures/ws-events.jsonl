@@ -1,0 +1,4 @@
+{"type":"hello"}
+{"type":"agent.updated","agent":{"id":"w1:p2","name":"tests","kind":"claude","title":"Fix flaky checkout tests","workspaceId":"w1","workspaceName":"shop-api","cwdName":"shop-api","status":"working","hasTranscript":true,"updatedAt":"2026-09-23T13:05:00+00:00"}}
+{"type":"message.upserted","agentId":"w1:p1","message":{"id":"m4","role":"assistant","createdAt":"2026-09-23T13:03:34+00:00","blocks":[{"type":"toolCall","id":"t4","name":"Read","summary":"Read src/auth.py","input":"{}"},{"type":"text","text":"Now re-reading on mtime change."}]}}
+{"type":"agent.closed","agentId":"w2:p3"}
