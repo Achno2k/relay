@@ -1,0 +1,17 @@
+⏺ I have two options for the cache.
+
+  1. Invalidate on SIGHUP
+  2. Re-read on mtime change
+
+────────────────────────────────────────────────────────────────
+ ☐ Cache
+
+ Which invalidation strategy should I use?
+
+ ❯ 1. SIGHUP
+      Reload when the process gets SIGHUP
+   2. mtime
+      Re-read when the token file changes
+   3. Type something.
+
+ Enter to select · ↑/↓ to navigate · Esc to cancel
