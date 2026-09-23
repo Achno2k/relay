@@ -172,21 +172,72 @@ public final class AgentService: Sendable {
         let a = try await herdr.agent(id)
         guard a.agentStatus == .blocked else { return nil }
         let scrubber = PathScrubber(cwd: a.cwd)
-        let detection = try await herdr.read(id, source: .detection)
-        if let ap = ApprovalParser.parse(detection.text, agentId: a.paneId, scrubber: scrubber) { return ap }
-        let visible = try await herdr.read(id, source: .visible)
-        if let ap = ApprovalParser.parse(visible.text, agentId: a.paneId, scrubber: scrubber) { return ap }
-        return ApprovalParser.fallback(detection.text, agentId: a.paneId, scrubber: scrubber)
+        let cwdName = CwdName.of(a.cwd ?? a.foregroundCwd)
+        let detection = try await herdr.read(a.paneId, source: .detection)
+        var approval = ApprovalParser.parse(detection.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName)
+        var screen = detection.text
+        if approval == nil {
+            let visible = try await herdr.read(a.paneId, source: .visible)
+            approval = ApprovalParser.parse(visible.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName)
+            screen = visible.text
+        }
+        guard var approval else { return ApprovalParser.fallback(detection.text, agentId: a.paneId, scrubber: scrubber) }
+        if screen.contains("←") {
+            // The active tab is only visible as a highlight, so read with colours.
+            let ansi = try? await herdr.read(a.paneId, source: .visible, ansi: true)
+            approval.step = ApprovalParser.step(screen, ansi: ansi?.text)
+        }
+        return approval
     }
 
     // MARK: Actions
 
+    /// Prompts always go into an empty input box.
     public func prompt(id: String, text: String) async throws {
+        try await clearInput(id, wait: .zero)
         try await herdr.prompt(id, text: text)
     }
 
+    /// A stop (`["esc"]`) makes Claude put the interrupted prompt back in the input box; clear it.
     public func sendKeys(id: String, keys: [String]) async throws {
         try await herdr.sendKeys(id, keys: keys)
+        if keys == ["esc"] || keys == ["escape"] {
+            try await clearInput(id, wait: .milliseconds(1500))
+        }
+    }
+
+    /// Types literally into whatever is focused (e.g. a free-text answer field). No clearing, no Esc.
+    public func text(id: String, text: String, submit: Bool) async throws {
+        let a = try await herdr.agent(id)
+        try await herdr.sendText(paneId: a.paneId, text: text)
+        if submit {
+            // Let the TUI take the pasted text before Enter, or Enter can land first.
+            try await Task.sleep(for: .milliseconds(150))
+            try await herdr.sendKeys(a.paneId, keys: ["enter"])
+        }
+    }
+
+    /// Empties Claude's input box with `ctrl+u` until the screen shows it empty.
+    /// Polls up to `wait` for text to appear (the restored prompt shows up shortly after Esc).
+    /// Never touches a blocked agent: keys there would answer a dialog.
+    func clearInput(_ id: String, wait: Duration) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now + wait
+        var cleared = false
+        for _ in 0..<12 {
+            let a = try await herdr.agent(id)
+            guard a.agentStatus != .blocked, (a.agent ?? "claude") == "claude" else { return }
+            let screen = try await herdr.read(a.paneId, source: .detection).text
+            guard let content = InputBox.content(screen) else { return }
+            if content.isEmpty {
+                if cleared || clock.now >= deadline { return }
+                try await Task.sleep(for: .milliseconds(150))
+                continue
+            }
+            try await herdr.sendKeys(a.paneId, keys: InputBox.clearKeys(for: content))
+            cleared = true
+            try await Task.sleep(for: .milliseconds(120))
+        }
     }
 
     public static func isValidName(_ name: String) -> Bool {
@@ -226,6 +277,9 @@ public final class AgentService: Sendable {
         } else if let prompt, !prompt.isEmpty {
             try await herdr.prompt(pane.paneId, text: prompt)
         }
-        return try await agent(id: pane.paneId)
+        var created = try await agent(id: pane.paneId)
+        // herdr may not have classified the new agent yet.
+        if created.kind == "unknown" { created.kind = kind }
+        return created
     }
 }

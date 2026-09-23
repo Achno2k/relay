@@ -123,10 +123,26 @@ public struct MessagePage: Codable, Sendable, Equatable {
 public struct ApprovalOption: Codable, Sendable, Equatable {
     public var label: String
     public var keys: [String]
+    /// True on Claude's "Type something." row: send `keys`, then the answer via `POST /agents/:id/text`.
+    public var freeText: Bool?
 
-    public init(label: String, keys: [String]) {
+    public init(label: String, keys: [String], freeText: Bool? = nil) {
         self.label = label
         self.keys = keys
+        self.freeText = freeText
+    }
+}
+
+/// Progress through a multi-question prompt. `index` is 1-based; `count` includes the Submit tab.
+public struct ApprovalStep: Codable, Sendable, Equatable {
+    public var index: Int
+    public var count: Int
+    public var title: String?
+
+    public init(index: Int, count: Int, title: String?) {
+        self.index = index
+        self.count = count
+        self.title = title
     }
 }
 
@@ -134,11 +150,13 @@ public struct Approval: Codable, Sendable, Equatable {
     public var agentId: String
     public var question: String
     public var options: [ApprovalOption]
+    public var step: ApprovalStep?
 
-    public init(agentId: String, question: String, options: [ApprovalOption]) {
+    public init(agentId: String, question: String, options: [ApprovalOption], step: ApprovalStep? = nil) {
         self.agentId = agentId
         self.question = question
         self.options = options
+        self.step = step
     }
 }
 

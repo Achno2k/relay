@@ -33,3 +33,20 @@
 - **Extra error codes.** `agent_blocked` (409, prompting a blocked agent), `herdr_unavailable` (503), `herdr_timeout` (504), and herdr's own code with 502 for anything else.
 - **Limits and flags.** `limit` is clamped to 1...500. `herd serve --local-only` skips the Tailscale bind.
 - **Scrubbing text.** Scrubbing also applies to text and thinking blocks and to agent titles, not only `summary`/`input`/`preview`. URLs and relative paths are left alone.
+
+## Round 1
+
+All three items are fixed and checked live on port 7979. `swift test` passes 60 tests with 0 warnings.
+
+1. **Stop no longer leaves the prompt behind.** When a stop comes early, Claude puts the interrupted prompt back in its input box, sometimes several lines of it. After `POST /keys ["esc"]`, the bridge reads the screen for up to 1.5 s and sends `ctrl+u` until the box between the two rules is empty. Each `ctrl+u` clears one line, and pressing it on an empty line deletes the line break. `POST /prompt` clears the box the same way before calling `agent.prompt`. A blocked agent is never cleared, because keys there would answer the dialog.
+   - herdr's valid keys aren't in the schema. I found them by sending each candidate followed by a bogus key: herdr rejects the whole call without typing anything and names the first bad key. Valid: `ctrl+u`, `ctrl+a`, `ctrl+e`, `ctrl+k`, `up`, `down`, `enter`, `backspace`, `esc`. Invalid: `C-u`, `ctrl-u`, `home`, `end`.
+   - Live on w14:p2: I sent a two-line prompt, stopped it after 1 s, and the box was empty. I then prompted "Reply with exactly: pong". The transcript's last user message is exactly that text.
+   - A stop now takes about 1.5 to 2 s to return 202.
+2. **Unnumbered cursor menus.** The folder-trust prompt now returns `question: "Trust this folder? <cwdName>"` with options `No, exit` (`["enter"]`) and `Yes, I trust this folder` (`["down","enter"]`). Other cursor menus use the nearest line with a `?` above them. Footer lines (`Enter to confirm · Esc to cancel`) and a multi-line input box are never read as menus.
+   - Live: `POST /agents` into a fresh untrusted scratch dir, then `GET /approval`, then `POST /keys ["down","enter"]`. The agent went idle. I closed the throwaway workspace afterwards.
+   - `POST /agents` now reports the requested `kind` when herdr hasn't classified the new agent yet. It used to return `unknown`.
+3. **Multi-question progress.** `Approval.step = {index, count, title}` is 1-based, and `count` includes the Submit tab, as in the brief's example. The active tab only shows as a background highlight, so when a tab bar is on screen the bridge does one extra `visible` read with ANSI. If that fails, it takes the first `☐` tab. Documented in api.md.
+   - Live, on a two-question prompt: Drink 1/3, then Time 2/3, then Submit 3/3.
+
+**Free text, agreed with herd-ios through api.md.** The bridge sets `freeText: true` on "Type something.". Its keys are arrow moves from the cursor, not the row number. Pressing the number typed a stray digit: the answer was recorded as "3Carrier pigeon". `POST /agents/:id/text` sends the text with `pane.send_text`, waits 150 ms, then presses Enter.
+- Live: `/keys ["down","down"]` then `/text "Green tea, please"`. The file Claude wrote contains exactly "Green tea, please".

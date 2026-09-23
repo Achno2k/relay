@@ -26,8 +26,75 @@ import Testing
         #expect(a?.options == [
             .init(label: "SIGHUP", keys: ["1"]),
             .init(label: "mtime", keys: ["2"]),
-            .init(label: "Type something.", keys: ["3"]),
+            .init(label: "Type something.", keys: ["down", "down"], freeText: true),
         ])
+    }
+
+    @Test func freeTextKeysAreRelativeToCursor() throws {
+        let a = try #require(ApprovalParser.parse(try Fixture.text("approval-multi.txt"), agentId: "x"))
+        #expect(a.question == "When do you focus best?")
+        #expect(a.options == [
+            .init(label: "Morning", keys: ["1"]),
+            .init(label: "Night", keys: ["2"]),
+            .init(label: "Type something.", keys: ["down"], freeText: true),
+            .init(label: "Chat about this", keys: ["4"]),
+        ])
+        // Cursor already on the row: a no-op move still gives the app something to send.
+        let on = ApprovalParser.parse("Pick?\n  1. A\n❯ 2. Type something.", agentId: "x")
+        #expect(on?.options.last == .init(label: "Type something.", keys: ["up", "down"], freeText: true))
+        // Without a visible cursor, fall back to the number.
+        let none = ApprovalParser.parse("Pick?\n  1. A\n  2. Type something.", agentId: "x")
+        #expect(none?.options.last == .init(label: "Type something.", keys: ["2"], freeText: true))
+    }
+
+    @Test func trustFolderCursorMenu() throws {
+        let a = ApprovalParser.parse(try Fixture.text("approval-trust.txt"), agentId: "w15:p2",
+                                     scrubber: PathScrubber(cwd: "/Users/dev/fresh-project"), cwdName: "fresh-project")
+        #expect(a == Approval(agentId: "w15:p2", question: "Trust this folder? fresh-project", options: [
+            .init(label: "No, exit", keys: ["enter"]),
+            .init(label: "Yes, I trust this folder", keys: ["down", "enter"]),
+        ]))
+    }
+
+    @Test func genericCursorMenuMovesUp() throws {
+        let a = ApprovalParser.parse(try Fixture.text("approval-cursor-generic.txt"), agentId: "x")
+        #expect(a?.question == "Resume a previous session?")
+        #expect(a?.options == [
+            .init(label: "Start fresh", keys: ["up", "up", "enter"]),
+            .init(label: "Resume \"fix flaky tests\"", keys: ["up", "enter"]),
+            .init(label: "Resume \"landing hero\"", keys: ["enter"]),
+        ])
+    }
+
+    @Test func inputBoxIsNotAMenu() throws {
+        #expect(ApprovalParser.parse(try Fixture.text("input-restored.txt"), agentId: "x") == nil)
+        #expect(ApprovalParser.parse(try Fixture.text("input-empty.txt"), agentId: "x") == nil)
+    }
+
+    @Test func stepFromHighlightedTab() throws {
+        let screen = try Fixture.text("approval-multi.txt")
+        #expect(ApprovalParser.step(screen, ansi: try Fixture.text("approval-multi.ansi")) == ApprovalStep(index: 2, count: 3, title: "Focus"))
+        // Without colours: the first unanswered tab.
+        #expect(ApprovalParser.step(screen) == ApprovalStep(index: 2, count: 3, title: "Focus"))
+        let submit = "←  ☒ Delivery  ☒ Focus  ✔ Submit  →\nReady to submit your answers?"
+        #expect(ApprovalParser.step(submit) == ApprovalStep(index: 3, count: 3, title: "Submit"))
+        #expect(ApprovalParser.step(try Fixture.text("approval-edit.txt")) == nil)
+    }
+
+    @Test func tabBarIsNeverTheQuestion() {
+        let a = ApprovalParser.parse("←  ☐ A  ✔ Submit  →\n\n❯ 1. Yes\n  2. No", agentId: "x")
+        #expect(a?.question == "Waiting for your input")
+    }
+
+    @Test func encodesOptionalFieldsOnlyWhenSet() throws {
+        let enc = JSONEncoder()
+        enc.outputFormatting = .sortedKeys
+        let plain = String(decoding: try enc.encode(Approval(agentId: "a", question: "q", options: [.init(label: "Yes", keys: ["1"])])), as: UTF8.self)
+        #expect(plain == #"{"agentId":"a","options":[{"keys":["1"],"label":"Yes"}],"question":"q"}"#)
+        let full = Approval(agentId: "a", question: "q", options: [.init(label: "Type something.", keys: ["down"], freeText: true)],
+                            step: .init(index: 2, count: 3, title: "Focus"))
+        #expect(String(decoding: try enc.encode(full), as: UTF8.self)
+            == #"{"agentId":"a","options":[{"freeText":true,"keys":["down"],"label":"Type something."}],"question":"q","step":{"count":3,"index":2,"title":"Focus"}}"#)
     }
 
     @Test func noOptions() throws {

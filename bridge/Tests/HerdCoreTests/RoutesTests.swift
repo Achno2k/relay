@@ -50,7 +50,7 @@ import Testing
             case "agent.prompt":
                 if target == "w1:p2" { return FakeError(code: "agent_blocked", message: "agent is blocked") }
                 return ["type": "agent_prompted", "agent": agents[0]]
-            case "agent.send_keys": return ["type": "ok"]
+            case "agent.send_keys", "pane.send_text": return ["type": "ok"]
             case "events.subscribe": return ["type": "subscription_started"]
             default: return FakeError(code: "unknown_method", message: method)
             }
@@ -196,6 +196,19 @@ import Testing
                 #expect(r.status == .accepted)
             }
             #expect(fake.params(of: "agent.send_keys") == #"{"keys":["esc"],"target":"w1:p1"}"#)
+        }
+    }
+
+    @Test func textRoute() async throws {
+        try await withApp { client, fake, _ in
+            try await client.execute(uri: "/agents/w1%3Ap2/text", method: .post, headers: Self.auth, body: ByteBuffer(string: #"{"text":"Green tea"}"#)) { r throws in
+                #expect(r.status == .accepted)
+            }
+            #expect(fake.params(of: "pane.send_text") == #"{"pane_id":"w1:p2","text":"Green tea"}"#)
+            #expect(fake.params(of: "agent.send_keys") == #"{"keys":["enter"],"target":"w1:p2"}"#)
+            try await client.execute(uri: "/agents/w1%3Ap2/text", method: .post, headers: Self.auth, body: ByteBuffer(string: #"{"text":""}"#)) { r throws in
+                #expect(r.status == .badRequest)
+            }
         }
     }
 

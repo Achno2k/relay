@@ -48,7 +48,14 @@ Block (tagged on "type"):
 Approval {
   "agentId": "w13:p1",
   "question": "Do you want to make this edit to api.md?",
-  "options": [ { "label": "Yes", "keys": ["1"] }, { "label": "Yes, don't ask again", "keys": ["2"] }, { "label": "No", "keys": ["esc"] } ]
+  "options": [ { "label": "Yes", "keys": ["1"] }, { "label": "Yes, don't ask again", "keys": ["2"] }, { "label": "No", "keys": ["esc"] } ],
+  "step": { "index": 2, "count": 3, "title": "Focus" }   // optional, see below
+}
+
+ApprovalStep {                    // present only for multi-question prompts (tab bar `←  ☒ Delivery  ☐ Focus  ✔ Submit  →`)
+  "index": 2,                     // 1-based position of the active tab
+  "count": 3,                     // number of tabs, including the final Submit (review) tab
+  "title": "Focus"                // optional; the tab's label ("Submit" on the review screen)
 }
 
 ApprovalOption {
@@ -58,6 +65,9 @@ ApprovalOption {
 }                                 // (Claude's "Type something." row). The app sends `keys`, then the typed answer via POST /agents/:id/text.
 ```
 - Free-text options: the bridge sets `freeText: true` on Claude's "Type something." row. Clients also treat a label of exactly `Type something.` as free text, so older bridges still work.
+  - Its `keys` are arrow moves from the menu cursor to that row (e.g. `["down","down"]`), not its number: pressing the number also types the digit into the field. If the cursor is already on it, `keys` is `["up","down"]`. `keys` is never empty.
+  - Send `POST /keys` with those keys, then `POST /text` right away. No delay is needed between them.
+- Menu shapes: numbered menus give `["N"]` per option (a trailing "No … (esc)" gives `["esc"]`). Unnumbered cursor menus (Claude's folder-trust prompt: `❯ No, exit` / `Yes, I trust this folder`) give arrow moves relative to the `❯` line plus `"enter"`, e.g. `["down","enter"]`. The trust prompt's question is `Trust this folder? <cwdName>`.
 
 Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced by ->/<sessionId>.jsonl`):
 - Keep only lines with `type` of `user` or `assistant` and `isSidechain == false`.
@@ -75,8 +85,8 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | GET | /agents | – | `[Agent]` (all live agents; the app groups them by workspace) |
 | GET | /agents/:id | – | `Agent` |
 | GET | /agents/:id/messages?before=<msgId>&limit=50 | – | `{"messages":[Message], "hasMore": bool}`, oldest first |
-| POST | /agents/:id/prompt | `{"text": "..."}` | `202 {}` (calls herdr `agent.prompt`) |
-| POST | /agents/:id/keys | `{"keys": ["esc"]}` | `202 {}` (stop = `["esc"]`) |
+| POST | /agents/:id/prompt | `{"text": "..."}` | `202 {}` (calls herdr `agent.prompt`). The bridge first empties Claude's input box, so a prompt never glues onto leftover text. `409 agent_blocked` if the agent is at a dialog. |
+| POST | /agents/:id/keys | `{"keys": ["esc"]}` | `202 {}` (stop = `["esc"]`). After a stop the bridge clears the prompt Claude puts back in its input box, so it may take up to ~2 s to answer. Other keys are sent as is. Key names are herdr's (`esc`, `enter`, `up`, `down`, `ctrl+u`, digits, …). |
 | POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
 | POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","prompt":"optional"}` | `201 Agent` (new tab in the workspace, cwd = workspace's first pane cwd, `agent.start`, then optional prompt) |

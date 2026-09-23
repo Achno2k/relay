@@ -62,6 +62,7 @@ struct ErrorMiddleware: RouterMiddleware {
 public enum HerdRoutes {
     struct PromptBody: Decodable { var text: String }
     struct KeysBody: Decodable { var keys: [String] }
+    struct TextBody: Decodable { var text: String; var submit: Bool? }
     struct CreateBody: Decodable {
         var workspaceId: String
         var kind: String
@@ -114,6 +115,13 @@ public enum HerdRoutes {
             let body = try await decode(KeysBody.self, request, context)
             guard !body.keys.isEmpty else { throw APIError.badRequest("keys is required") }
             try await service.sendKeys(id: try agentId(context), keys: body.keys)
+            return try JSONResponse.make(Empty(), status: .accepted)
+        }
+
+        router.post("/agents/:id/text") { request, context in
+            let body = try await decode(TextBody.self, request, context)
+            guard !body.text.isEmpty else { throw APIError.badRequest("text is required") }
+            try await service.text(id: try agentId(context), text: body.text, submit: body.submit ?? true)
             return try JSONResponse.make(Empty(), status: .accepted)
         }
 

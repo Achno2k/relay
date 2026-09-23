@@ -118,9 +118,9 @@ public actor HerdrClient {
         return try await call("pane.list", params, as: R.self).panes
     }
 
-    public func read(_ target: String, source: HerdrReadSource, lines: Int? = nil) async throws -> HerdrRead {
+    public func read(_ target: String, source: HerdrReadSource, lines: Int? = nil, ansi: Bool = false) async throws -> HerdrRead {
         struct R: Decodable { var read: HerdrRead }
-        var params: [String: Any] = ["target": target, "source": source.rawValue, "strip_ansi": true]
+        var params: [String: Any] = ["target": target, "source": source.rawValue, "strip_ansi": !ansi, "format": ansi ? "ansi" : "text"]
         if let lines { params["lines"] = lines }
         return try await call("agent.read", params, as: R.self).read
     }
@@ -131,6 +131,11 @@ public actor HerdrClient {
 
     public func sendKeys(_ target: String, keys: [String]) async throws {
         _ = try await call("agent.send_keys", ["target": target, "keys": keys], as: Ignored.self)
+    }
+
+    /// Types `text` literally into the pane, without Enter.
+    public func sendText(paneId: String, text: String) async throws {
+        _ = try await call("pane.send_text", ["pane_id": paneId, "text": text], as: Ignored.self)
     }
 
     /// Creates a tab in `workspaceId` and returns its root pane.
