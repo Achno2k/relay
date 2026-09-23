@@ -56,6 +56,11 @@ public struct APIClient: Sendable {
         try await sendIgnoringBody("POST", "/agents/\(Self.encode(agentId))/keys", body: Body(keys: keys))
     }
 
+    public func sendText(agentId: String, text: String, submit: Bool = true) async throws {
+        struct Body: Encodable { var text: String; var submit: Bool }
+        try await sendIgnoringBody("POST", "/agents/\(Self.encode(agentId))/text", body: Body(text: text, submit: submit))
+    }
+
     public func approval(agentId: String) async throws -> Approval? {
         let (data, status) = try await raw("GET", "/agents/\(Self.encode(agentId))/approval")
         if status == 204 || data.isEmpty { return nil }

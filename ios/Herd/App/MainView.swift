@@ -64,8 +64,8 @@ struct MainView: View {
         }
         .sheet(isPresented: $store.isApprovalSheetPresented) {
             if let approval = store.approval {
-                ApprovalSheet(approval: approval, agentTitle: store.selectedAgent?.displayTitle ?? "Needs you") {
-                    store.answer($0)
+                ApprovalSheet(approval: approval, agentTitle: store.selectedAgent?.displayTitle ?? "Needs you") { option, text in
+                    store.answer(option, text: text)
                 }
             }
         }
@@ -76,6 +76,10 @@ struct MainView: View {
                 try? await Task.sleep(for: .milliseconds(600))
                 presentNewChat(nil)
             }
+        }
+        .onChange(of: store.isApprovalSheetPresented) { _, presented in
+            // The keyboard would cover the options.
+            if presented { hideKeyboard() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.refresh() } }

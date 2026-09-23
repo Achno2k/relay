@@ -7,6 +7,8 @@ public protocol Backend: Sendable {
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage
     func prompt(agentId: String, text: String) async throws
     func sendKeys(agentId: String, keys: [String]) async throws
+    /// Types `text` literally into the agent's current input (no clearing), then Enter if `submit`.
+    func sendText(agentId: String, text: String, submit: Bool) async throws
     /// `nil` when the agent isn't blocked (204).
     func approval(agentId: String) async throws -> Approval?
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent
@@ -30,6 +32,9 @@ public struct LiveBackend: Backend {
     }
     public func prompt(agentId: String, text: String) async throws { try await client.prompt(agentId: agentId, text: text) }
     public func sendKeys(agentId: String, keys: [String]) async throws { try await client.sendKeys(agentId: agentId, keys: keys) }
+    public func sendText(agentId: String, text: String, submit: Bool) async throws {
+        try await client.sendText(agentId: agentId, text: text, submit: submit)
+    }
     public func approval(agentId: String) async throws -> Approval? { try await client.approval(agentId: agentId) }
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent { try await client.createAgent(request) }
     public func events() -> AsyncStream<ConnectionEvent> { socket.events() }

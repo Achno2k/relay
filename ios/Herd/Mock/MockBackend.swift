@@ -14,12 +14,13 @@ actor MockBackend: Backend {
     private let replayInterval: Duration?
     private var continuation: AsyncStream<ConnectionEvent>.Continuation?
     private var counter = 0
+    private let latency: Duration = .milliseconds(UserDefaults.standard.integer(forKey: "latency").nonZero ?? 120)
 
     init(replayInterval: Duration? = .seconds(4)) {
         let fixtures = Fixtures()
         agentList = fixtures.agents
         workspaceList = fixtures.workspaces
-        approvals = fixtures.approval.map { [$0.agentId: $0] } ?? [:]
+        approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
         replay = fixtures.events
         self.replayInterval = replayInterval
         chats = MockChats.all(fixtureMessages: fixtures.messages)
@@ -36,7 +37,7 @@ actor MockBackend: Backend {
     func agents() async throws -> [Agent] { agentList }
 
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage {
-        try await Task.sleep(for: .milliseconds(120))
+        try await Task.sleep(for: latency)
         var list = chats[agentId] ?? []
         if let before, let i = list.firstIndex(where: { $0.id == before }) { list = Array(list[..<i]) }
         return MessagePage(messages: Array(list.suffix(limit)), hasMore: list.count > limit)
@@ -68,6 +69,26 @@ actor MockBackend: Backend {
         } else if keys == ["esc"] {
             setStatus(.idle, for: agentId)
         }
+    }
+
+    func sendText(agentId: String, text: String, submit: Bool) async throws {
+        guard submit else { return }
+        let reply = Message(id: nextId(), role: .assistant, createdAt: Date(), blocks: [.text("Got it: \(text)")])
+        Task {
+            try? await Task.sleep(for: .seconds(0.8))
+            push(reply, to: agentId)
+            setStatus(.idle, for: agentId)
+        }
+    }
+
+    /// The fixture approval plus what newer bridges send: a step header and Claude's free-text row.
+    private static func extended(_ approval: Approval) -> Approval {
+        var a = approval
+        a.step = a.step ?? ApprovalStep(index: 1, count: 2, title: "Tests")
+        if !a.options.contains(where: \.isFreeText) {
+            a.options.append(ApprovalOption(label: "Type something.", keys: ["\(a.options.count + 1)"], freeText: true))
+        }
+        return a
     }
 
     func approval(agentId: String) async throws -> Approval? {
@@ -152,6 +173,10 @@ actor MockBackend: Backend {
         counter += 1
         return "mock-\(counter)"
     }
+}
+
+private extension Int {
+    var nonZero: Int? { self == 0 ? nil : self }
 }
 
 /// Decoded `docs/fixtures`.

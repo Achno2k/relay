@@ -1,47 +1,97 @@
 import HerdKit
 import SwiftUI
 
-/// Bottom sheet with one full-width glass button per option.
+/// Bottom sheet with one full-width glass button per option, sized to its content.
+/// A free-text option ("Type something.") swaps the buttons for a text field.
 struct ApprovalSheet: View {
     let approval: Approval
     let agentTitle: String
-    let onChoose: (ApprovalOption) -> Void
+    let onChoose: (ApprovalOption, String?) -> Void
+
+    @State private var height: CGFloat = 360
+    @State private var freeTextOption: ApprovalOption?
+    @State private var answer = ""
+    @FocusState private var answerFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 10) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                if let option = freeTextOption {
+                    freeTextField(option)
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(Array(approval.options.enumerated()), id: \.offset) { i, option in
+                            optionButton(option, prominent: i == 0)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 12)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDetents([.height(height)])
+        .presentationDragIndicator(.visible)
+        .animation(.smooth, value: freeTextOption)
+        .onChange(of: approval) {
+            freeTextOption = nil
+            answer = ""
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 Label(agentTitle, systemImage: "hand.raised.fill")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.orange)
                     .lineLimit(1)
-                Text(MarkdownParser.inline(approval.question))
-                    .font(.title3.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-            VStack(spacing: 10) {
-                ForEach(Array(approval.options.enumerated()), id: \.offset) { i, option in
-                    optionButton(option, prominent: i == 0)
+                if let step = approval.step {
+                    Text(stepText(step))
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("approvalStep")
                 }
             }
+            Text(MarkdownParser.inline(
+                approval.question,
+                codeFont: .system(.title3, design: .monospaced).weight(.regular),
+                codeBackground: Color(.quaternarySystemFill)
+            ))
+            .font(.title3.weight(.semibold))
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 28)
-        .padding(.bottom, 12)
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
+    }
+
+    private func stepText(_ step: ApprovalStep) -> String {
+        let position = "Question \(step.index) of \(step.count)"
+        guard let title = step.title, !title.isEmpty else { return position }
+        return "\(position) · \(title)"
     }
 
     @ViewBuilder
     private func optionButton(_ option: ApprovalOption, prominent: Bool) -> some View {
         let button = Button {
-            onChoose(option)
+            if option.isFreeText {
+                freeTextOption = option
+                answerFocused = true
+            } else {
+                onChoose(option, nil)
+            }
         } label: {
-            Text(option.label)
-                .font(.body.weight(.semibold))
-                .lineLimit(2)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+            HStack(spacing: 8) {
+                if option.isFreeText {
+                    Image(systemName: "character.cursor.ibeam")
+                }
+                Text(option.label)
+                    .lineLimit(2)
+            }
+            .font(.body.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
         }
         .controlSize(.large)
         if prominent {
@@ -49,6 +99,40 @@ struct ApprovalSheet: View {
         } else {
             button.buttonStyle(.glass)
         }
+    }
+
+    private func freeTextField(_ option: ApprovalOption) -> some View {
+        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 10) {
+                TextField("Your answer", text: $answer, axis: .vertical)
+                    .lineLimit(1...5)
+                    .focused($answerFocused)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 22))
+                    .accessibilityIdentifier("approvalAnswer")
+                    .onSubmit { if !trimmed.isEmpty { onChoose(option, trimmed) } }
+                Button {
+                    onChoose(option, trimmed)
+                } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 17, weight: .bold))
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .disabled(trimmed.isEmpty)
+                .accessibilityLabel("Send answer")
+            }
+            Button("Back to options") {
+                freeTextOption = nil
+                answerFocused = false
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+        }
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
     }
 }
 
@@ -67,7 +151,7 @@ struct ApprovalCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Needs your approval")
                         .font(.subheadline.weight(.semibold))
-                    Text(MarkdownParser.inline(question))
+                    Text(MarkdownParser.inline(question, codeBackground: Color(.quaternarySystemFill)))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -82,5 +166,6 @@ struct ApprovalCard: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 22))
+        .accessibilityIdentifier("approvalCard")
     }
 }

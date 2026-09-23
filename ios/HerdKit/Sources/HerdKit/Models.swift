@@ -170,10 +170,32 @@ public struct MessagePage: Codable, Hashable, Sendable {
 public struct ApprovalOption: Codable, Hashable, Sendable {
     public var label: String
     public var keys: [String]
+    /// Choosing it opens a text input in the agent's menu (Claude's "Type something." row).
+    public var freeText: Bool?
 
-    public init(label: String, keys: [String]) {
+    public init(label: String, keys: [String], freeText: Bool? = nil) {
         self.label = label
         self.keys = keys
+        self.freeText = freeText
+    }
+
+    /// Bridges that predate `freeText` still send Claude's label.
+    public var isFreeText: Bool {
+        freeText ?? (label.trimmingCharacters(in: .whitespaces) == "Type something.")
+    }
+}
+
+/// Progress through a multi-question prompt, e.g. question 2 of 3, "Focus".
+public struct ApprovalStep: Codable, Hashable, Sendable {
+    /// 1-based.
+    public var index: Int
+    public var count: Int
+    public var title: String?
+
+    public init(index: Int, count: Int, title: String? = nil) {
+        self.index = index
+        self.count = count
+        self.title = title
     }
 }
 
@@ -181,11 +203,13 @@ public struct Approval: Codable, Hashable, Sendable {
     public var agentId: String
     public var question: String
     public var options: [ApprovalOption]
+    public var step: ApprovalStep?
 
-    public init(agentId: String, question: String, options: [ApprovalOption]) {
+    public init(agentId: String, question: String, options: [ApprovalOption], step: ApprovalStep? = nil) {
         self.agentId = agentId
         self.question = question
         self.options = options
+        self.step = step
     }
 }
 

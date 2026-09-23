@@ -190,13 +190,20 @@ final class AppStore {
         }
     }
 
-    func answer(_ option: ApprovalOption) {
+    /// `text` answers a free-text option: its keys open the agent's input, then the text is typed and submitted.
+    func answer(_ option: ApprovalOption, text: String? = nil) {
         guard let approval else { return }
+        let typed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         isApprovalSheetPresented = false
         self.approval = nil
         Task {
             do {
                 try await backend.sendKeys(agentId: approval.agentId, keys: option.keys)
+                if let typed, !typed.isEmpty {
+                    // Give the TUI a moment to swap the row for its input before typing.
+                    try await Task.sleep(for: .milliseconds(300))
+                    try await backend.sendText(agentId: approval.agentId, text: typed, submit: true)
+                }
                 await followUp(after: approval)
             } catch {
                 report(error)
