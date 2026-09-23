@@ -48,6 +48,34 @@ final class LiveE2ETests: XCTestCase {
         shot("5-stopped")
     }
 
+    /// One AskUserQuestion with two questions: the sheet must come back for the second one
+    /// (and for Claude's final "Submit answers" review step) while the agent stays blocked.
+    func testMultipleQuestions() throws {
+        let isComposer = NSPredicate(format: "placeholderValue BEGINSWITH 'Message'")
+        let composer = app.descendants(matching: .any).matching(isComposer).firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 15), "composer never appeared")
+
+        send("Use AskUserQuestion once with two questions: Q1 'Tea or coffee?' (Tea, Coffee) and Q2 'Morning or night?' (Morning, Night). Then write both answers to answers.txt.", via: composer)
+        let tea = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Tea'")).firstMatch
+        XCTAssertTrue(tea.waitForExistence(timeout: 90), "first question never appeared")
+        shot("mq-1")
+        tea.tap()
+
+        let night = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Night'")).firstMatch
+        XCTAssertTrue(night.waitForExistence(timeout: 15), "second question never appeared")
+        shot("mq-2")
+        night.tap()
+
+        let submit = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Submit'")).firstMatch
+        if submit.waitForExistence(timeout: 8) {
+            shot("mq-3-submit")
+            submit.tap()
+        }
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 90), "turn never finished")
+        sleep(2)
+        shot("mq-4-done")
+    }
+
     private func send(_ text: String, via composer: XCUIElement) {
         composer.tap()
         composer.typeText(text)

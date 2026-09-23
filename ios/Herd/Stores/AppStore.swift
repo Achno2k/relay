@@ -195,7 +195,27 @@ final class AppStore {
         isApprovalSheetPresented = false
         self.approval = nil
         Task {
-            do { try await backend.sendKeys(agentId: approval.agentId, keys: option.keys) } catch { report(error) }
+            do {
+                try await backend.sendKeys(agentId: approval.agentId, keys: option.keys)
+                await followUp(after: approval)
+            } catch {
+                report(error)
+            }
+        }
+    }
+
+    /// A multi-question prompt stays `blocked` between questions, so no status change will
+    /// announce the next one. Poll briefly until the screen shows a different question or the block ends.
+    private func followUp(after answered: Approval) async {
+        for _ in 0..<12 {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard selectedAgentId == answered.agentId, approval == nil else { return }
+            guard let next = try? await backend.approval(agentId: answered.agentId) else { return }
+            if next != answered {
+                approval = next
+                isApprovalSheetPresented = true
+                return
+            }
         }
     }
 
