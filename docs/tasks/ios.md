@@ -43,3 +43,8 @@ Commit trailer:
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01Q4qo2QabVUAvi2YgczSwpD
 ```
+
+## Addendum: prepare for widgets / Live Activities (not building them yet)
+- Put the API models, APIClient, WSClient and Keychain helper in a local Swift package `ios/HerdKit` that the app target depends on, so future WidgetKit and ActivityKit extensions can import it.
+- Add an App Group `group.dev.amansingh.herd`. Store the pairing (URL + token) in a shared Keychain access group / App Group so extensions can read it.
+- Keep the UI out of HerdKit.

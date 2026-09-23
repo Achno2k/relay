@@ -230,7 +230,11 @@ import Testing
                 hub.broadcast(.agentClosed("w1:p1"))
                 if case .text(let s) = try await frames.next() { received.withLock { $0.append(s) } }
             }
-            #expect(received.withLock { $0 } == [#"{"type":"hello"}"#, #"{"type":"agent.closed","agentId":"w1:p1"}"#])
+            // Key order in encoded JSON isn't stable, so compare parsed objects.
+            let frames = try received.withLock { $0 }.map {
+                try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: String]
+            }
+            #expect(frames == [["type": "hello"], ["type": "agent.closed", "agentId": "w1:p1"]])
         }
     }
 
