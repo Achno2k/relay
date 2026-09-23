@@ -49,3 +49,47 @@
 5. WebSocket: does the bridge always send `hello` first? The app counts any frame as "connected". It also sends a ping every 15s; please make sure the server answers pings (Hummingbird does by default).
 6. `POST /agents` takes `name`, but the new-chat sheet doesn't expose it. Should it?
 7. Should `GET /agents` include agents with `status: unknown`? The app shows them without an indicator.
+
+## Round 1 (fixes-1.md, iOS items 1-4)
+
+### Fixed
+1. **Keyboard over the approval sheet.**
+   - The keyboard is dismissed whenever the sheet presents.
+   - The sheet sizes to its content with a `.height` detent measured from the content, so the gap above the buttons is gone.
+   - Inline code in the question is regular weight on a lighter fill.
+   - Screenshot: `approval-sheet.png`.
+2. **Chats opening scrolled up.** There were two causes.
+   - The transcript was a `LazyVStack`. Lazy rows are measured with estimates, so on long real transcripts the first bottom offset landed short. Reproduced on a real long chat. It's now an eager `VStack`, rendered only once messages have loaded, so the first layout already starts at the bottom. `MarkdownView` parses in `body`, so unchanged rows are skipped.
+   - "At bottom" was worked out from scroll geometry alone. A programmatic scroll animation passes through "not at bottom" offsets, and the approval card or keyboard growing the bottom inset mid-animation turned following off. Now only the user's own scrolling (scroll phase tracking, interacting or decelerating) changes `followsBottom`. Any change to content height or bottom inset re-pins while following.
+   - Earlier pages now load by scroll visibility and keep the position when prepended.
+   - The first launch shows a spinner instead of flashing "No agents running".
+3. **Step header.** `Approval.step` decodes as optional; the sheet shows "Question 2 of 3 · Time". Claude's final Submit tab (`index == count`, title `Submit`) is labelled "Review answers". Screenshots: `approval-step.png`, `approval-review.png`.
+4. **Free text.**
+   - A "Type something." option (`freeText: true`, or that exact label from older bridges) swaps the buttons for a text field.
+   - Send posts the option's `keys` (arrow moves, per herd-bridge), then `POST /agents/:id/text` with `submit: true`.
+   - Contract agreed with herd-bridge through `docs/api.md`: 155c21a from me, ef60451 from them.
+   - Screenshot: `approval-free-text.png`.
+
+### Tests
+- Unit tests: 25 pass. New ones cover:
+  - `step`/`freeText` decoding, plus the label fallback
+  - the store's free-text answer order (keys, then text, trimmed) against a recording fake backend
+  - a plain answer sending keys only
+- `MockUITests` (new, no bridge needed), all pass:
+  - a long, slow-loading chat opens at the bottom, including after switching agents in the sidebar
+  - the keyboard is gone when the sheet presents from the card, and the step header is shown
+  - a free-text answer reaches the (mock) agent
+- The mock never reproduced the lazy-stack bug, so the scroll test only guards against regressions. The live test catches the real thing.
+- `LiveE2ETests` against the restarted 7878 bridge on `w14:p2`, all 3 pass:
+  - opens with no "↓"
+  - keyboard hidden when the sheet appears
+  - no "↓" with the approval card up
+  - step headers "Question 1 of 3" / "Question 2 of 3" / "Review answers"
+  - new `testFreeTextAnswer`: types "Green", and the agent replies "Colour is Green"
+  - `tearDown` now sends Esc if the agent is left at a question, so one failure can't break the next test
+- The UI test classes are `@MainActor` with `async setUp`; the UI test target now builds with no Swift 6 warnings.
+
+### Notes and questions
+- I restarted the 7878 bridge from this session (`swift run -c release herd serve --local-only --port 7878`). It stops if this session's background job is killed.
+- `POST /prompt` can now return `409 agent_blocked`. The app shows the bridge's error message in the banner. The composer isn't disabled while blocked, because the card and sheet are the intended path.
+- After a stop, the transcript shows `[Request interrupted by user]` / `[Request interrupted by user for tool use]` as user bubbles. Should the bridge drop them, or turn them into a small "Stopped" marker? The app could also style them. Your call.
