@@ -13,8 +13,10 @@ struct ChatView: View {
                 if let agent = store.selectedAgent {
                     ChatTranscript(store: store, agent: agent, onNewChat: onNewChat)
                         .id(agent.id)
-                } else {
+                } else if store.hasLoadedAgents {
                     EmptyChat(hasAgents: !store.state.agents.isEmpty, onNewChat: { onNewChat(nil) })
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -107,7 +109,9 @@ private struct ChatTranscript: View {
 
     @State private var draft = ""
     @State private var position = ScrollPosition(edge: .bottom)
-    @State private var isAtBottom = true
+    /// True until the user scrolls away from the latest message; drives autoscroll and the ↓ button.
+    @State private var followsBottom = true
+    @State private var scrollPhase: ScrollPhase = .idle
     @State private var width: CGFloat = 390
     @State private var loadingEarlier = false
 
@@ -154,8 +158,9 @@ private struct ChatTranscript: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
             .overlay(alignment: .top) {
-                if !isAtBottom {
+                if !followsBottom {
                     Button {
+                        followsBottom = true
                         withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
                     } label: {
                         Image(systemName: "arrow.down")
@@ -169,7 +174,7 @@ private struct ChatTranscript: View {
                     .accessibilityLabel("Scroll to bottom")
                 }
             }
-            .animation(.smooth, value: isAtBottom)
+            .animation(.smooth, value: followsBottom)
             .animation(.smooth, value: store.approval)
         }
     }
@@ -213,16 +218,21 @@ private struct ChatTranscript: View {
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .onScrollGeometryChange(for: Bool.self) { geo in
-            // containerSize already excludes the insets. Short chats rest at -top inset.
-            let maxOffset = max(geo.contentSize.height - geo.containerSize.height, 0) - geo.contentInsets.top
-            return geo.contentOffset.y >= maxOffset - 60
-        } action: { _, atBottom in
-            isAtBottom = atBottom
+        .onScrollPhaseChange { _, phase in
+            scrollPhase = phase
         }
-        .onChange(of: contentSignature(items)) {
-            guard isAtBottom, !loadingEarlier else { return }
-            withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
+        .onScrollGeometryChange(for: ScrollSnapshot.self) { ScrollSnapshot($0) } action: { old, new in
+            // Only the user's own scrolling decides whether we follow the latest message. Programmatic
+            // scrolls pass through "not at bottom" offsets mid-animation and must not turn following off.
+            if scrollPhase.isUserDriven {
+                followsBottom = new.isAtBottom
+                return
+            }
+            // New content, the approval card or the keyboard moved the end of the chat: stay on it.
+            let endMoved = new.maxOffset != old.maxOffset || new.insetBottom != old.insetBottom
+            if followsBottom, endMoved, !new.isAtBottom {
+                withAnimation(.smooth(duration: 0.25)) { position.scrollTo(edge: .bottom) }
+            }
         }
     }
 
@@ -268,15 +278,6 @@ private struct ChatTranscript: View {
         if case .tools = items.last { return working }
         return false
     }
-
-    /// Changes whenever something visible at the bottom grows.
-    private func contentSignature(_ items: [ChatItem]) -> Int {
-        var h = Hasher()
-        h.combine(items.count)
-        h.combine(items.last)
-        h.combine(agent.status)
-        return h.finalize()
-    }
 }
 
 private struct EmptyChat: View {
@@ -300,5 +301,29 @@ private struct EmptyChat: View {
         .multilineTextAlignment(.center)
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct ScrollSnapshot: Equatable {
+    var offset: CGFloat
+    var maxOffset: CGFloat
+    var insetBottom: CGFloat
+
+    init(_ geo: ScrollGeometry) {
+        offset = geo.contentOffset.y
+        // containerSize already excludes the insets. Short chats rest at -top inset.
+        maxOffset = max(geo.contentSize.height - geo.containerSize.height, 0) - geo.contentInsets.top
+        insetBottom = geo.contentInsets.bottom
+    }
+
+    var isAtBottom: Bool { offset >= maxOffset - 60 }
+}
+
+private extension ScrollPhase {
+    var isUserDriven: Bool {
+        switch self {
+        case .tracking, .interacting, .decelerating: true
+        default: false
+        }
     }
 }

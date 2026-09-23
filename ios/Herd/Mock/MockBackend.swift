@@ -86,7 +86,8 @@ actor MockBackend: Backend {
         var a = approval
         a.step = a.step ?? ApprovalStep(index: 1, count: 2, title: "Tests")
         if !a.options.contains(where: \.isFreeText) {
-            a.options.append(ApprovalOption(label: "Type something.", keys: ["\(a.options.count + 1)"], freeText: true))
+            // Arrow moves from the cursor (on the first row), like the real bridge.
+            a.options.append(ApprovalOption(label: "Type something.", keys: Array(repeating: "down", count: a.options.count), freeText: true))
         }
         return a
     }

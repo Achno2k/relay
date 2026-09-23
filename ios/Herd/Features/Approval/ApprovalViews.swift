@@ -67,6 +67,8 @@ struct ApprovalSheet: View {
     }
 
     private func stepText(_ step: ApprovalStep) -> String {
+        // The last tab is Claude's review screen, not a question.
+        if step.index == step.count, step.title == "Submit" { return "Review answers" }
         let position = "Question \(step.index) of \(step.count)"
         guard let title = step.title, !title.isEmpty else { return position }
         return "\(position) · \(title)"

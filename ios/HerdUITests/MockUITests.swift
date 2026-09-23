@@ -52,6 +52,7 @@ final class MockUITests: XCTestCase {
         let keyboardGone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
         wait(for: [keyboardGone], timeout: 5)
         XCTAssertTrue(yes.isHittable)
+        shot("approval-sheet")
         XCTAssertEqual(app.staticTexts["approvalStep"].label, "Question 1 of 2 · Tests")
     }
 
@@ -65,9 +66,18 @@ final class MockUITests: XCTestCase {
         let field = app.textFields["approvalAnswer"].exists ? app.textFields["approvalAnswer"] : app.textViews["approvalAnswer"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.typeText("Use a fresh cart per test")
+        shot("approval-free-text")
         app.buttons["Send answer"].tap()
 
         let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Got it: Use a fresh cart per test'")).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 10), "answer never reached the agent")
+    }
+
+    /// Saved to `HERD_SHOTS` when set (pass it as `TEST_RUNNER_HERD_SHOTS`).
+    private func shot(_ name: String) {
+        guard let dir = ProcessInfo.processInfo.environment["HERD_SHOTS"] else { return }
+        sleep(1)
+        let png = XCUIScreen.main.screenshot().pngRepresentation
+        try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
     }
 }

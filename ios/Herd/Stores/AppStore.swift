@@ -16,6 +16,8 @@ final class AppStore {
 
     private(set) var state = HerdState()
     private(set) var connection: ConnectionState = .connecting
+    /// False until the first `/agents` answer (or failure), so the UI doesn't flash "No agents".
+    private(set) var hasLoadedAgents = false
     var selectedAgentId: String? {
         didSet { UserDefaults.standard.set(selectedAgentId, forKey: "selectedAgentId") }
     }
@@ -128,6 +130,7 @@ final class AppStore {
         } catch {
             report(error)
         }
+        hasLoadedAgents = true
         if let id = selectedAgentId { await loadMessages(id) }
         await refreshApproval()
     }
@@ -200,8 +203,7 @@ final class AppStore {
             do {
                 try await backend.sendKeys(agentId: approval.agentId, keys: option.keys)
                 if let typed, !typed.isEmpty {
-                    // Give the TUI a moment to swap the row for its input before typing.
-                    try await Task.sleep(for: .milliseconds(300))
+                    // The bridge paces the Enter itself; no delay needed here (api.md).
                     try await backend.sendText(agentId: approval.agentId, text: typed, submit: true)
                 }
                 await followUp(after: approval)

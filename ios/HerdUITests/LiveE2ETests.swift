@@ -19,16 +19,40 @@ final class LiveE2ETests: XCTestCase {
         app.launch()
     }
 
+    /// A failed test can leave the agent at a question; cancel it so the next test starts clean.
+    override func tearDown() async throws {
+        guard let link = env["HERD_E2E_LINK"].flatMap(URLComponents.init(string:)),
+              let base = link.queryItems?.first(where: { $0.name == "url" })?.value,
+              let token = link.queryItems?.first(where: { $0.name == "token" })?.value,
+              let id = env["HERD_E2E_AGENT"]?.replacingOccurrences(of: ":", with: "%3A"),
+              let url = URL(string: "\(base)/agents/\(id)")
+        else { return }
+        var get = URLRequest(url: url.appendingPathComponent("approval"))
+        get.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (_, response) = try? await URLSession.shared.data(for: get),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return }
+        var esc = URLRequest(url: url.appendingPathComponent("keys"))
+        esc.httpMethod = "POST"
+        esc.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        esc.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        esc.httpBody = Data(#"{"keys":["esc"]}"#.utf8)
+        _ = try? await URLSession.shared.data(for: esc)
+    }
+
     func testPromptApproveAndStop() throws {
         let isComposer = NSPredicate(format: "placeholderValue BEGINSWITH 'Message'")
         let composer = app.descendants(matching: .any).matching(isComposer).firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 15), "composer never appeared")
+        sleep(2)
+        XCTAssertFalse(app.buttons["Scroll to bottom"].exists, "chat opened scrolled up")
         shot("1-opened")
 
         // Auto mode skips permission prompts, so block on a question instead: same sheet, same path.
         send("Use the AskUserQuestion tool to ask me: Tea or coffee? Options: Tea, Coffee. Then write my answer to answer.txt.", via: composer)
         let yes = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Tea'")).firstMatch
         XCTAssertTrue(yes.waitForExistence(timeout: 90), "approval sheet never appeared")
+        assertKeyboardHidden()
+        XCTAssertFalse(app.buttons["Scroll to bottom"].exists, "approval card pushed the chat off the latest message")
         shot("2-approval")
         yes.tap()
 
@@ -59,22 +83,56 @@ final class LiveE2ETests: XCTestCase {
         send("Use AskUserQuestion once with two questions: Q1 'Tea or coffee?' (Tea, Coffee) and Q2 'Morning or night?' (Morning, Night). Then write both answers to answers.txt.", via: composer)
         let tea = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Tea'")).firstMatch
         XCTAssertTrue(tea.waitForExistence(timeout: 90), "first question never appeared")
+        XCTAssertTrue(app.staticTexts["approvalStep"].label.hasPrefix("Question 1 of 3"), "no step header on question 1")
         shot("mq-1")
         tea.tap()
 
         let night = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Night'")).firstMatch
         XCTAssertTrue(night.waitForExistence(timeout: 15), "second question never appeared")
+        XCTAssertTrue(app.staticTexts["approvalStep"].label.hasPrefix("Question 2 of 3"), "no step header on question 2")
         shot("mq-2")
         night.tap()
 
         let submit = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Submit'")).firstMatch
         if submit.waitForExistence(timeout: 8) {
+            // count includes Claude's Submit tab; the app labels it as a review.
+            XCTAssertEqual(app.staticTexts["approvalStep"].label, "Review answers")
             shot("mq-3-submit")
             submit.tap()
         }
         XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 90), "turn never finished")
         sleep(2)
         shot("mq-4-done")
+    }
+
+    /// Claude's "Type something." row: the typed answer must reach the agent.
+    func testFreeTextAnswer() throws {
+        let isComposer = NSPredicate(format: "placeholderValue BEGINSWITH 'Message'")
+        let composer = app.descendants(matching: .any).matching(isComposer).firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 15), "composer never appeared")
+
+        send("Use AskUserQuestion to ask me 'Favourite colour?' with options Red and Blue. Then reply with exactly: Colour is <my answer>. No tools after that.", via: composer)
+        let typeSomething = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Type something'")).firstMatch
+        XCTAssertTrue(typeSomething.waitForExistence(timeout: 90), "question never appeared")
+        assertKeyboardHidden()
+        shot("ft-1")
+        typeSomething.tap()
+
+        let field = app.textFields["approvalAnswer"].exists ? app.textFields["approvalAnswer"] : app.textViews["approvalAnswer"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "no answer field")
+        field.typeText("Green")
+        shot("ft-2")
+        app.buttons["Send answer"].tap()
+
+        let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Colour is Green'")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 90), "typed answer never reached the agent")
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 60), "turn never finished")
+        shot("ft-3-done")
+    }
+
+    private func assertKeyboardHidden() {
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
+        wait(for: [gone], timeout: 5)
     }
 
     private func send(_ text: String, via composer: XCUIElement) {
