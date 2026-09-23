@@ -35,6 +35,7 @@ let package = Package(
             dependencies: [
                 "HerdCore",
                 .product(name: "HummingbirdTesting", package: "hummingbird"),
+                .product(name: "HummingbirdWSTesting", package: "hummingbird-websocket"),
             ],
             resources: [.copy("Fixtures")]
         ),
