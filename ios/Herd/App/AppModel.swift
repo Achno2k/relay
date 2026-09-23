@@ -58,7 +58,11 @@ final class AppModel {
     }
 
     private static func makeStore(_ pairing: Pairing) -> AppStore {
-        AppStore(backend: LiveBackend(pairing: pairing), hostLabel: pairing.url.host() ?? pairing.url.absoluteString)
+        let store = AppStore(backend: LiveBackend(pairing: pairing), hostLabel: pairing.url.host() ?? pairing.url.absoluteString)
+        #if DEBUG
+        if let agent = LaunchOptions.current.agent { store.selectedAgentId = agent }
+        #endif
+        return store
     }
 
     /// Checks the token against `/agents` before saving it.

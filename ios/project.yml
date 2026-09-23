@@ -80,12 +80,25 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.amansingh.herd.tests
+  HerdUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: HerdUITests
+    dependencies:
+      - target: Herd
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.amansingh.herd.uitests
+        TEST_TARGET_NAME: Herd
 schemes:
   Herd:
     build:
       targets:
         Herd: all
         HerdTests: [test]
+        HerdUITests: [test]
     run:
       config: Debug
       commandLineArguments:
@@ -94,3 +107,4 @@ schemes:
       config: Debug
       targets:
         - HerdTests
+        - HerdUITests

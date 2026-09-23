@@ -35,6 +35,20 @@
                ReferencedContainer = "container:Herd.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "0881F32AF9B0AB933F593CAA"
+               BuildableName = "HerdUITests.xctest"
+               BlueprintName = "HerdUITests"
+               ReferencedContainer = "container:Herd.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -61,6 +75,17 @@
                BlueprintIdentifier = "9CCB814723C29D8EFFC86F7B"
                BuildableName = "HerdTests.xctest"
                BlueprintName = "HerdTests"
+               ReferencedContainer = "container:Herd.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "0881F32AF9B0AB933F593CAA"
+               BuildableName = "HerdUITests.xctest"
+               BlueprintName = "HerdUITests"
                ReferencedContainer = "container:Herd.xcodeproj">
             </BuildableReference>
          </TestableReference>

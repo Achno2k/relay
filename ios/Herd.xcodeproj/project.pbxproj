@@ -24,6 +24,7 @@
 		958B1C3763599A50F0BB19D2 /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6F7FA098C78EEB4F610FEAC /* DecodingTests.swift */; };
 		B0FC8A394429435E7D2B8ADC /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85407D9D408FC728F36ADAF6 /* SidebarView.swift */; };
 		C178B944247134CEB88817D3 /* MockChats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C8F98B6778E0114E8BA759 /* MockChats.swift */; };
+		C9233D2BD8F712793694DD16 /* LiveE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652A587E672BD3EC89F43EAA /* LiveE2ETests.swift */; };
 		E202CADF3E9C132A9E4790D8 /* ChatItems.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9364EA9952130B166466420A /* ChatItems.swift */; };
 		E67BEB55D59F8A9609816603 /* ReducerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E1ECE8C23DE2D08CCCD839 /* ReducerTests.swift */; };
 		E799B4660D6DB930A1D76699 /* Markdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B6134E29646D5C1FD48082 /* Markdown.swift */; };
@@ -33,6 +34,13 @@
 
 /* Begin PBXContainerItemProxy section */
 		066B220E08B76F3567364BA8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D9123C4D4D81DB7E39A0AAE3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B9F2E3075A8ACDA603084D88;
+			remoteInfo = Herd;
+		};
+		253780B6587369B15EB615D2 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D9123C4D4D81DB7E39A0AAE3 /* Project object */;
 			proxyType = 1;
@@ -49,6 +57,7 @@
 		30B6134E29646D5C1FD48082 /* Markdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Markdown.swift; sourceTree = "<group>"; };
 		417340D458DE1C2AFF1A42F5 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		43E1ECE8C23DE2D08CCCD839 /* ReducerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReducerTests.swift; sourceTree = "<group>"; };
+		652A587E672BD3EC89F43EAA /* LiveE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveE2ETests.swift; sourceTree = "<group>"; };
 		6DF204D0DC73B132F978CAFE /* ChatRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRows.swift; sourceTree = "<group>"; };
 		730F5A819252F748535AC1CF /* Herd.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Herd.entitlements; sourceTree = "<group>"; };
 		7A64542D1A93701870F02070 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
@@ -63,6 +72,7 @@
 		C951B780F723E0DF27AC38A7 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		CF06EC97199B0721772749BE /* ApprovalViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalViews.swift; sourceTree = "<group>"; };
 		D2F5C6E5E814ADB769A20DE4 /* Herd.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Herd.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D724CB24DF7C2B1009DD7E9B /* HerdUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HerdUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD3CE855E5D5EA5F74077B9B /* MockBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockBackend.swift; sourceTree = "<group>"; };
 		E424C8E0EDD631E66CA2F84E /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
 		F6F7FA098C78EEB4F610FEAC /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
@@ -130,8 +140,17 @@
 			children = (
 				D2F5C6E5E814ADB769A20DE4 /* Herd.app */,
 				94AE940114BBD9AA540782B8 /* HerdTests.xctest */,
+				D724CB24DF7C2B1009DD7E9B /* HerdUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4E0897EFBEF88ACEF2790821 /* HerdUITests */ = {
+			isa = PBXGroup;
+			children = (
+				652A587E672BD3EC89F43EAA /* LiveE2ETests.swift */,
+			);
+			path = HerdUITests;
 			sourceTree = "<group>";
 		};
 		5D1D84B2CC7138E9CA49B474 /* Features */ = {
@@ -184,6 +203,7 @@
 			children = (
 				C930A1F7AE511790947C8259 /* Herd */,
 				0229F19BF85C9A97F15148ED /* HerdTests */,
+				4E0897EFBEF88ACEF2790821 /* HerdUITests */,
 				03090FD6391FB5444DA24D7D /* Packages */,
 				420BA147443F01BB33EBED71 /* Products */,
 			);
@@ -251,6 +271,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0881F32AF9B0AB933F593CAA /* HerdUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6E4F756226E278895D29FED0 /* Build configuration list for PBXNativeTarget "HerdUITests" */;
+			buildPhases = (
+				FCFE4423019D0A289992669C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E524576A10E1E112329E655B /* PBXTargetDependency */,
+			);
+			name = HerdUITests;
+			packageProductDependencies = (
+			);
+			productName = HerdUITests;
+			productReference = D724CB24DF7C2B1009DD7E9B /* HerdUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		9CCB814723C29D8EFFC86F7B /* HerdTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = FCEC9B4B8871BFF5E5A10110 /* Build configuration list for PBXNativeTarget "HerdTests" */;
@@ -301,6 +339,11 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0881F32AF9B0AB933F593CAA = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = B9F2E3075A8ACDA603084D88;
+					};
 					9CCB814723C29D8EFFC86F7B = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -330,6 +373,7 @@
 			targets = (
 				B9F2E3075A8ACDA603084D88 /* Herd */,
 				9CCB814723C29D8EFFC86F7B /* HerdTests */,
+				0881F32AF9B0AB933F593CAA /* HerdUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -401,9 +445,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCFE4423019D0A289992669C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C9233D2BD8F712793694DD16 /* LiveE2ETests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		E524576A10E1E112329E655B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B9F2E3075A8ACDA603084D88 /* Herd */;
+			targetProxy = 253780B6587369B15EB615D2 /* PBXContainerItemProxy */;
+		};
 		FCAC83DD16042A6B266B5305 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B9F2E3075A8ACDA603084D88 /* Herd */;
@@ -446,6 +503,23 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Herd.app/Herd";
+			};
+			name = Release;
+		};
+		2ABF6FCBA4EB76C3AB96A570 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.amansingh.herd.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Herd;
 			};
 			name = Release;
 		};
@@ -525,6 +599,23 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.amansingh.herd;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		803C1141BAEBFBF7DB77AA92 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.amansingh.herd.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Herd;
 			};
 			name = Debug;
 		};
@@ -619,6 +710,15 @@
 			buildConfigurations = (
 				79021EEDDC401C3DDCB7170B /* Debug */,
 				062EBD5B2FCD6856C1900F32 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6E4F756226E278895D29FED0 /* Build configuration list for PBXNativeTarget "HerdUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				803C1141BAEBFBF7DB77AA92 /* Debug */,
+				2ABF6FCBA4EB76C3AB96A570 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
