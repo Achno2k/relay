@@ -1,0 +1,96 @@
+name: Herd
+options:
+  bundleIdPrefix: dev.amansingh
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+packages:
+  HerdKit:
+    path: HerdKit
+targets:
+  Herd:
+    type: application
+    platform: iOS
+    sources:
+      - path: Herd
+    dependencies:
+      - package: HerdKit
+    entitlements:
+      path: Herd/Herd.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.dev.amansingh.herd
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)dev.amansingh.herd
+          - group.dev.amansingh.herd
+    info:
+      path: Herd/Info.plist
+      properties:
+        CFBundleDisplayName: Herd
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: Herd scans the pairing code shown by `herd pair` on your Mac.
+        NSLocalNetworkUsageDescription: Herd connects to the bridge running on your Mac.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.amansingh.herd
+            CFBundleURLSchemes:
+              - herd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.amansingh.herd
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        ENABLE_PREVIEWS: YES
+    postBuildScripts:
+      - name: Copy fixtures (Debug only)
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "$CONFIGURATION" = "Debug" ]; then
+            dest="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Fixtures"
+            mkdir -p "$dest"
+            cp "$SRCROOT/../docs/fixtures/"*.json "$SRCROOT/../docs/fixtures/"*.jsonl "$dest/"
+          fi
+  HerdTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: HerdTests
+    dependencies:
+      - target: Herd
+      - package: HerdKit
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.amansingh.herd.tests
+schemes:
+  Herd:
+    build:
+      targets:
+        Herd: all
+        HerdTests: [test]
+    run:
+      config: Debug
+      commandLineArguments:
+        "-mock": false
+    test:
+      config: Debug
+      targets:
+        - HerdTests

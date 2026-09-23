@@ -1,0 +1,89 @@
+import Foundation
+import HerdKit
+import Observation
+
+/// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
+/// `-demo sidebar|tools|approval|newChat|pairing`, `-agent <id>`, `-replay off`.
+struct LaunchOptions {
+    var mock = false
+    var demo: String?
+    var agent: String?
+    var replay = true
+
+    static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
+
+    init(arguments: [String]) {
+        #if DEBUG
+        func value(_ flag: String) -> String? {
+            guard let i = arguments.firstIndex(of: flag), i + 1 < arguments.count else { return nil }
+            return arguments[i + 1]
+        }
+        mock = arguments.contains("-mock")
+        demo = value("-demo")
+        agent = value("-agent")
+        replay = value("-replay") != "off"
+        #endif
+    }
+
+    func isDemo(_ name: String) -> Bool { demo == name }
+}
+
+/// Paired or not. Builds an `AppStore` once there's a bridge (or the mock) to talk to.
+@MainActor
+@Observable
+final class AppModel {
+    private(set) var store: AppStore?
+    var pairingError: String?
+    var isPairing = false
+
+    init(options: LaunchOptions = .current) {
+        #if DEBUG
+        if options.mock {
+            if !options.isDemo("pairing") {
+                let backend = MockBackend(replayInterval: options.replay ? .seconds(4) : nil)
+                let store = AppStore(backend: backend, hostLabel: "Mock bridge")
+                if let agent = options.agent { store.selectedAgentId = agent }
+                self.store = store
+            }
+            return
+        }
+        #endif
+        if let pairing = PairingStore.load() {
+            store = Self.makeStore(pairing)
+        }
+    }
+
+    private static func makeStore(_ pairing: Pairing) -> AppStore {
+        AppStore(backend: LiveBackend(pairing: pairing), hostLabel: pairing.url.host() ?? pairing.url.absoluteString)
+    }
+
+    /// Checks the token against `/agents` before saving it.
+    func pair(_ pairing: Pairing) async {
+        isPairing = true
+        pairingError = nil
+        defer { isPairing = false }
+        do {
+            _ = try await APIClient(baseURL: pairing.url, token: pairing.token).agents()
+            try PairingStore.save(pairing)
+            store?.stop()
+            store = Self.makeStore(pairing)
+        } catch {
+            pairingError = error.localizedDescription
+        }
+    }
+
+    func handle(url: URL) {
+        guard url.scheme?.lowercased() == "herd" else { return }
+        guard let pairing = Pairing(link: url) else {
+            pairingError = HerdError.invalidPairingLink.localizedDescription
+            return
+        }
+        Task { await pair(pairing) }
+    }
+
+    func unpair() {
+        store?.stop()
+        store = nil
+        PairingStore.clear()
+    }
+}
