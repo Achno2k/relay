@@ -5,7 +5,7 @@ import Synchronization
 public final class AgentService: Sendable {
     public let herdr: HerdrClient
     public let locator: TranscriptLocator
-    private let firstSeen = Mutex<[String: (seq: UInt64, date: Date)]>([:])
+    private let seen = Mutex<[String: (seq: UInt64, changed: Date?, first: Date)]>([:])
     private let cache = Mutex<[URL: CachedTranscript]>([:])
 
     private struct CachedTranscript {
@@ -64,7 +64,7 @@ public final class AgentService: Sendable {
             cwdName: CwdName.of(a.cwd ?? a.foregroundCwd),
             status: a.agentStatus,
             hasTranscript: ref != nil,
-            updatedAt: Timestamps.format(max(mtime ?? .distantPast, stateChangeDate(a))))
+            updatedAt: Timestamps.format(updatedAt(a, transcriptModified: mtime)))
         return Snapshot(agent: agent, raw: a, transcript: ref)
     }
 
@@ -76,14 +76,27 @@ public final class AgentService: Sendable {
         return a.name ?? a.agent ?? a.paneId
     }
 
-    /// herdr gives a sequence number, not a time; remember when we first saw each value.
-    private func stateChangeDate(_ a: HerdrAgent) -> Date {
+    /// herdr gives a state sequence number, not a time. Use the transcript's mtime, or the time we
+    /// saw the sequence change; before either is known, the time the bridge first saw the agent.
+    private func updatedAt(_ a: HerdrAgent, transcriptModified: Date?) -> Date {
         let seq = a.stateChangeSeq ?? 0
-        return firstSeen.withLock { seen in
-            if let s = seen[a.paneId], s.seq == seq { return s.date }
+        let (changed, first) = seen.withLock { seen -> (Date?, Date) in
             let now = Date()
-            seen[a.paneId] = (seq, now)
-            return now
+            guard let s = seen[a.paneId] else {
+                seen[a.paneId] = (seq, nil, now)
+                return (nil, now)
+            }
+            if s.seq != seq {
+                seen[a.paneId] = (seq, now, s.first)
+                return (now, s.first)
+            }
+            return (s.changed, s.first)
+        }
+        switch (transcriptModified, changed) {
+        case let (m?, c?): return max(m, c)
+        case let (m?, nil): return m
+        case let (nil, c?): return c
+        case (nil, nil): return first
         }
     }
 
@@ -149,7 +162,7 @@ public final class AgentService: Sendable {
         return [Message(
             id: "screen:\(a.paneId)",
             role: .assistant,
-            createdAt: Timestamps.format(stateChangeDate(a)),
+            createdAt: Timestamps.format(updatedAt(a, transcriptModified: nil)),
             blocks: [.text("```\n\(text)\n```")])]
     }
 
