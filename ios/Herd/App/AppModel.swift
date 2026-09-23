@@ -3,7 +3,7 @@ import HerdKit
 import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
-/// `-demo sidebar|tools|approval|newChat|pairing`, `-agent <id>`, `-replay off`.
+/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`.
 struct LaunchOptions {
     var mock = false
     var demo: String?

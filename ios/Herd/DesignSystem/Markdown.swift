@@ -100,7 +100,6 @@ enum MarkdownParser {
             run.inlinePresentationIntent?.contains(.code) == true ? run.range : nil
         }
         for range in codeRanges {
-            result[range].font = .system(.body, design: .monospaced).weight(.regular)
             result[range].backgroundColor = Color(.tertiarySystemFill)
         }
         return result

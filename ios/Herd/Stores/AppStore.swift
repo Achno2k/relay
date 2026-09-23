@@ -226,7 +226,7 @@ final class AppStore {
             guard selectedAgentId == agent.id else { return }
             let isNew = fetched != nil && fetched != approval
             approval = fetched
-            if isNew { isApprovalSheetPresented = true }
+            if isNew && !LaunchOptions.current.isDemo("card") { isApprovalSheetPresented = true }
         } catch {
             report(error)
         }

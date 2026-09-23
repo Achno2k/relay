@@ -72,8 +72,10 @@ private struct TitleMenu: View {
                     .foregroundStyle(.secondary)
             }
             .foregroundStyle(.primary)
-            .padding(.horizontal, 6)
-            .frame(maxWidth: 230)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .frame(maxWidth: 240)
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
     }
 
@@ -155,12 +157,14 @@ private struct ChatTranscript: View {
             .animation(.smooth, value: items.count)
         }
         .scrollPosition($position)
-        .defaultScrollAnchor(.bottom)
+        .defaultScrollAnchor(LaunchOptions.current.isDemo("top") ? .top : .bottom, for: .initialOffset)
+        .defaultScrollAnchor(.top, for: .alignment)
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .onScrollGeometryChange(for: Bool.self) { geo in
-            let maxOffset = geo.contentSize.height - geo.containerSize.height + geo.contentInsets.bottom
+            // containerSize already excludes the insets. Short chats rest at -top inset.
+            let maxOffset = max(geo.contentSize.height - geo.containerSize.height, 0) - geo.contentInsets.top
             return geo.contentOffset.y >= maxOffset - 60
         } action: { _, atBottom in
             isAtBottom = atBottom

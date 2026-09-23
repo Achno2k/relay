@@ -118,6 +118,12 @@ struct PairingTests {
         #expect(Pairing.baseURL(from: "  ") == nil)
     }
 
+    @Test func restURLs() {
+        let client = APIClient(baseURL: URL(string: "http://100.64.0.1:7878")!, token: "t")
+        let url = client.url("/agents/\(APIClient.encode("w13:p1"))/messages", query: [URLQueryItem(name: "limit", value: "50")])
+        #expect(url.absoluteString == "http://100.64.0.1:7878/agents/w13%3Ap1/messages?limit=50")
+    }
+
     @Test func socketURL() {
         let ws = WSClient(baseURL: URL(string: "http://100.64.0.1:7878")!, token: "t o")
         #expect(ws.url.absoluteString == "ws://100.64.0.1:7878/ws?token=t%20o")

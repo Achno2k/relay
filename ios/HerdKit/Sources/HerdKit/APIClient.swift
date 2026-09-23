@@ -69,11 +69,11 @@ public struct APIClient: Sendable {
     // MARK: - Plumbing
 
     /// Agent ids contain `:`; encode everything outside the unreserved set.
-    static func encode(_ id: String) -> String {
+    public static func encode(_ id: String) -> String {
         id.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? id
     }
 
-    func url(_ path: String, query: [URLQueryItem] = []) -> URL {
+    public func url(_ path: String, query: [URLQueryItem] = []) -> URL {
         var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)!
         let basePath = comps.percentEncodedPath.hasSuffix("/") ? String(comps.percentEncodedPath.dropLast()) : comps.percentEncodedPath
         comps.percentEncodedPath = basePath + path
