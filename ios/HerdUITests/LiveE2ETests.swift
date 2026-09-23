@@ -69,6 +69,10 @@ final class LiveE2ETests: XCTestCase {
         shot("4-working")
         stop.tap()
         XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 30), "stop didn't end the turn")
+        // Claude's "[Request interrupted by user]" line renders as a marker, not a bubble.
+        let marker = app.descendants(matching: .any)["stoppedMarker"]
+        XCTAssertTrue(marker.waitForExistence(timeout: 15), "no Stopped marker after a stop")
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '[Request interrupted'")).firstMatch.exists)
         sleep(2)
         shot("5-stopped")
     }

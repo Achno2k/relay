@@ -265,7 +265,8 @@ final class AppStore {
 
     private func resolvePending(agentId: String, with messages: [Message]) {
         guard var list = pending[agentId], !list.isEmpty else { return }
-        let texts = Set(messages.filter { $0.role == .user }.map { $0.plainText.trimmingCharacters(in: .whitespacesAndNewlines) })
+        // Stop markers are Claude's, not the user's prompt; never let one resolve a pending prompt.
+        let texts = Set(messages.filter { $0.role == .user && !$0.isInterruptionMarker }.map { $0.plainText.trimmingCharacters(in: .whitespacesAndNewlines) })
         list.removeAll { texts.contains($0.plainText) }
         pending[agentId] = list.isEmpty ? nil : list
     }

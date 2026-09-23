@@ -74,6 +74,22 @@ struct StoreTests {
         #expect(await backend.calls == [.keys(["1"])])
     }
 
+    /// A stop marker in the transcript is Claude's, so it must never stand in for a prompt sent from the phone.
+    @Test func stopMarkerDoesNotResolvePendingPrompt() async throws {
+        let agent = try blockedAgent()
+        let store = await loadedStore(RecordingBackend(agent: agent, approval: approval(for: agent)), agent: agent)
+        let marker = "[Request interrupted by user]"
+        store.send(marker, to: agent.id)
+        #expect(store.pending[agent.id]?.count == 1)
+
+        store.apply(.messageUpserted(agentId: agent.id, message: Message(id: "m1", role: .user, createdAt: .now, blocks: [.text(marker)])))
+        #expect(store.pending[agent.id]?.count == 1)
+
+        store.send("Carry on", to: agent.id)
+        store.apply(.messageUpserted(agentId: agent.id, message: Message(id: "m2", role: .user, createdAt: .now, blocks: [.text("Carry on")])))
+        #expect(store.pending[agent.id]?.map(\.plainText) == [marker])
+    }
+
     private func waitFor(_ condition: @escaping () async -> Bool) async throws {
         for _ in 0..<50 {
             if await condition() { return }

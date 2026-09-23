@@ -151,3 +151,24 @@ struct DisclosureLabel: View {
         .buttonStyle(.plain)
     }
 }
+
+/// Small centred marker where a turn was stopped.
+struct StoppedMarker: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            line
+            Label("Stopped", systemImage: "stop.circle")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            line
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("stoppedMarker")
+    }
+
+    private var line: some View {
+        Rectangle().fill(.quaternary).frame(height: 0.5).frame(maxWidth: 48)
+    }
+}

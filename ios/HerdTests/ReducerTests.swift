@@ -103,6 +103,25 @@ struct ChatItemTests {
         #expect(live.map(\.finished) == [false])
     }
 
+    @Test func interruptionMarkersBecomeStoppedRows() {
+        let t = Date(timeIntervalSince1970: 0)
+        let messages = [
+            Message(id: "u1", role: .user, createdAt: t, blocks: [.text("Write an essay")]),
+            Message(id: "a1", role: .assistant, createdAt: t, blocks: [.toolCall(ToolCall(id: "c1", name: "Bash", summary: "Ran ls"))]),
+            Message(id: "u2", role: .user, createdAt: t, blocks: [.text("[Request interrupted by user for tool use]")]),
+            Message(id: "u3", role: .user, createdAt: t, blocks: [.text("[Request interrupted by user]\n")]),
+            Message(id: "u4", role: .user, createdAt: t, blocks: [.text("Why did you print [Request interrupted by user]?")]),
+            Message(id: "a2", role: .assistant, createdAt: t, blocks: [.text("[Request interrupted by user]")]),
+        ]
+        let items = ChatItem.build(from: messages)
+        #expect(items.map(\.id) == ["u1", "a1#0", "u2", "u3", "u4", "a2#0"])
+        #expect(items[2] == .stopped(id: "u2"))
+        #expect(items[3] == .stopped(id: "u3"))
+        // Only an exact marker on a user line counts.
+        #expect(items[4] == .user(id: "u4", text: "Why did you print [Request interrupted by user]?", pending: false))
+        #expect(items[5] == .text(id: "a2#0", markdown: "[Request interrupted by user]"))
+    }
+
     @Test func markdownBlocks() {
         let blocks = MarkdownParser.parse("## Title\n\nSome **bold**\ntext\n\n- one\n- two\n\n1. first\n\n```swift\nlet x = 1\n```\n> quote")
         #expect(blocks == [

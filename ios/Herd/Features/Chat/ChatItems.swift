@@ -16,10 +16,12 @@ enum ChatItem: Identifiable, Hashable {
     case text(id: String, markdown: String)
     case thinking(id: String, text: String)
     case tools(id: String, steps: [ToolStep], messageIds: [String])
+    /// Claude's "[Request interrupted by user]" line after a stop.
+    case stopped(id: String)
 
     var id: String {
         switch self {
-        case .user(let id, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _): id
+        case .user(let id, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id): id
         }
     }
 
@@ -45,6 +47,10 @@ enum ChatItem: Identifiable, Hashable {
         for message in messages {
             if message.role == .user {
                 flush()
+                if message.isInterruptionMarker {
+                    items.append(.stopped(id: message.id))
+                    continue
+                }
                 let text = message.plainText
                 if !text.isEmpty { items.append(.user(id: message.id, text: text, pending: false)) }
                 continue
@@ -77,6 +83,16 @@ enum ChatItem: Identifiable, Hashable {
         }
         flush()
         return items
+    }
+}
+
+extension Message {
+    /// Claude Code writes these as user lines when a turn is stopped. The bridge passes them through
+    /// as-is; the app shows a "Stopped" marker instead of a bubble.
+    var isInterruptionMarker: Bool {
+        guard role == .user else { return false }
+        let text = plainText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text == "[Request interrupted by user]" || text == "[Request interrupted by user for tool use]"
     }
 }
 

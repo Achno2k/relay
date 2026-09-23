@@ -257,6 +257,8 @@ private struct ChatTranscript: View {
                 .textSelection(.enabled)
         case .thinking(_, let text):
             ThinkingRow(text: text)
+        case .stopped:
+            StoppedMarker()
         case .tools(_, let steps, let messageIds):
             ToolGroupView(
                 steps: steps,
