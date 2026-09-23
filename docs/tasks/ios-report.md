@@ -92,4 +92,13 @@
 ### Notes and questions
 - I restarted the 7878 bridge from this session (`swift run -c release herd serve --local-only --port 7878`). It stops if this session's background job is killed.
 - `POST /prompt` can now return `409 agent_blocked`. The app shows the bridge's error message in the banner. The composer isn't disabled while blocked, because the card and sheet are the intended path.
-- After a stop, the transcript shows `[Request interrupted by user]` / `[Request interrupted by user for tool use]` as user bubbles. Should the bridge drop them, or turn them into a small "Stopped" marker? The app could also style them. Your call.
+- ~~After a stop, the transcript shows `[Request interrupted by user]` as user bubbles.~~ Decided: the app handles it, and the bridge stays faithful to the transcript. See below.
+
+### Stop marker (follow-up)
+- A user line that is exactly `[Request interrupted by user]` or `[Request interrupted by user for tool use]` becomes a `ChatItem.stopped` row: a small centred "Stopped" marker, not a bubble. Assistant text and user messages that only mention the phrase are unchanged.
+- Markers never resolve a pending (optimistic) prompt.
+- Tests:
+  - unit tests for the mapping and the pending filter; 27 pass
+  - the live `testPromptApproveAndStop` now asserts the marker appears after a stop and no `[Request interrupted…` text is shown
+  - all 6 UI tests pass (3 live on `w14:p2`, 3 mock)
+- Screenshot: `chat-stopped.png`.
