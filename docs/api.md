@@ -50,7 +50,14 @@ Approval {
   "question": "Do you want to make this edit to api.md?",
   "options": [ { "label": "Yes", "keys": ["1"] }, { "label": "Yes, don't ask again", "keys": ["2"] }, { "label": "No", "keys": ["esc"] } ]
 }
+
+ApprovalOption {
+  "label": "Type something.",
+  "keys": ["3"],
+  "freeText": true                // optional, default false. Choosing it opens a text input in the agent's menu
+}                                 // (Claude's "Type something." row). The app sends `keys`, then the typed answer via POST /agents/:id/text.
 ```
+- Free-text options: the bridge sets `freeText: true` on Claude's "Type something." row. Clients also treat a label of exactly `Type something.` as free text, so older bridges still work.
 
 Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced by ->/<sessionId>.jsonl`):
 - Keep only lines with `type` of `user` or `assistant` and `isSidechain == false`.
@@ -70,6 +77,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | GET | /agents/:id/messages?before=<msgId>&limit=50 | – | `{"messages":[Message], "hasMore": bool}`, oldest first |
 | POST | /agents/:id/prompt | `{"text": "..."}` | `202 {}` (calls herdr `agent.prompt`) |
 | POST | /agents/:id/keys | `{"keys": ["esc"]}` | `202 {}` (stop = `["esc"]`) |
+| POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
 | POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","prompt":"optional"}` | `201 Agent` (new tab in the workspace, cwd = workspace's first pane cwd, `agent.start`, then optional prompt) |
 
