@@ -89,8 +89,9 @@ enum MarkdownParser {
         return nil
     }
 
-    /// Inline markdown (bold, italic, code, links). Inline code gets a subtle fill.
-    static func inline(_ text: String) -> AttributedString {
+    /// Inline markdown (bold, italic, code, links). Inline code gets a subtle fill; `codeFont`
+    /// overrides its font where the surrounding text is large or bold.
+    static func inline(_ text: String, codeFont: Font? = nil, codeBackground: Color = Color(.tertiarySystemFill)) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(
             interpretedSyntax: .inlineOnlyPreservingWhitespace,
             failurePolicy: .returnPartiallyParsedIfPossible
@@ -100,20 +101,23 @@ enum MarkdownParser {
             run.inlinePresentationIntent?.contains(.code) == true ? run.range : nil
         }
         for range in codeRanges {
-            result[range].backgroundColor = Color(.tertiarySystemFill)
+            result[range].backgroundColor = codeBackground
+            if let codeFont { result[range].font = codeFont }
         }
         return result
     }
 }
 
-struct MarkdownView: View {
-    let blocks: [MarkdownBlock]
+struct MarkdownView: View, Equatable {
+    /// Parsed in `body`, which SwiftUI skips while `source` is unchanged.
+    let source: String
 
     init(_ source: String) {
-        blocks = MarkdownParser.parse(source)
+        self.source = source
     }
 
     var body: some View {
+        let blocks = MarkdownParser.parse(source)
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 view(for: block)

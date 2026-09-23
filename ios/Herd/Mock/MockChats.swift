@@ -8,7 +8,7 @@ enum MockChats {
         [
             "w1:p1": fixtureMessages.messages,
             "w1:p2": flakyTests,
-            "w2:p1": landing,
+            "w2:p1": longHistory + landing,
             "w2:p3": codex,
         ]
     }
@@ -35,6 +35,23 @@ enum MockChats {
             .toolResult(ToolResult(toolCallId: "f-t3", isError: false, preview: "The file tests/checkout/conftest.py has been updated.")),
         ]),
     ]
+
+    /// Enough turns to need a second page and to show whether a chat opens at the bottom.
+    static let longHistory: [Message] = (0..<32).flatMap { i -> [Message] in
+        let minutes = Double(400 - i * 9)
+        return [
+            Message(id: "h\(i)u", role: .user, createdAt: at(minutes), blocks: [
+                .text("Tweak \(i + 1): tighten the spacing in section \(i % 5 + 1)."),
+            ]),
+            Message(id: "h\(i)a", role: .assistant, createdAt: at(minutes - 1), blocks: [
+                .toolCall(ToolCall(id: "h\(i)t", name: "Edit", summary: "Edited src/styles/section\(i % 5 + 1).css")),
+                .toolResult(ToolResult(toolCallId: "h\(i)t", isError: false, preview: "Updated.")),
+                .text(i % 3 == 0
+                    ? "Reduced the gap from `48px` to `32px` and aligned the heading baseline.\n\n- Mobile keeps `24px`\n- Desktop uses the new token\n\n```css\n.section-\(i % 5 + 1) {\n  gap: var(--space-8);\n  padding-block: var(--space-12);\n}\n```\n\nThe hero and footer already used the token, so nothing else changed. I checked the page at 375, 768 and 1280 pixels wide and the rhythm is consistent now. If you want the tighter spacing on the pricing table as well, say so and I'll apply the same change there."
+                    : "Done. Section \(i % 5 + 1) now uses the `space-8` token."),
+            ]),
+        ]
+    }
 
     static let landing: [Message] = [
         Message(id: "l1", role: .user, createdAt: at(90), blocks: [

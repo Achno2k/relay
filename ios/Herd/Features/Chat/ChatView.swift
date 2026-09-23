@@ -109,6 +109,7 @@ private struct ChatTranscript: View {
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var isAtBottom = true
     @State private var width: CGFloat = 390
+    @State private var loadingEarlier = false
 
     private var messages: [Message] { store.messages(for: agent.id) }
     private var items: [ChatItem] {
@@ -124,54 +125,15 @@ private struct ChatTranscript: View {
 
     var body: some View {
         let items = items
-        let lastId = items.last?.id
         let working = agent.status == .working
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 22) {
-                if store.hasMore(agent.id) {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .task { await store.loadEarlier(agent.id) }
-                }
-                if !agent.hasTranscript {
-                    Label("No transcript. Showing what's on screen.", systemImage: "text.viewfinder")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-                ForEach(items) { item in
-                    row(item, isLast: item.id == lastId, working: working)
-                }
-                if working, !(items.last?.isAssistantText ?? false), !lastIsLiveTools(items, working: working) {
-                    PulsingDot()
-                        .padding(.leading, 2)
-                        .transition(.opacity)
-                }
-                if !store.isLoaded(agent.id) {
-                    ProgressView().frame(maxWidth: .infinity).padding(.top, 80)
-                }
+        Group {
+            if store.isLoaded(agent.id) {
+                transcript(items, working: working)
+            } else {
+                // The list appears only once there's content, so its first layout already starts at the bottom.
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 12)
-            .animation(.smooth, value: items.count)
-        }
-        .scrollPosition($position)
-        .defaultScrollAnchor(LaunchOptions.current.isDemo("top") ? .top : .bottom, for: .initialOffset)
-        .defaultScrollAnchor(.top, for: .alignment)
-        .scrollDismissesKeyboard(.interactively)
-        .scrollEdgeEffectStyle(.soft, for: .all)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .onScrollGeometryChange(for: Bool.self) { geo in
-            // containerSize already excludes the insets. Short chats rest at -top inset.
-            let maxOffset = max(geo.contentSize.height - geo.containerSize.height, 0) - geo.contentInsets.top
-            return geo.contentOffset.y >= maxOffset - 60
-        } action: { _, atBottom in
-            isAtBottom = atBottom
-        }
-        .onChange(of: contentSignature(items)) {
-            guard isAtBottom else { return }
-            withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 10) {
@@ -212,6 +174,69 @@ private struct ChatTranscript: View {
         }
     }
 
+    /// A plain `VStack`, not a lazy one: lazy rows are measured with estimates, so on a long, real transcript
+    /// the initial bottom offset landed short of the end. Real chats are one page (50 messages) at a time.
+    private func transcript(_ items: [ChatItem], working: Bool) -> some View {
+        let lastId = items.last?.id
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                if store.hasMore(agent.id) {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .onScrollVisibilityChange(threshold: 0.5) { visible in
+                            if visible { loadEarlier(anchor: items.first?.id) }
+                        }
+                }
+                if !agent.hasTranscript {
+                    Label("No transcript. Showing what's on screen.", systemImage: "text.viewfinder")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+                ForEach(items) { item in
+                    row(item, isLast: item.id == lastId, working: working)
+                }
+                if working, !(items.last?.isAssistantText ?? false), !lastIsLiveTools(items, working: working) {
+                    PulsingDot()
+                        .padding(.leading, 2)
+                        .transition(.opacity)
+                }
+            }
+            .scrollTargetLayout()
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 12)
+        }
+        .scrollPosition($position)
+        .defaultScrollAnchor(LaunchOptions.current.isDemo("top") ? .top : .bottom, for: .initialOffset)
+        .defaultScrollAnchor(.top, for: .alignment)
+        .scrollDismissesKeyboard(.interactively)
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onScrollGeometryChange(for: Bool.self) { geo in
+            // containerSize already excludes the insets. Short chats rest at -top inset.
+            let maxOffset = max(geo.contentSize.height - geo.containerSize.height, 0) - geo.contentInsets.top
+            return geo.contentOffset.y >= maxOffset - 60
+        } action: { _, atBottom in
+            isAtBottom = atBottom
+        }
+        .onChange(of: contentSignature(items)) {
+            guard isAtBottom, !loadingEarlier else { return }
+            withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
+        }
+    }
+
+    /// Prepending a page would otherwise leave the offset where it was and jump to older content.
+    private func loadEarlier(anchor: String?) {
+        guard !loadingEarlier else { return }
+        loadingEarlier = true
+        Task {
+            await store.loadEarlier(agent.id)
+            if let anchor { position.scrollTo(id: anchor, anchor: .top) }
+            loadingEarlier = false
+        }
+    }
+
     @ViewBuilder
     private func row(_ item: ChatItem, isLast: Bool, working: Bool) -> some View {
         switch item {
@@ -222,14 +247,13 @@ private struct ChatTranscript: View {
                 .textSelection(.enabled)
         case .thinking(_, let text):
             ThinkingRow(text: text)
-        case .tools(let id, let steps, let messageIds):
+        case .tools(_, let steps, let messageIds):
             ToolGroupView(
                 steps: steps,
                 isLive: isLast && working,
                 duration: duration(of: messageIds),
                 expanded: LaunchOptions.current.isDemo("tools")
             )
-            .id("\(id)-\(steps.count)-\(isLast && working)")
         }
     }
 
