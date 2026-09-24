@@ -128,3 +128,30 @@ struct UsageStoreTests {
         #expect(snapshot.providers[0].windows.count == 2)
     }
 }
+
+@Suite("Usage bar level and countdown")
+struct UsageLevelTests {
+    @Test func neutralBelow75() {
+        #expect(UsageLevel.classify(0) == .neutral)
+        #expect(UsageLevel.classify(74.9) == .neutral)
+    }
+
+    @Test func amberFrom75Below90() {
+        #expect(UsageLevel.classify(75) == .amber)
+        #expect(UsageLevel.classify(89.9) == .amber)
+    }
+
+    @Test func redFrom90() {
+        #expect(UsageLevel.classify(90) == .red)
+        #expect(UsageLevel.classify(100) == .red)
+    }
+
+    @Test func countdownBuckets() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(UsageWindowRow.countdown(to: now.addingTimeInterval(30), now: now) == "soon")
+        #expect(UsageWindowRow.countdown(to: now.addingTimeInterval(-30), now: now) == "soon")
+        #expect(UsageWindowRow.countdown(to: now.addingTimeInterval(90), now: now) == "in 1m")
+        #expect(UsageWindowRow.countdown(to: now.addingTimeInterval(2 * 3600), now: now) == "in 2h")
+        #expect(UsageWindowRow.countdown(to: now.addingTimeInterval(3 * 86_400), now: now) == "in 3d")
+    }
+}
