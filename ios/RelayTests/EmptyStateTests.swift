@@ -53,3 +53,30 @@ struct PendingByStateTests {
         #expect(store.pending[agent.id]?.count == 1)
     }
 }
+
+
+@Suite("Refetch when the transcript source changes")
+struct TranscriptSourceChangeTests {
+    /// Right after POST /agents the bridge can briefly report `unsupported` with a screen read before it
+    /// detects the agent; the cached screen read must go once the agent is `pending`.
+    @Test func dropsScreenReadWhenAgentBecomesPending() throws {
+        var state = RelayState()
+        var agent = try #require(FixtureFiles.decode([Agent].self, "agents.json").first { $0.id == "w1:p1" })
+        agent.sessionId = nil
+        agent.hasTranscript = false
+        agent.transcriptState = .unsupported
+        state.agents = [agent]
+        let screen = Message(id: "screen:w1:p1", role: .assistant, createdAt: .now, blocks: [.text("```\nclaude\n```")])
+        state.setPage(MessagePage(messages: [screen], hasMore: false), agentId: agent.id)
+
+        agent.transcriptState = .pending
+        agent.sessionId = "s1"
+        state.apply(.agentUpdated(agent))
+        #expect(state.messages[agent.id] == nil)
+
+        state.setPage(MessagePage(messages: [], hasMore: false), agentId: agent.id)
+        agent.status = .working
+        state.apply(.agentUpdated(agent))
+        #expect(state.messages[agent.id] != nil, "same state and session: keep the chat")
+    }
+}

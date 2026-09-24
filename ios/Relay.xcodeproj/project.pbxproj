@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		018AD3C5159E6795523D2659 /* MockChats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF408B8F742FA41968F3ABB /* MockChats.swift */; };
 		0809D2C3563805DB04E028B5 /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25C7F2E3E9DEBF28E427D679 /* StoreTests.swift */; };
+		0E0524B7FA44C586C9538A36 /* LiveNewChatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B065EDF3B9E1F1832310B1E /* LiveNewChatTests.swift */; };
 		136B832685A55A9B9B867DD0 /* NewChatSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47201242ACDA851992F807E1 /* NewChatSheet.swift */; };
 		1DE542C7C80DB21ADB144893 /* MockUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FAEBF9FC6FDCDBD9837274 /* MockUITests.swift */; };
 		1F4A03B8A6AEE7AC1D217650 /* Markdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E60CD3374CCDD32C2AB8863 /* Markdown.swift */; };
@@ -86,6 +87,7 @@
 		419E711F41DCBBFD54DC38A3 /* AttachmentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentViews.swift; sourceTree = "<group>"; };
 		4300BCAC01D8E32F1FA56ADC /* Indicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Indicators.swift; sourceTree = "<group>"; };
 		47201242ACDA851992F807E1 /* NewChatSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatSheet.swift; sourceTree = "<group>"; };
+		4B065EDF3B9E1F1832310B1E /* LiveNewChatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveNewChatTests.swift; sourceTree = "<group>"; };
 		4B5FF3D9A36195329B8AAA1D /* Relay.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Relay.entitlements; sourceTree = "<group>"; };
 		4CF408B8F742FA41968F3ABB /* MockChats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockChats.swift; sourceTree = "<group>"; };
 		4F0943376AC3BDCDA75E20CC /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
@@ -282,6 +284,7 @@
 				C7B1E2B5D03381101B4D44B0 /* EmptyStateUITests.swift */,
 				A23917E0B538A432F082C782 /* LiveE2ETests.swift */,
 				0A82BCCC3A5466E4DBBC2AB4 /* LiveKindControlsTests.swift */,
+				4B065EDF3B9E1F1832310B1E /* LiveNewChatTests.swift */,
 				93FAEBF9FC6FDCDBD9837274 /* MockUITests.swift */,
 				CF6F0A8401B00C5DBDBBBBD1 /* NewChatUITests.swift */,
 				247E5C6385B60B0588E471A5 /* Round2UITests.swift */,
@@ -503,6 +506,7 @@
 				F3E81726E78071F0E98493CD /* EmptyStateUITests.swift in Sources */,
 				9D3D5AF639C417A1CC9297FA /* LiveE2ETests.swift in Sources */,
 				526CC581323542FEA1CF344F /* LiveKindControlsTests.swift in Sources */,
+				0E0524B7FA44C586C9538A36 /* LiveNewChatTests.swift in Sources */,
 				1DE542C7C80DB21ADB144893 /* MockUITests.swift in Sources */,
 				43B00B6D80DAE4131F4C9BAF /* NewChatUITests.swift in Sources */,
 				3E03058DD86EB9DEE1DA4D9C /* Round2UITests.swift in Sources */,

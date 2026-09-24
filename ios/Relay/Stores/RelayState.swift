@@ -32,8 +32,13 @@ struct RelayState: Equatable, Sendable {
 
     mutating func upsert(_ agent: Agent) {
         if let i = agents.firstIndex(where: { $0.id == agent.id }) {
-            // A new session (/clear) means a different transcript: drop the cached chat so it's refetched.
-            if let old = agents[i].sessionId, let new = agent.sessionId, old != new {
+            // Drop the cached chat so it's refetched when what it was read from changes:
+            // - a new session (/clear) is a different transcript;
+            // - a session appearing, or the transcript state changing, means the old fetch may have been a
+            //   screen read taken while the bridge was still detecting a just-created agent.
+            let old = agents[i]
+            let sessionChanged = old.sessionId != agent.sessionId && agent.sessionId != nil
+            if sessionChanged || old.transcript != agent.transcript {
                 messages[agent.id] = nil
                 hasMore[agent.id] = nil
             }
