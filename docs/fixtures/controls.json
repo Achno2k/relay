@@ -1,0 +1,3 @@
+{"models":[{"id":"opus","label":"Opus 5.5"},{"id":"sonnet","label":"Sonnet 5"},{"id":"haiku","label":"Haiku 4.5"},{"id":"fable","label":"Fable 5.1"}],
+ "modes":[{"id":"default","label":"Default"},{"id":"acceptEdits","label":"Accept edits"},{"id":"plan","label":"Plan"},{"id":"auto","label":"Auto"},{"id":"bypassPermissions","label":"Bypass permissions"}],
+ "efforts":[{"id":"low","label":"Low"},{"id":"medium","label":"Medium"},{"id":"high","label":"High"},{"id":"xhigh","label":"Extra high"},{"id":"max","label":"Max"}]}

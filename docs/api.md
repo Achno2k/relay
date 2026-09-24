@@ -29,7 +29,13 @@ Agent {
   "cwdName": "forge",            // last path component only; full paths never cross the wire
   "status": "idle",              // idle | working | blocked | done | unknown
   "hasTranscript": true,         // false => messages are a screen-read fallback
-  "updatedAt": "2026-09-23T13:04:01+00:00"
+  "updatedAt": "2026-09-23T13:04:01+00:00",
+  // Controls. Optional: null for non-claude agents or when unknown.
+  "model": "claude-opus-5-5",    // full model id of the last assistant message
+  "modelLabel": "Opus 5.5",      // display name; the bridge owns the mapping
+  "permissionMode": "auto",      // default | acceptEdits | plan | auto | bypassPermissions | dontAsk
+  "effort": "medium",            // low | medium | high | xhigh | max
+  "sessionId": "1aa5901c-..."    // current transcript session; changes after /clear => refetch messages
 }
 
 Message {
@@ -89,9 +95,37 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | POST | /agents/:id/keys | `{"keys": ["esc"]}` | `202 {}` (stop = `["esc"]`). After a stop the bridge clears the prompt Claude puts back in its input box, so it may take up to ~2 s to answer. Other keys are sent as is. Key names are herdr's (`esc`, `enter`, `up`, `down`, `ctrl+u`, digits, …). |
 | POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
+| GET | /controls | – | `Controls` (the choices the app offers; see below) |
+| POST | /agents/:id/control | exactly one of `{"model":"sonnet"}`, `{"permissionMode":"plan"}`, `{"effort":"high"}`, `{"command":"compact"}`, `{"command":"clear"}` | `202 Agent` (fresh, with the new value) once the change shows on screen or in the transcript. Errors below. |
 | POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","prompt":"optional"}` | `201 Agent` (new tab in the workspace, cwd = workspace's first pane cwd, `agent.start`, then optional prompt) |
 
 `:id` is URL-encoded (`w13%3Ap1`).
+
+## Controls
+
+```jsonc
+Controls {
+  "models":  [ { "id": "opus", "label": "Opus 5.5" }, { "id": "sonnet", "label": "Sonnet 5" },
+               { "id": "haiku", "label": "Haiku 4.5" }, { "id": "fable", "label": "Fable 5.1" } ],
+  "modes":   [ { "id": "default", "label": "Default" }, { "id": "acceptEdits", "label": "Accept edits" },
+               { "id": "plan", "label": "Plan" }, { "id": "auto", "label": "Auto" },
+               { "id": "bypassPermissions", "label": "Bypass permissions" } ],
+  "efforts": [ { "id": "low", "label": "Low" }, { "id": "medium", "label": "Medium" }, { "id": "high", "label": "High" },
+               { "id": "xhigh", "label": "Extra high" }, { "id": "max", "label": "Max" } ]
+}
+```
+- `Agent.model` is a full id (`claude-sonnet-5`). Match it to the menu with `modelLabel`, or check whether the id contains the alias (`"sonnet"`).
+- `POST /agents/:id/control` (Claude agents only):
+  - `model`: an alias from `models`. `permissionMode` and `effort`: an `id` from their lists.
+  - `command`: `compact` (summarise the context and keep the session) or `clear` (new session: `sessionId` changes, so refetch messages).
+  - Returns `202` with the updated `Agent` once the change is confirmed. The bridge waits up to ~10 s; `/compact` can take up to ~90 s.
+  - Errors:
+    - `400 bad_request`: zero or several keys, or an unknown value.
+    - `400 unsupported`: this agent can't reach that value, e.g. `bypassPermissions` isn't in its Shift+Tab cycle, or it isn't a Claude agent.
+    - `409 agent_busy`: the agent is working. `409 agent_blocked`: it's at a dialog.
+    - `501 not_implemented`: this Claude version has no reliable way to set that control.
+    - `504 control_timeout`: sent, but the change never showed up.
+- Every change to `model`, `modelLabel`, `permissionMode`, `effort` or `sessionId` also emits `agent.updated`.
 
 ## WebSocket `/ws?token=...`
 Server → client only, one JSON object per frame:
