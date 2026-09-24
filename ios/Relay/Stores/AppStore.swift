@@ -1,5 +1,5 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Observation
 
 enum ConnectionState: Equatable {
@@ -14,7 +14,7 @@ final class AppStore {
     /// Shown in the sidebar footer.
     let hostLabel: String
 
-    private(set) var state = HerdState()
+    private(set) var state = RelayState()
     private(set) var connection: ConnectionState = .connecting
     /// False until the first `/agents` answer (or failure), so the UI doesn't flash "No agents".
     private(set) var hasLoadedAgents = false
@@ -331,7 +331,7 @@ final class AppStore {
         do {
             agentControls[agentId] = try await backend.agentControls(agentId: agentId)
             agentControlsKey[agentId] = key
-        } catch HerdError.http(status: 404, _, _) {
+        } catch RelayError.http(status: 404, _, _) {
             if agent.kind == "claude", let catalog = controls {
                 agentControls[agentId] = AgentControlsInfo(claudeCatalog: catalog)
                 agentControlsKey[agentId] = key

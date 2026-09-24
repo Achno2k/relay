@@ -126,7 +126,7 @@ final class Round2UITests: XCTestCase {
         let composer = app.descendants(matching: .any).matching(NSPredicate(format: "placeholderValue BEGINSWITH 'Message'")).firstMatch
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
 
-        attach("Test image (HERD)")
+        attach("Test image (RELAY)")
         attach("Test PDF")
         let items = app.descendants(matching: .any).matching(identifier: "trayItem")
         XCTAssertEqual(items.count, 2)
@@ -173,9 +173,9 @@ final class Round2UITests: XCTestCase {
         button.tap()
     }
 
-    /// Saved to `HERD_SHOTS` when set (pass it as `TEST_RUNNER_HERD_SHOTS`).
+    /// Saved to `RELAY_SHOTS` when set (pass it as `TEST_RUNNER_RELAY_SHOTS`).
     private func shot(_ name: String) {
-        guard let dir = ProcessInfo.processInfo.environment["HERD_SHOTS"] else { return }
+        guard let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] else { return }
         sleep(1)
         let png = XCUIScreen.main.screenshot().pngRepresentation
         try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))

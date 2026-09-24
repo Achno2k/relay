@@ -1,9 +1,9 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Testing
 import UIKit
 import UniformTypeIdentifiers
-@testable import Herd
+@testable import Relay
 
 @Suite("Attachments")
 struct AttachmentTests {
@@ -43,8 +43,8 @@ struct AttachmentTests {
         let image = try #require(UIImage(data: prepared.data))
         #expect(max(image.size.width * image.scale, image.size.height * image.scale) == 2048)
 
-        let small = TestAttachments.herdImage()
-        let kept = try #require(UIImage(data: try AttachmentProcessing.prepare(data: small, name: "herd.png", type: nil).data))
+        let small = TestAttachments.relayImage()
+        let kept = try #require(UIImage(data: try AttachmentProcessing.prepare(data: small, name: "relay.png", type: nil).data))
         #expect(kept.size.width * kept.scale == 640, "never upscales")
     }
 
@@ -64,7 +64,7 @@ struct AttachmentTests {
 struct SidebarModelTests {
     /// Fixture agents: w1:p1 working, w1:p2 blocked, w2:p1 idle, w2:p3 done.
     private func model(archived: Set<String> = [], unseen: Set<String> = ["w2:p3"], extraWorkspace: Bool = false) throws -> SidebarModel {
-        var state = HerdState()
+        var state = RelayState()
         state.agents = try FixtureFiles.decode([Agent].self, "agents.json")
         state.workspaces = try FixtureFiles.decode([Workspace].self, "workspaces.json")
         if extraWorkspace { state.workspaces.append(Workspace(id: "w9", name: "empty", agentCount: 0)) }
@@ -155,7 +155,7 @@ struct StoreRound2Tests {
     @Test func pendingPromptWithAttachmentsResolvesOnSameIds() async throws {
         let (store, backend, agents) = try await store()
         let id = agents[2].id
-        let file = HerdKit.Attachment(id: "a1", name: "herd.jpg", kind: .image, size: 10)
+        let file = RelayKit.Attachment(id: "a1", name: "relay.jpg", kind: .image, size: 10)
         store.send("", attachments: [file], to: id)
         #expect(store.pending[id]?.first?.attachments.map(\.id) == ["a1"])
         try await Task.sleep(for: .milliseconds(100))

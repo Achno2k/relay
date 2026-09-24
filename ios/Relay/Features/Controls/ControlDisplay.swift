@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// Labels and symbols for model / mode / effort, taking in-flight changes into account.

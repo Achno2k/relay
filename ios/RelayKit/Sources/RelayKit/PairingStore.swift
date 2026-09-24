@@ -11,10 +11,13 @@ public struct Pairing: Hashable, Sendable {
         self.token = token
     }
 
-    /// Parses `herd://pair?url=<base>&token=<token>`.
+    /// `relay` since the rename; `herd` so old QR codes and links still pair.
+    public static let schemes: Set<String> = ["relay", "herd"]
+
+    /// Parses `relay://pair?url=<base>&token=<token>` (or the old `herd://`).
     public init?(link: URL) {
         guard let comps = URLComponents(url: link, resolvingAgainstBaseURL: false),
-              comps.scheme?.lowercased() == "herd",
+              let scheme = comps.scheme?.lowercased(), Self.schemes.contains(scheme),
               comps.host?.lowercased() == "pair",
               let urlString = comps.queryItems?.first(where: { $0.name == "url" })?.value,
               let token = comps.queryItems?.first(where: { $0.name == "token" })?.value,

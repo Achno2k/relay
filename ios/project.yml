@@ -1,4 +1,4 @@
-name: Herd
+name: Relay
 options:
   bundleIdPrefix: dev.amansingh
   deploymentTarget:
@@ -12,18 +12,18 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
 packages:
-  HerdKit:
-    path: HerdKit
+  RelayKit:
+    path: RelayKit
 targets:
-  Herd:
+  Relay:
     type: application
     platform: iOS
     sources:
-      - path: Herd
+      - path: Relay
     dependencies:
-      - package: HerdKit
+      - package: RelayKit
     entitlements:
-      path: Herd/Herd.entitlements
+      path: Relay/Relay.entitlements
       properties:
         com.apple.security.application-groups:
           - group.dev.amansingh.herd
@@ -31,9 +31,9 @@ targets:
           - $(AppIdentifierPrefix)dev.amansingh.herd
           - group.dev.amansingh.herd
     info:
-      path: Herd/Info.plist
+      path: Relay/Info.plist
       properties:
-        CFBundleDisplayName: Herd
+        CFBundleDisplayName: Relay
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
         UILaunchScreen: {}
@@ -43,13 +43,14 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSCameraUsageDescription: Herd scans the pairing code shown by `herd pair` on your Mac.
-        NSLocalNetworkUsageDescription: Herd connects to the bridge running on your Mac.
+        NSCameraUsageDescription: Relay scans the pairing code shown by `relay pair` on your Mac.
+        NSLocalNetworkUsageDescription: Relay connects to the bridge running on your Mac.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         CFBundleURLTypes:
           - CFBundleURLName: dev.amansingh.herd
             CFBundleURLSchemes:
+              - relay
               - herd
     settings:
       base:
@@ -68,37 +69,37 @@ targets:
             mkdir -p "$dest"
             cp "$SRCROOT/../docs/fixtures/"*.json "$SRCROOT/../docs/fixtures/"*.jsonl "$dest/"
           fi
-  HerdTests:
+  RelayTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: HerdTests
+      - path: RelayTests
     dependencies:
-      - target: Herd
-      - package: HerdKit
+      - target: Relay
+      - package: RelayKit
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.amansingh.herd.tests
-  HerdUITests:
+  RelayUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: HerdUITests
+      - path: RelayUITests
     dependencies:
-      - target: Herd
+      - target: Relay
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.amansingh.herd.uitests
-        TEST_TARGET_NAME: Herd
+        TEST_TARGET_NAME: Relay
 schemes:
-  Herd:
+  Relay:
     build:
       targets:
-        Herd: all
-        HerdTests: [test]
-        HerdUITests: [test]
+        Relay: all
+        RelayTests: [test]
+        RelayUITests: [test]
     run:
       config: Debug
       commandLineArguments:
@@ -106,5 +107,5 @@ schemes:
     test:
       config: Debug
       targets:
-        - HerdTests
-        - HerdUITests
+        - RelayTests
+        - RelayUITests

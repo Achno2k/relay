@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Herd</string>
+	<string>Relay</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -25,6 +25,7 @@
 			<string>dev.amansingh.herd</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>relay</string>
 				<string>herd</string>
 			</array>
 		</dict>
@@ -37,9 +38,9 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Herd scans the pairing code shown by `herd pair` on your Mac.</string>
+	<string>Relay scans the pairing code shown by `relay pair` on your Mac.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Herd connects to the bridge running on your Mac.</string>
+	<string>Relay connects to the bridge running on your Mac.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

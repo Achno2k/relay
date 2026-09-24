@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Free (personal) teams can't provision App Groups. PairingStore falls back to the app's own
      Keychain and defaults, which is fine until widgets need sharing. Use via
-     CODE_SIGN_ENTITLEMENTS=Herd/Herd-FreeTeam.entitlements (see scripts/install-device.sh). -->
+     CODE_SIGN_ENTITLEMENTS=Relay/Relay-FreeTeam.entitlements (see scripts/install-device.sh). -->
 <plist version="1.0">
 <dict/>
 </plist>

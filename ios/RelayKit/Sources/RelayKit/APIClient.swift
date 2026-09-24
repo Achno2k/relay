@@ -1,6 +1,6 @@
 import Foundation
 
-public enum HerdError: LocalizedError, Equatable, Sendable {
+public enum RelayError: LocalizedError, Equatable, Sendable {
     case unauthorized
     case http(status: Int, code: String?, message: String?)
     case badResponse
@@ -11,7 +11,7 @@ public enum HerdError: LocalizedError, Equatable, Sendable {
         case .unauthorized: "The bridge rejected the token. Pair again."
         case .http(let status, _, let message): message ?? "The bridge returned HTTP \(status)."
         case .badResponse: "The bridge sent something unexpected."
-        case .invalidPairingLink: "That isn't a Herd pairing code."
+        case .invalidPairingLink: "That isn't a Relay pairing code."
         }
     }
 }
@@ -68,7 +68,7 @@ public struct APIClient: Sendable {
             forHTTPHeaderField: "X-Filename"
         )
         let (body, response) = try await session.upload(for: request, from: data, delegate: UploadProgress(progress))
-        return try HerdJSON.decoder().decode(Attachment.self, from: try check(body, response).0)
+        return try RelayJSON.decoder().decode(Attachment.self, from: try check(body, response).0)
     }
 
     public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
@@ -89,7 +89,7 @@ public struct APIClient: Sendable {
     public func approval(agentId: String) async throws -> Approval? {
         let (data, status) = try await raw("GET", "/agents/\(Self.encode(agentId))/approval")
         if status == 204 || data.isEmpty { return nil }
-        return try HerdJSON.decoder().decode(Approval.self, from: data)
+        return try RelayJSON.decoder().decode(Approval.self, from: data)
     }
 
     public func controls() async throws -> ControlsCatalog { try await send("GET", "/controls") }
@@ -101,9 +101,9 @@ public struct APIClient: Sendable {
     public func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
         let (data, _) = try await raw(
             "POST", "/agents/\(Self.encode(agentId))/control",
-            body: try HerdJSON.encoder().encode(request), timeout: request.timeout
+            body: try RelayJSON.encoder().encode(request), timeout: request.timeout
         )
-        return try HerdJSON.decoder().decode(Agent.self, from: data)
+        return try RelayJSON.decoder().decode(Agent.self, from: data)
     }
 
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
@@ -127,16 +127,16 @@ public struct APIClient: Sendable {
 
     private func send<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = []) async throws -> T {
         let (data, _) = try await raw(method, path, query: query, body: nil)
-        return try HerdJSON.decoder().decode(T.self, from: data)
+        return try RelayJSON.decoder().decode(T.self, from: data)
     }
 
     private func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, body: B) async throws -> T {
-        let (data, _) = try await raw(method, path, body: try HerdJSON.encoder().encode(body))
-        return try HerdJSON.decoder().decode(T.self, from: data)
+        let (data, _) = try await raw(method, path, body: try RelayJSON.encoder().encode(body))
+        return try RelayJSON.decoder().decode(T.self, from: data)
     }
 
     private func sendIgnoringBody<B: Encodable>(_ method: String, _ path: String, body: B) async throws {
-        _ = try await raw(method, path, body: try HerdJSON.encoder().encode(body))
+        _ = try await raw(method, path, body: try RelayJSON.encoder().encode(body))
     }
 
     private func raw(
@@ -155,15 +155,15 @@ public struct APIClient: Sendable {
     }
 
     private func check(_ data: Data, _ response: URLResponse) throws -> (Data, Int) {
-        guard let http = response as? HTTPURLResponse else { throw HerdError.badResponse }
+        guard let http = response as? HTTPURLResponse else { throw RelayError.badResponse }
         switch http.statusCode {
         case 200..<300:
             return (data, http.statusCode)
         case 401, 403:
-            throw HerdError.unauthorized
+            throw RelayError.unauthorized
         default:
-            let detail = try? HerdJSON.decoder().decode(APIErrorBody.self, from: data)
-            throw HerdError.http(status: http.statusCode, code: detail?.error.code, message: detail?.error.message)
+            let detail = try? RelayJSON.decoder().decode(APIErrorBody.self, from: data)
+            throw RelayError.http(status: http.statusCode, code: detail?.error.code, message: detail?.error.message)
         }
     }
 }

@@ -1,8 +1,8 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 import VisionKit
 
-/// First launch: scan the QR from `herd pair` or type the URL and token.
+/// First launch: scan the QR from `relay pair` or type the URL and token.
 struct PairingView: View {
     @Environment(AppModel.self) private var model
     @State private var scanning = false
@@ -11,9 +11,9 @@ struct PairingView: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            HerdMark()
+            RelayMark()
                 .padding(.bottom, 28)
-            Text("Herd")
+            Text("Relay")
                 .font(.largeTitle.weight(.bold))
             Text("Your coding agents, in your pocket.")
                 .font(.title3)
@@ -23,8 +23,8 @@ struct PairingView: View {
             Spacer()
 
             VStack(alignment: .leading, spacing: 18) {
-                Step(number: 1, text: "On your Mac, run **herd serve**.")
-                Step(number: 2, text: "Then run **herd pair** and scan the code it shows.")
+                Step(number: 1, text: "On your Mac, run **relay serve**.")
+                Step(number: 2, text: "Then run **relay pair** and scan the code it shows.")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 32)
@@ -100,7 +100,7 @@ private struct Step: View {
 }
 
 /// Three overlapping glass bubbles: agents, grouped.
-private struct HerdMark: View {
+private struct RelayMark: View {
     var body: some View {
         GlassEffectContainer(spacing: 20) {
             ZStack {
@@ -128,7 +128,7 @@ private struct ManualPairingSheet: View {
     @State private var token = ""
 
     private var pairing: Pairing? {
-        // A pasted herd:// link works in the URL field too.
+        // A pasted relay:// (or herd://) link works in the URL field too.
         if let link = Pairing(linkString: url) { return link }
         guard let base = Pairing.baseURL(from: url), !token.isEmpty else { return nil }
         return Pairing(url: base, token: token.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -146,7 +146,7 @@ private struct ManualPairingSheet: View {
                 } header: {
                     Text("Bridge URL")
                 } footer: {
-                    Text("Your Mac's Tailscale address. Pasting the whole herd:// link also works.")
+                    Text("Your Mac's Tailscale address. Pasting the whole relay:// link also works.")
                 }
                 Section("Token") {
                     SecureField("Token", text: $token)
@@ -219,7 +219,7 @@ private struct ScannerScreen: View {
             .accessibilityLabel("Close")
         }
         .overlay(alignment: .bottom) {
-            Text("Point at the code from **herd pair**")
+            Text("Point at the code from **relay pair**")
                 .font(.subheadline)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)

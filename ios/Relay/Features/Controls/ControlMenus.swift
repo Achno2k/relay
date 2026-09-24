@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// Model ▸ / Mode ▸ / Effort ▸, then Compact and Clear: only what this agent's kind supports.

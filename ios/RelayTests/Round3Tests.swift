@@ -1,7 +1,7 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Testing
-@testable import Herd
+@testable import Relay
 
 @Suite("Per-agent controls")
 struct PerAgentControlsTests {
@@ -41,7 +41,7 @@ struct PerAgentControlsTests {
 
     @Test func decodesWithMissingLists() throws {
         let json = #"{"models":[{"id":"openai/gpt-5.1","label":"GPT-5.1"}],"efforts":null,"supports":{"model":true,"effort":false,"mode":false,"compact":false,"clear":false}}"#
-        let info = try HerdJSON.decoder().decode(AgentControlsInfo.self, from: Data(json.utf8))
+        let info = try RelayJSON.decoder().decode(AgentControlsInfo.self, from: Data(json.utf8))
         #expect(info.models.count == 1 && info.efforts.isEmpty && info.modes.isEmpty)
         #expect(info.supports.model && !info.supports.effort && info.supports.any)
         let claude = AgentControlsInfo(claudeCatalog: try FixtureFiles.decode(ControlsCatalog.self, "controls.json"))

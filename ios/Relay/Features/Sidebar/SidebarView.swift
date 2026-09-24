@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// Codex-style home in the drawer: filter and ⋯ buttons, a large title, device chips, then either the
@@ -48,7 +48,7 @@ struct SidebarView: View {
                 Spacer()
                 moreMenu
             }
-            Text("Herd")
+            Text("Relay")
                 .font(.largeTitle.bold())
                 .padding(.top, 4)
             DeviceChips(machines: store.machines, fallbackName: store.hostLabel, connected: store.connection == .connected)

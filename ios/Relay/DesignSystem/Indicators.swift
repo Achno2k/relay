@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// Highlight sweeping across text, like ChatGPT's "Thinking…" label.

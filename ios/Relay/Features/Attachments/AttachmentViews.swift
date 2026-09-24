@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import QuickLook
 import SwiftUI
 import UIKit
@@ -342,9 +342,9 @@ struct CameraPicker: UIViewControllerRepresentable {
 }
 
 #if DEBUG
-/// Generated files for UI tests (`-uitestAttachments`): a PNG that reads "HERD" and a one-page PDF.
+/// Generated files for UI tests (`-uitestAttachments`): a PNG that reads "RELAY" and a one-page PDF.
 enum TestAttachments {
-    static func herdImage(_ word: String = LaunchOptions.current.testWord ?? "HERD") -> Data {
+    static func relayImage(_ word: String = LaunchOptions.current.testWord ?? "RELAY") -> Data {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 640, height: 320), format: {
             let f = UIGraphicsImageRendererFormat()
             f.scale = 1
@@ -365,7 +365,7 @@ enum TestAttachments {
     static func codewordPDF(_ word: String = LaunchOptions.current.testWord ?? "PELICAN") -> Data {
         UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).pdfData { ctx in
             ctx.beginPage()
-            NSAttributedString(string: "Herd test document\n\nThe code word is \(word).", attributes: [
+            NSAttributedString(string: "Relay test document\n\nThe code word is \(word).", attributes: [
                 .font: UIFont.systemFont(ofSize: 28, weight: .semibold),
             ]).draw(in: CGRect(x: 60, y: 80, width: 492, height: 400))
         }

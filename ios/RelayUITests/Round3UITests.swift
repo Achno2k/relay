@@ -99,9 +99,9 @@ final class Round3UITests: XCTestCase {
         return XCTWaiter().wait(for: [match], timeout: timeout) == .completed
     }
 
-    /// Saved to `HERD_SHOTS` when set (pass it as `TEST_RUNNER_HERD_SHOTS`).
+    /// Saved to `RELAY_SHOTS` when set (pass it as `TEST_RUNNER_RELAY_SHOTS`).
     private func shot(_ name: String) {
-        guard let dir = ProcessInfo.processInfo.environment["HERD_SHOTS"] else { return }
+        guard let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] else { return }
         sleep(1)
         let png = XCUIScreen.main.screenshot().pngRepresentation
         try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))

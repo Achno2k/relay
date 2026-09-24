@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct HerdApp: App {
+struct RelayApp: App {
     @State private var model = AppModel()
 
     var body: some Scene {

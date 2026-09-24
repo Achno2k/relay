@@ -1,19 +1,19 @@
 import XCTest
 
 /// Drives the real app against a live bridge and a real, throwaway agent.
-/// Skipped unless the runner passes `TEST_RUNNER_HERD_E2E_LINK` (a herd://pair link) and
-/// `TEST_RUNNER_HERD_E2E_AGENT` (the agent's pane id). `TEST_RUNNER_HERD_E2E_SHOTS` is an optional
+/// Skipped unless the runner passes `TEST_RUNNER_RELAY_E2E_LINK` (a relay:// or herd:// pair link) and
+/// `TEST_RUNNER_RELAY_E2E_AGENT` (the agent's pane id). `TEST_RUNNER_RELAY_E2E_SHOTS` is an optional
 /// directory for screenshots.
 @MainActor
 final class LiveE2ETests: XCTestCase {
     private var env: [String: String] { ProcessInfo.processInfo.environment }
     private var app: XCUIApplication!
-    private let testWord = "HERD" + String((0..<4).map { _ in "BCDFGHJKLMNPQRSTVWXZ".randomElement()! })
+    private let testWord = "RELAY" + String((0..<4).map { _ in "BCDFGHJKLMNPQRSTVWXZ".randomElement()! })
 
     override func setUp() async throws {
         continueAfterFailure = false
-        guard let link = env["HERD_E2E_LINK"], let agent = env["HERD_E2E_AGENT"] else {
-            throw XCTSkip("HERD_E2E_LINK / HERD_E2E_AGENT not set")
+        guard let link = env["RELAY_E2E_LINK"], let agent = env["RELAY_E2E_AGENT"] else {
+            throw XCTSkip("RELAY_E2E_LINK / RELAY_E2E_AGENT not set")
         }
         app = XCUIApplication()
         // A fresh word per run for the generated attachments, so replies from earlier runs can't match.
@@ -23,10 +23,10 @@ final class LiveE2ETests: XCTestCase {
 
     /// A failed test can leave the agent at a question; cancel it so the next test starts clean.
     override func tearDown() async throws {
-        guard let link = env["HERD_E2E_LINK"].flatMap(URLComponents.init(string:)),
+        guard let link = env["RELAY_E2E_LINK"].flatMap(URLComponents.init(string:)),
               let base = link.queryItems?.first(where: { $0.name == "url" })?.value,
               let token = link.queryItems?.first(where: { $0.name == "token" })?.value,
-              let id = env["HERD_E2E_AGENT"]?.replacingOccurrences(of: ":", with: "%3A"),
+              let id = env["RELAY_E2E_AGENT"]?.replacingOccurrences(of: ":", with: "%3A"),
               let url = URL(string: "\(base)/agents/\(id)")
         else { return }
         var get = URLRequest(url: url.appendingPathComponent("approval"))
@@ -166,10 +166,10 @@ final class LiveE2ETests: XCTestCase {
         }
     }
 
-    /// A generated PNG that reads "HERD": the agent must read it from the uploaded file.
+    /// A generated PNG that reads "RELAY…": the agent must read it from the uploaded file.
     func testImageAttachment() throws {
         let composer = composerField()
-        attach("Test image (HERD)")
+        attach("Test image (RELAY)")
         waitForUploads(1)
         composer.tap()
         composer.typeText("What text is in the attached image? Reply with just that text, nothing else.")
@@ -250,7 +250,7 @@ final class LiveE2ETests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        if let dir = env["HERD_E2E_SHOTS"] {
+        if let dir = env["RELAY_E2E_SHOTS"] {
             try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
         }
     }

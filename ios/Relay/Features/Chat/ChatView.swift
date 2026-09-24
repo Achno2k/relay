@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// The open conversation: system toolbar, message list, floating composer.
@@ -37,7 +37,7 @@ struct ChatView: View {
                     if let agent = store.selectedAgent {
                         TitleMenu(store: store, agent: agent)
                     } else {
-                        Text("Herd").font(.headline)
+                        Text("Relay").font(.headline)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {

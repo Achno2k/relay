@@ -1,7 +1,7 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Testing
-@testable import Herd
+@testable import Relay
 
 /// Records every call the store makes.
 actor RecordingBackend: Backend {
@@ -30,9 +30,9 @@ actor RecordingBackend: Backend {
     func uploadAttachment(
         agentId: String, data: Data, filename: String, contentType: String,
         progress: @escaping @Sendable (Double) -> Void
-    ) async throws -> HerdKit.Attachment {
+    ) async throws -> RelayKit.Attachment {
         progress(1)
-        return HerdKit.Attachment(id: "a\(calls.count)", name: filename, kind: contentType.hasPrefix("image/") ? .image : .file, size: data.count)
+        return RelayKit.Attachment(id: "a\(calls.count)", name: filename, kind: contentType.hasPrefix("image/") ? .image : .file, size: data.count)
     }
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data { Data() }
     func machine() async throws -> Machine { try FixtureFiles.decode(Machine.self, "machine.json") }
@@ -50,7 +50,7 @@ actor RecordingBackend: Backend {
     func setPerAgentControls(_ info: AgentControlsInfo?) { perAgentControls = info }
     func agentControls(agentId: String) async throws -> AgentControlsInfo {
         agentControlsFetches += 1
-        guard let perAgentControls else { throw HerdError.http(status: 404, code: "not_found", message: "Not Found") }
+        guard let perAgentControls else { throw RelayError.http(status: 404, code: "not_found", message: "Not Found") }
         return perAgentControls
     }
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
@@ -66,8 +66,8 @@ actor RecordingBackend: Backend {
         }
         return updated
     }
-    var controlError: HerdError?
-    func failControls(with error: HerdError) { controlError = error }
+    var controlError: RelayError?
+    func failControls(with error: RelayError) { controlError = error }
     nonisolated func events() -> AsyncStream<ConnectionEvent> { AsyncStream { $0.finish() } }
 }
 

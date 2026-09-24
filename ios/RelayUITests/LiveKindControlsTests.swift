@@ -1,7 +1,7 @@
 import XCTest
 
 /// Model and effort on real pi and codex panes, through the title menu. Skipped unless the runner passes
-/// `TEST_RUNNER_HERD_E2E_LINK` plus `TEST_RUNNER_HERD_E2E_PI_AGENT` and/or `TEST_RUNNER_HERD_E2E_CODEX_AGENT`.
+/// `TEST_RUNNER_RELAY_E2E_LINK` plus `TEST_RUNNER_RELAY_E2E_PI_AGENT` and/or `TEST_RUNNER_RELAY_E2E_CODEX_AGENT`.
 /// Targets are read from the bridge (`GET /agents/:id/controls`), and the original values are put back.
 @MainActor
 final class LiveKindControlsTests: XCTestCase {
@@ -13,19 +13,19 @@ final class LiveKindControlsTests: XCTestCase {
     }
 
     func testPiModelAndEffort() async throws {
-        try await run(kindKey: "HERD_E2E_PI_AGENT", effortInSubtitle: true)
+        try await run(kindKey: "RELAY_E2E_PI_AGENT", effortInSubtitle: true)
     }
 
     func testCodexModelAndEffort() async throws {
-        try await run(kindKey: "HERD_E2E_CODEX_AGENT", effortInSubtitle: false)
+        try await run(kindKey: "RELAY_E2E_CODEX_AGENT", effortInSubtitle: false)
     }
 
     /// Codex in Ask mode asks before a network command: approve one run, cancel another.
     /// Never taps "don't ask again" (it would save a rule in codex). Each run uses a fresh URL, and the
     /// approved run must actually reach the network (an HTTP status line in the tool result).
     func testCodexApproval() async throws {
-        guard let link = env["HERD_E2E_LINK"], let agentId = env["HERD_E2E_CODEX_AGENT"] else {
-            throw XCTSkip("HERD_E2E_CODEX_AGENT not set")
+        guard let link = env["RELAY_E2E_LINK"], let agentId = env["RELAY_E2E_CODEX_AGENT"] else {
+            throw XCTSkip("RELAY_E2E_CODEX_AGENT not set")
         }
         let bridge = try Bridge(link: link, agentId: agentId)
         let originalMode = try await bridge.agentMode()
@@ -102,7 +102,7 @@ final class LiveKindControlsTests: XCTestCase {
         let tld = ["com", "org", "net"].randomElement()!
         let tag = String((0..<6).map { _ in "abcdefghjkmnpqrstuvwxyz23456789".randomElement()! })
         // A path, not a query: zsh treats `?` as a glob and the command would fail before curl ran.
-        return "https://example.\(tld)/herd-\(tag)"
+        return "https://example.\(tld)/relay-\(tag)"
     }
 
     private static func prompt(_ url: String) -> String {
@@ -125,7 +125,7 @@ final class LiveKindControlsTests: XCTestCase {
     }
 
     private func run(kindKey: String, effortInSubtitle: Bool) async throws {
-        guard let link = env["HERD_E2E_LINK"], let agentId = env[kindKey] else { throw XCTSkip("\(kindKey) not set") }
+        guard let link = env["RELAY_E2E_LINK"], let agentId = env[kindKey] else { throw XCTSkip("\(kindKey) not set") }
         let bridge = try Bridge(link: link, agentId: agentId)
         let original = try await bridge.agent()
         // Put the pane back as we found it, even when an assertion stops the test.
@@ -210,7 +210,7 @@ final class LiveKindControlsTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        if let dir = env["HERD_E2E_SHOTS"] {
+        if let dir = env["RELAY_E2E_SHOTS"] {
             try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
         }
     }

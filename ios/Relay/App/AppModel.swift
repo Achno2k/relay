@@ -1,15 +1,15 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
-/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`, `-pair <herd:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
+/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
 struct LaunchOptions {
     var mock = false
     var demo: String?
     var agent: String?
     var replay = true
-    /// A `herd://pair` link handled at launch, same path as `onOpenURL`.
+    /// A `relay://pair` (or `herd://pair`) link handled at launch, same path as `onOpenURL`.
     var pairLink: URL?
     /// `-uitestAttachments`: the `+` menu offers generated test files (UI tests can't drive the Photos picker).
     var testAttachments = false
@@ -94,9 +94,9 @@ final class AppModel {
     }
 
     func handle(url: URL) {
-        guard url.scheme?.lowercased() == "herd" else { return }
+        guard let scheme = url.scheme?.lowercased(), Pairing.schemes.contains(scheme) else { return }
         guard let pairing = Pairing(link: url) else {
-            pairingError = HerdError.invalidPairingLink.localizedDescription
+            pairingError = RelayError.invalidPairingLink.localizedDescription
             return
         }
         Task { await pair(pairing) }

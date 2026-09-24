@@ -1,5 +1,5 @@
 import Foundation
-import HerdKit
+import RelayKit
 
 /// The sidebar filter menu (Codex style).
 enum SessionFilter: String, CaseIterable, Identifiable, Sendable {
@@ -39,7 +39,7 @@ struct SidebarModel {
         var needsInput: Int
     }
 
-    var state: HerdState
+    var state: RelayState
     var archived: Set<String>
     var isUnseen: (Agent) -> Bool
 

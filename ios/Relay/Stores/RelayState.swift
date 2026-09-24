@@ -1,8 +1,8 @@
 import Foundation
-import HerdKit
+import RelayKit
 
 /// Plain value state plus the WebSocket reducer. No I/O here so it's easy to test.
-struct HerdState: Equatable, Sendable {
+struct RelayState: Equatable, Sendable {
     var agents: [Agent] = []
     var workspaces: [Workspace] = []
     /// Only agents whose chat has been fetched have an entry. Upserts for other agents are ignored;

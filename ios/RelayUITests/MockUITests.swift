@@ -110,6 +110,9 @@ final class MockUITests: XCTestCase {
         shot("controls-error")
         XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Plan"), "pill didn't revert")
         waitForIdle()
+        // The toast sits over the top of the screen for a few seconds; let it go before the next menu.
+        let toastGone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: toast)
+        wait(for: [toastGone], timeout: 8)
 
         app.buttons["titleMenu"].tap()
         menuItem("Mode").tap()
@@ -167,9 +170,9 @@ final class MockUITests: XCTestCase {
         return XCTWaiter().wait(for: [match], timeout: timeout) == .completed
     }
 
-    /// Saved to `HERD_SHOTS` when set (pass it as `TEST_RUNNER_HERD_SHOTS`).
+    /// Saved to `RELAY_SHOTS` when set (pass it as `TEST_RUNNER_RELAY_SHOTS`).
     private func shot(_ name: String) {
-        guard let dir = ProcessInfo.processInfo.environment["HERD_SHOTS"] else { return }
+        guard let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] else { return }
         sleep(1)
         let png = XCUIScreen.main.screenshot().pngRepresentation
         try? png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))

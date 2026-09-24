@@ -1,7 +1,7 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Testing
-@testable import Herd
+@testable import Relay
 
 @Suite("Controls")
 struct ControlsTests {
@@ -51,7 +51,7 @@ struct ControlsTests {
     }
 
     @Test func newSessionDropsCachedChat() throws {
-        var state = HerdState()
+        var state = RelayState()
         var agent = try #require(FixtureFiles.decode([Agent].self, "agents.json").first { $0.id == "w1:p1" })
         state.agents = [agent]
         state.setPage(try FixtureFiles.decode(MessagePage.self, "messages.json"), agentId: agent.id)

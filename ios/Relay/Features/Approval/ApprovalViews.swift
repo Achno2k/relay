@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// Bottom sheet with one full-width glass button per option, sized to its content.

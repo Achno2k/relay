@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -97,7 +97,7 @@ struct ComposerView: View {
                 #if DEBUG
                 if LaunchOptions.current.testAttachments {
                     Section("Test files") {
-                        Button("Test image (HERD)") { attachments?.add(data: TestAttachments.herdImage(), name: "herd.png", type: .png) }
+                        Button("Test image (RELAY)") { attachments?.add(data: TestAttachments.relayImage(), name: "relay.png", type: .png) }
                         Button("Test PDF") { attachments?.add(data: TestAttachments.codewordPDF(), name: "codeword.pdf", type: .pdf) }
                     }
                 }

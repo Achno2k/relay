@@ -3,12 +3,12 @@ import PackageDescription
 
 // Shared, UI-free code for the app and future WidgetKit / ActivityKit extensions.
 let package = Package(
-    name: "HerdKit",
+    name: "RelayKit",
     platforms: [.iOS("26.0"), .macOS("26.0")],
     products: [
-        .library(name: "HerdKit", targets: ["HerdKit"])
+        .library(name: "RelayKit", targets: ["RelayKit"])
     ],
     targets: [
-        .target(name: "HerdKit")
+        .target(name: "RelayKit")
     ]
 )

@@ -1,6 +1,6 @@
 #if DEBUG
 import Foundation
-import HerdKit
+import RelayKit
 
 /// Synthetic chats for the fixture agents that `messages.json` doesn't cover.
 enum MockChats {

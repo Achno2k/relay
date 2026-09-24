@@ -1,6 +1,6 @@
 #if DEBUG
 import Foundation
-import HerdKit
+import RelayKit
 
 /// Serves `docs/fixtures` (copied into Debug builds as `Fixtures/`) and replays `ws-events.jsonl`.
 /// It also reacts to prompts, stop and approvals so the app can be driven without a bridge.
@@ -57,8 +57,8 @@ actor MockBackend: Backend {
         agentId: String, data: Data, filename: String, contentType: String,
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> Attachment {
-        guard !data.isEmpty else { throw HerdError.http(status: 400, code: "bad_request", message: "Empty body.") }
-        guard data.count <= 20 * 1024 * 1024 else { throw HerdError.http(status: 413, code: "too_large", message: "Over 20 MB.") }
+        guard !data.isEmpty else { throw RelayError.http(status: 400, code: "bad_request", message: "Empty body.") }
+        guard data.count <= 20 * 1024 * 1024 else { throw RelayError.http(status: 413, code: "too_large", message: "Over 20 MB.") }
         for step in 1...4 {
             try await Task.sleep(for: .milliseconds(150))
             progress(Double(step) / 4)
@@ -73,13 +73,13 @@ actor MockBackend: Backend {
     }
 
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
-        guard let upload = uploads[attachmentId] else { throw HerdError.http(status: 404, code: "not_found", message: "Expired.") }
+        guard let upload = uploads[attachmentId] else { throw RelayError.http(status: 404, code: "not_found", message: "Expired.") }
         return upload.data
     }
 
     func prompt(agentId: String, text: String, attachments: [String]) async throws {
         let refs = try attachments.map { id in
-            guard let upload = uploads[id] else { throw HerdError.http(status: 400, code: "bad_request", message: "Unknown attachment \(id).") }
+            guard let upload = uploads[id] else { throw RelayError.http(status: 400, code: "bad_request", message: "Unknown attachment \(id).") }
             return upload.attachment.ref
         }
         var blocks = refs.map { Block.attachment($0) }
@@ -142,7 +142,7 @@ actor MockBackend: Backend {
 
     func agentControls(agentId: String) async throws -> AgentControlsInfo {
         guard let agent = agentList.first(where: { $0.id == agentId }) else {
-            throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
+            throw RelayError.http(status: 404, code: "not_found", message: "No such agent.")
         }
         return MockControls.info(for: agent.kind, fixtures: fixtures)
     }
@@ -151,7 +151,7 @@ actor MockBackend: Backend {
     /// then a short "confirm on screen" delay before the updated agent comes back.
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
         guard let i = agentList.firstIndex(where: { $0.id == agentId }) else {
-            throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
+            throw RelayError.http(status: 404, code: "not_found", message: "No such agent.")
         }
         let agent = agentList[i]
         let info = MockControls.info(for: agent.kind, fixtures: fixtures)
@@ -163,12 +163,12 @@ actor MockBackend: Backend {
         case .command(.clear): info.supports.clear
         }
         if !supported {
-            throw HerdError.http(status: 400, code: "unsupported", message: "\(agent.kind) can't do that here.")
+            throw RelayError.http(status: 400, code: "unsupported", message: "\(agent.kind) can't do that here.")
         }
-        if agent.status == .working { throw HerdError.http(status: 409, code: "agent_busy", message: "The agent is working.") }
-        if agent.status == .blocked { throw HerdError.http(status: 409, code: "agent_blocked", message: "The agent is waiting at a dialog.") }
+        if agent.status == .working { throw RelayError.http(status: 409, code: "agent_busy", message: "The agent is working.") }
+        if agent.status == .blocked { throw RelayError.http(status: 409, code: "agent_blocked", message: "The agent is waiting at a dialog.") }
         if request == .permissionMode("bypassPermissions") {
-            throw HerdError.http(status: 400, code: "unsupported", message: "Bypass permissions isn't in this agent's Shift+Tab cycle.")
+            throw RelayError.http(status: 400, code: "unsupported", message: "Bypass permissions isn't in this agent's Shift+Tab cycle.")
         }
         try await Task.sleep(for: request == .command(.compact) ? .seconds(2.5) : .seconds(1.2))
         var updated = agentList[i]
@@ -295,7 +295,7 @@ struct Fixtures: Sendable {
 
     init(directory: URL? = Bundle.main.url(forResource: "Fixtures", withExtension: nil)) {
         guard let directory else { return }
-        let decoder = HerdJSON.decoder()
+        let decoder = RelayJSON.decoder()
         func load<T: Decodable>(_ name: String) -> T? {
             guard let data = try? Data(contentsOf: directory.appending(path: name)) else { return nil }
             return try? decoder.decode(T.self, from: data)

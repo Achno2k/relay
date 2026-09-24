@@ -1,5 +1,5 @@
 import Foundation
-import HerdKit
+import RelayKit
 
 /// Where the app keeps its own UI state: selected chat, seen times, filter, expanded folders, device chip,
 /// archive. Under UI tests (`-uitest`) or unit tests (XCTest host) everything goes to a separate suite,

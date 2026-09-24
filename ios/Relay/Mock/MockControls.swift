@@ -1,6 +1,6 @@
 #if DEBUG
 import Foundation
-import HerdKit
+import RelayKit
 
 /// Synthetic per-kind controls for the mock backend (what `GET /agents/:id/controls` returns).
 enum MockControls {

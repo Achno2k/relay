@@ -1,4 +1,4 @@
-import HerdKit
+import RelayKit
 import SwiftUI
 
 /// Chat with a sidebar drawer underneath. Opening it pushes the chat right and dims it, like ChatGPT.

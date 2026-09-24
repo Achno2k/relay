@@ -1,5 +1,5 @@
 import Foundation
-import HerdKit
+import RelayKit
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -23,7 +23,7 @@ enum AttachmentProcessing {
         var errorDescription: String? {
             switch self {
             case .tooLarge(let name): "\(name) is over 20 MB."
-            case .unreadableImage(let name): "\(name) isn't an image Herd can read."
+            case .unreadableImage(let name): "\(name) isn't an image Relay can read."
             }
         }
     }

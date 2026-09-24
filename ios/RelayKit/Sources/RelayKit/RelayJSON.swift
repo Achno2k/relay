@@ -1,6 +1,6 @@
 import Foundation
 
-public enum HerdJSON {
+public enum RelayJSON {
     // ISO8601DateFormatter is documented as thread safe.
     nonisolated(unsafe) private static let plain: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()

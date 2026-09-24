@@ -1,12 +1,12 @@
 import Foundation
-import HerdKit
+import RelayKit
 import Testing
-@testable import Herd
+@testable import Relay
 
-@Suite("HerdState reducer")
+@Suite("RelayState reducer")
 struct ReducerTests {
-    private func loaded() throws -> HerdState {
-        var state = HerdState()
+    private func loaded() throws -> RelayState {
+        var state = RelayState()
         state.agents = try FixtureFiles.decode([Agent].self, "agents.json")
         state.workspaces = try FixtureFiles.decode([Workspace].self, "workspaces.json")
         state.setPage(try FixtureFiles.decode(MessagePage.self, "messages.json"), agentId: "w1:p1")

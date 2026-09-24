@@ -40,7 +40,7 @@ public struct WSClient: Sendable {
                             case .data(let d): data = d
                             @unknown default: continue
                             }
-                            guard let event = try? HerdJSON.decoder().decode(ServerEvent.self, from: data) else { continue }
+                            guard let event = try? RelayJSON.decoder().decode(ServerEvent.self, from: data) else { continue }
                             if !greeted {
                                 // Any frame proves the socket is up; `hello` is just the usual first one.
                                 greeted = true
