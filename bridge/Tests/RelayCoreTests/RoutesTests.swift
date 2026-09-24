@@ -10,7 +10,8 @@ import Testing
     static let token = "test-token"
     static let auth: HTTPFields = [.authorization: "Bearer \(token)"]
 
-    /// Sets up a fake herdr with a claude agent (w1:p1, with transcript), a blocked agent (w1:p2) and a codex agent (w2:p3).
+    /// Sets up a fake herdr with a claude agent (w1:p1, with transcript), a blocked claude agent whose
+    /// transcript doesn't exist yet (w1:p2) and a gemini agent, a kind without a parser (w2:p3).
     func withApp(
         status: @escaping @Sendable (String) -> String = { $0 == "w1:p2" ? "blocked" : "idle" },
         _ body: @escaping @Sendable (any TestClientProtocol, FakeHerdr, EventHub) async throws -> Void
@@ -29,7 +30,7 @@ import Testing
                             session: ["source": "herdr:claude", "agent": "claude", "kind": "id", "value": "missing"]),
                 {
                     var a = World.agent("w2:p3", name: nil, status: status("w2:p3"), cwd: "/Users/dev/website", session: nil, title: "")
-                    a["agent"] = "codex"
+                    a["agent"] = "gemini"
                     return a
                 }(),
             ]
@@ -108,9 +109,11 @@ import Testing
                 #expect(agents[0].hasTranscript)
                 #expect(!agents[1].hasTranscript)
                 #expect(agents[1].status == .blocked)
-                #expect(agents[2].kind == "codex")
+                #expect(agents[2].kind == "gemini")
                 #expect(agents[2].name == nil)
-                #expect(agents[2].title == "codex")
+                #expect(agents[2].title == "gemini")
+                #expect(agents.map(\.transcriptState) == [.ready, .pending, .unsupported])
+                #expect(body.contains(#""transcriptState":"pending""#))
                 #expect(body.contains(#""name":null"#))
             }
         }
@@ -168,6 +171,18 @@ import Testing
                 #expect(page.messages[0].id == "screen:w2:p3")
                 #expect(page.messages[0].blocks == [.text("```\n$ codex\n> working in src\n```")])
             }
+        }
+    }
+
+    @Test func pendingTranscriptIsEmptyNotAScreenRead() async throws {
+        try await withApp { client, fake, _ in
+            try await client.execute(uri: "/agents/w1%3Ap2/messages", method: .get, headers: Self.auth) { r throws in
+                let page = try decode(MessagePage.self, r)
+                #expect(page.messages.isEmpty)
+                #expect(!page.hasMore)
+            }
+            // No screen read for a kind that will have a transcript.
+            #expect(fake.params(of: "agent.read")?.contains("recent") != true)
         }
     }
 

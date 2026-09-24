@@ -93,6 +93,7 @@ public final class AgentService: Sendable {
         agent.modelLabel = controls?.model.flatMap { driver(for: a)?.label(forModel: $0, service: self) }
         agent.permissionMode = controls?.permissionMode
         agent.effort = controls?.effort
+        agent.transcriptState = .of(kind: agent.kind, hasTranscript: ref != nil)
         agent.sessionId = a.agentSession.map { s in
             s.kind == "path" ? URL(fileURLWithPath: s.value).deletingPathExtension().lastPathComponent : s.value
         }
@@ -225,9 +226,14 @@ public final class AgentService: Sendable {
     public func messages(id: String, before: String?, limit: Int) async throws -> MessagePage {
         let snap = try await snapshot(id: id)
         let all: [Message]
-        if let ref = snap.transcript {
-            all = try transcriptMessages(ref)
-        } else {
+        switch snap.agent.transcriptState {
+        case .ready:
+            all = try snap.transcript.map(transcriptMessages) ?? []
+        case .pending:
+            // A new agent before its first message: its screen is a startup/trust screen, not chat.
+            // Dialogs there reach the app as status=blocked + /approval.
+            all = []
+        case .unsupported:
             all = try await screenMessages(snap.raw)
         }
         return try Self.page(all, before: before, limit: limit)
@@ -410,7 +416,10 @@ public final class AgentService: Sendable {
         }
         var created = try await agent(id: pane.paneId)
         // herdr may not have classified the new agent yet.
-        if created.kind == "unknown" { created.kind = kind }
+        if created.kind == "unknown" {
+            created.kind = kind
+            created.transcriptState = .of(kind: kind, hasTranscript: created.hasTranscript)
+        }
         return created
     }
 }

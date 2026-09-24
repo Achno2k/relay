@@ -30,6 +30,51 @@ public struct Agent: Codable, Sendable, Equatable {
     public var permissionMode: String? = nil
     public var effort: String? = nil
     public var sessionId: String? = nil
+    /// `ready`: a transcript was found. `pending`: this kind has a transcript but it doesn't exist yet
+    /// (a new agent before its first message). `unsupported`: no transcript parser for this kind;
+    /// messages are a screen read.
+    public var transcriptState: TranscriptState = .unsupported
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, kind, title, workspaceId, workspaceName, cwdName, status, hasTranscript, updatedAt
+        case model, modelLabel, permissionMode, effort, sessionId, transcriptState
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        kind = try c.decode(String.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        workspaceId = try c.decode(String.self, forKey: .workspaceId)
+        workspaceName = try c.decode(String.self, forKey: .workspaceName)
+        cwdName = try c.decode(String.self, forKey: .cwdName)
+        status = try c.decode(AgentStatus.self, forKey: .status)
+        hasTranscript = try c.decode(Bool.self, forKey: .hasTranscript)
+        updatedAt = try c.decode(String.self, forKey: .updatedAt)
+        model = try c.decodeIfPresent(String.self, forKey: .model)
+        modelLabel = try c.decodeIfPresent(String.self, forKey: .modelLabel)
+        permissionMode = try c.decodeIfPresent(String.self, forKey: .permissionMode)
+        effort = try c.decodeIfPresent(String.self, forKey: .effort)
+        sessionId = try c.decodeIfPresent(String.self, forKey: .sessionId)
+        // Older bridges don't send it: derive it the same way.
+        transcriptState = try c.decodeIfPresent(TranscriptState.self, forKey: .transcriptState)
+            ?? .of(kind: kind, hasTranscript: hasTranscript)
+    }
+
+    public init(id: String, name: String?, kind: String, title: String, workspaceId: String, workspaceName: String,
+                cwdName: String, status: AgentStatus, hasTranscript: Bool, updatedAt: String) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.title = title
+        self.workspaceId = workspaceId
+        self.workspaceName = workspaceName
+        self.cwdName = cwdName
+        self.status = status
+        self.hasTranscript = hasTranscript
+        self.updatedAt = updatedAt
+    }
 
     // Encode `name` as an explicit null so the app sees a stable shape.
     public func encode(to encoder: any Encoder) throws {
@@ -49,6 +94,18 @@ public struct Agent: Codable, Sendable, Equatable {
         try c.encode(permissionMode, forKey: .permissionMode)
         try c.encode(effort, forKey: .effort)
         try c.encode(sessionId, forKey: .sessionId)
+        try c.encode(transcriptState, forKey: .transcriptState)
+    }
+}
+
+public enum TranscriptState: String, Codable, Sendable {
+    case ready, pending, unsupported
+
+    /// Kinds whose transcripts the bridge can parse.
+    public static let parsedKinds: Set<String> = ["claude", "pi", "codex"]
+
+    public static func of(kind: String, hasTranscript: Bool) -> TranscriptState {
+        hasTranscript ? .ready : parsedKinds.contains(kind) ? .pending : .unsupported
     }
 }
 

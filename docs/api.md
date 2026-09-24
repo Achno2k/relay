@@ -28,7 +28,8 @@ Agent {
   "workspaceName": "forge",
   "cwdName": "forge",            // last path component only; full paths never cross the wire
   "status": "idle",              // idle | working | blocked | done | unknown
-  "hasTranscript": true,         // false => messages are a screen-read fallback
+  "hasTranscript": true,         // a transcript file was found
+  "transcriptState": "ready",    // ready | pending | unsupported (see below)
   "updatedAt": "2026-09-23T13:04:01+00:00",
   // Controls. Optional: null for non-claude agents or when unknown.
   "model": "claude-opus-5-5",    // full model id of the last assistant message
@@ -79,6 +80,12 @@ ApprovalOption {
   - Its `keys` are arrow moves from the menu cursor to that row (e.g. `["down","down"]`), not its number: pressing the number also types the digit into the field. If the cursor is already on it, `keys` is `["up","down"]`. `keys` is never empty.
   - Send `POST /keys` with those keys, then `POST /text` right away. No delay is needed between them.
 - Menu shapes: numbered menus give `["N"]` per option (a trailing "No … (esc)" gives `["esc"]`). Unnumbered cursor menus (Claude's folder-trust prompt: `❯ No, exit` / `Yes, I trust this folder`) give arrow moves relative to the `❯` line plus `"enter"`, e.g. `["down","enter"]`. The trust prompt's question is `Trust this folder? <cwdName>`.
+
+`Agent.transcriptState`:
+- `ready`: a transcript was found. `/messages` returns it.
+- `pending`: the kind has a transcript parser (claude, pi, codex), but the file doesn't exist yet, e.g. a new agent before its first message. `/messages` returns `{"messages":[],"hasMore":false}`. The startup screen is never shown as chat; a startup dialog (trust prompt etc.) arrives as `status: "blocked"` + `/approval`. The state becomes `ready`, and `agent.updated` fires, once the first message creates the transcript.
+- `unsupported`: no parser for this kind. `/messages` is one synthetic assistant message (`screen:<paneId>`) holding the last screen lines in a code block.
+- Bridges older than this field don't send it. Clients can treat a missing value as `hasTranscript ? ready : (claude/pi/codex ? pending : unsupported)`.
 
 Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced by ->/<sessionId>.jsonl`):
 - Keep only lines with `type` of `user` or `assistant` and `isSidechain == false`.
