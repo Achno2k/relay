@@ -1,0 +1,7 @@
+  The telegraph shaped terminals in three ways:
+  1. Line discipline
+  2. Carriage return and line feed
+  3. The bell character
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ /model sonnet

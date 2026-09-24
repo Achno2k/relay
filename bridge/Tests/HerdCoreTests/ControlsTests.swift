@@ -155,6 +155,8 @@ import Testing
         let d = try #require(AgentService.dialog(screen))
         #expect(d.question == "Switch model?")
         #expect(d.options.first == .init(label: "Yes, switch to Sonnet 5", keys: ["1"]))
+        // A numbered list in the output during a redraw (no input box) is not a dialog.
+        #expect(AgentService.dialog(try Fixture.text("redraw-with-list.txt")) == nil)
         // The normal input box is not a dialog.
         #expect(AgentService.dialog(try Fixture.text("input-empty.txt")) == nil)
     }

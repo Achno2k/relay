@@ -88,3 +88,7 @@ All three items are fixed and checked live on port 7979. `swift test` passes 60 
   - A fixture copied from the real dialog screen, plus fake-Claude tests for the Yes path and the refusal. 83 tests pass.
   - Live on 7878: 12 of 12 back-to-back controls, and the stop-then-switch sequence, all return 202.
   - The dialog itself didn't come up again in my live runs; it seems to need the cached conversation to sit for a while. So the Yes-press is only tested against the fixture copied from the real screen.
+- **Follow-up (reported by herd-ios):** a false refusal, 'Claude asked "⎿ Interrupted…"'.
+  - Cause: the dialog check accepted any numbered list on screen whenever the input box was briefly missing during a redraw, so a list in the agent's output looked like a dialog.
+  - Fix: a dialog now needs Claude's `❯` cursor on a numbered option in the last 8 non-empty lines, and only those lines are parsed.
+  - Tests: a fixture of a numbered list on screen during a redraw. Live: stream a numbered list, stop, switch model, three times; all returned 202.

@@ -163,10 +163,17 @@ extension AgentService {
         screen.components(separatedBy: "Kept model as ").count - 1
     }
 
-    /// A numbered menu that has replaced the input box (so it's current, not old output).
+    /// A live menu that has replaced the input box: its `❯` cursor sits on a numbered option among
+    /// the last few lines. Numbered lists in the conversation (or an old "⎿ Interrupted" line) never
+    /// have the cursor, and the screen can briefly lack an input box while it redraws.
     static func dialog(_ screen: String) -> Approval? {
         guard InputBox.content(screen) == nil else { return nil }
-        return ApprovalParser.parse(screen, agentId: "")
+        let tail = screen.components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .suffix(8)
+        guard tail.contains(where: { $0.wholeMatch(of: /❯\s*\d{1,2}\.\s+.+/) != nil }) else { return nil }
+        return ApprovalParser.parse(tail.joined(separator: "\n"), agentId: "")
     }
 
     // MARK: Permission mode
