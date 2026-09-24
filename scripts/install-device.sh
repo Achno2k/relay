@@ -5,11 +5,10 @@
 set -euo pipefail
 : "${TEAM:?set TEAM to your development team id}"
 cd "$(dirname "$0")/../ios"
-device=$(xcrun devicectl list devices 2>/dev/null | awk '/connected/ {print $3; exit}')
-[ -n "$device" ] || { echo "no connected iPhone" >&2; exit 1; }
 udid=$(xcodebuild -scheme Herd -showdestinations 2>/dev/null | sed -n 's/.*platform:iOS, arch:arm64, id:\([^,]*\),.*/\1/p' | head -1)
+[ -n "$udid" ] || { echo "no connected iPhone" >&2; exit 1; }
 xcodebuild -scheme Herd -configuration Debug -destination "id=$udid" -derivedDataPath build/device \
   -allowProvisioningUpdates DEVELOPMENT_TEAM="$TEAM" \
   CODE_SIGN_ENTITLEMENTS=Herd/Herd-FreeTeam.entitlements build -quiet
-xcrun devicectl device install app --device "$device" build/device/Build/Products/Debug-iphoneos/Herd.app
-echo "installed on $device"
+xcrun devicectl device install app --device "$udid" build/device/Build/Products/Debug-iphoneos/Herd.app
+echo "installed on $udid"
