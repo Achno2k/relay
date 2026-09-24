@@ -214,7 +214,7 @@ private struct ChatTranscript: View {
                     } label: {
                         Image(systemName: "arrow.down")
                             .font(.body.weight(.semibold))
-                            .frame(width: 40, height: 40)
+                            .frame(width: 44, height: 44)
                             .contentShape(.circle)
                     }
                     .buttonStyle(.plain)
@@ -282,9 +282,13 @@ private struct ChatTranscript: View {
                         .id(item.id)
                 }
                 if working, !(items.last?.isAssistantText ?? false), !lastIsLiveTools(items, working: working) {
-                    PulsingDot()
-                        .padding(.leading, 2)
-                        .transition(.opacity)
+                    if let live = store.liveReplyText[agent.id], !live.isEmpty {
+                        LiveReplyView(markdown: live)
+                    } else {
+                        PulsingDot()
+                            .padding(.leading, 2)
+                            .transition(.opacity)
+                    }
                 }
                 Color.clear
                     .frame(height: 1)

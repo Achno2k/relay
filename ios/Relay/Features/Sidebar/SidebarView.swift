@@ -228,7 +228,10 @@ struct SidebarView: View {
                                 searchFocused = false
                             }
                         } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Close search")
@@ -425,7 +428,7 @@ private struct ProjectRow: View {
                 Image(systemName: "square.and.pencil")
                     .font(.body)
                     .foregroundStyle(.secondary)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)

@@ -184,6 +184,8 @@ struct CodeBlockView: View {
                     Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
                         .font(.caption.weight(.medium))
                         .contentTransition(.symbolEffect(.replace))
+                        .padding(.vertical, 14)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)

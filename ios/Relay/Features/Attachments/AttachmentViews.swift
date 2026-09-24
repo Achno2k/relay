@@ -38,9 +38,12 @@ private struct TrayItem: View {
                         .foregroundStyle(.white)
                         .frame(width: 20, height: 20)
                         .background(.black.opacity(0.7), in: .circle)
+                        // Visual badge stays 20x20; the tap target grows to 44x44 around it.
+                        .padding(12)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .offset(x: 6, y: -6)
+                .offset(x: 18, y: -18)
                 .accessibilityLabel("Remove \(item.name)")
             }
             .accessibilityElement(children: .contain)

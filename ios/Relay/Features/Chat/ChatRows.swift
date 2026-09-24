@@ -99,6 +99,9 @@ private struct ToolStepRow: View {
     let isLive: Bool
     @State private var showPreview = false
 
+    /// Error previews always show; only a togglable preview needs a tap affordance.
+    private var isToggleable: Bool { !step.isError && !(step.preview ?? "").isEmpty }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 4) {
@@ -107,6 +110,7 @@ private struct ToolStepRow: View {
                     .frame(width: 28, height: 28)
                     .background(step.isError ? Color.red.opacity(0.12) : Color(.tertiarySystemFill), in: .circle)
                     .foregroundStyle(step.isError ? .red : .secondary)
+                    .accessibilityHidden(true)
                 if !isLast {
                     Rectangle().fill(.quaternary).frame(width: 1.5).frame(maxHeight: .infinity)
                 }
@@ -118,7 +122,7 @@ private struct ToolStepRow: View {
                         .foregroundStyle(step.isError ? .red : .primary)
                         .lineLimit(2)
                     if !step.finished && isLive {
-                        ProgressView().controlSize(.mini)
+                        ProgressView().controlSize(.mini).accessibilityHidden(true)
                     }
                 }
                 if showPreview || step.isError, let preview = step.preview, !preview.isEmpty {
@@ -135,7 +139,13 @@ private struct ToolStepRow: View {
             .padding(.bottom, isLast ? 0 : 14)
         }
         .contentShape(.rect)
-        .onTapGesture { withAnimation(.snappy) { showPreview.toggle() } }
+        .onTapGesture {
+            guard isToggleable else { return }
+            withAnimation(.snappy) { showPreview.toggle() }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isToggleable ? .isButton : [])
+        .accessibilityHint(isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : "")
     }
 }
 
