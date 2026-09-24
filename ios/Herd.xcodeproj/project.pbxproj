@@ -34,6 +34,7 @@
 		958B1C3763599A50F0BB19D2 /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6F7FA098C78EEB4F610FEAC /* DecodingTests.swift */; };
 		B0FC8A394429435E7D2B8ADC /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85407D9D408FC728F36ADAF6 /* SidebarView.swift */; };
 		B40B3FC224C768D1E62B91AF /* AttachmentProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06950464517AB61CD04724 /* AttachmentProcessing.swift */; };
+		BAFA509941A8DA5B6DD56BAD /* LiveKindControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE238B9B4E59D5563883278 /* LiveKindControlsTests.swift */; };
 		C178B944247134CEB88817D3 /* MockChats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C8F98B6778E0114E8BA759 /* MockChats.swift */; };
 		C9233D2BD8F712793694DD16 /* LiveE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652A587E672BD3EC89F43EAA /* LiveE2ETests.swift */; };
 		C95BAB2D7F552FA640F9D550 /* Round2UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD468D127558750AFC139D3F /* Round2UITests.swift */; };
@@ -108,6 +109,7 @@
 		F6F7FA098C78EEB4F610FEAC /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
 		FD468D127558750AFC139D3F /* Round2UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Round2UITests.swift; sourceTree = "<group>"; };
 		FE5BC1D5633827A689FD6DDD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		FFE238B9B4E59D5563883278 /* LiveKindControlsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveKindControlsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -186,6 +188,7 @@
 			isa = PBXGroup;
 			children = (
 				652A587E672BD3EC89F43EAA /* LiveE2ETests.swift */,
+				FFE238B9B4E59D5563883278 /* LiveKindControlsTests.swift */,
 				1E01281AC5F4F6B422AAE5BE /* MockUITests.swift */,
 				FD468D127558750AFC139D3F /* Round2UITests.swift */,
 				C026627EED42EAAA7956E37A /* Round3UITests.swift */,
@@ -525,6 +528,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C9233D2BD8F712793694DD16 /* LiveE2ETests.swift in Sources */,
+				BAFA509941A8DA5B6DD56BAD /* LiveKindControlsTests.swift in Sources */,
 				77A9AD80D74FC5877B5710BE /* MockUITests.swift in Sources */,
 				C95BAB2D7F552FA640F9D550 /* Round2UITests.swift in Sources */,
 				04F80C8E1B54C13ACE16969F /* Round3UITests.swift in Sources */,
