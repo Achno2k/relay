@@ -103,6 +103,9 @@ struct MainView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.refresh() } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            store.handleMemoryWarning()
+        }
     }
 
     private func openProgress(width: CGFloat) -> CGFloat {
@@ -154,9 +157,11 @@ private struct NewChatRequest: Identifiable {
     var workspaceId: String?
 }
 
-/// "Reconnecting…" pill while the socket is down, plus transient errors.
+/// "Reconnecting…" pill while the socket is down, a sticky re-pair prompt once the token is
+/// rejected, and transient errors otherwise.
 private struct ConnectionBanner: View {
     @Bindable var store: AppStore
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         VStack(spacing: 8) {
@@ -168,7 +173,20 @@ private struct ConnectionBanner: View {
                     .glassEffect(.regular, in: .capsule)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
-            if let error = store.errorMessage {
+            // Sticky, never auto-dismissed: unlike a transient failure, this doesn't clear itself on
+            // retry, so hiding it after a few seconds would leave the person staring at a chat that
+            // silently can't do anything until they re-pair.
+            if store.needsRePairing {
+                Button { model.unpair() } label: {
+                    Label("Token rejected. Tap to pair again.", systemImage: "key.slash")
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.tint(.orange.opacity(0.25)).interactive(), in: .capsule)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            } else if let error = store.errorMessage {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote.weight(.medium))
                     .lineLimit(2)
@@ -187,5 +205,6 @@ private struct ConnectionBanner: View {
         .padding(.horizontal, 20)
         .animation(.smooth, value: store.connection)
         .animation(.smooth, value: store.errorMessage)
+        .animation(.smooth, value: store.needsRePairing)
     }
 }

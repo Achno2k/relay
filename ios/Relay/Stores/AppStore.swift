@@ -39,8 +39,16 @@ final class AppStore {
 
     /// Prompts sent from the phone that haven't appeared in the transcript yet.
     private(set) var pending: [String: [Message]] = [:]
+    /// Ids (into `pending`) whose send failed. The bubble stays visible with an error state instead
+    /// of vanishing, so a failed send is never silently dropped; `retry`/`discardFailed` act on it.
+    private(set) var failedPending: Set<String> = []
+    /// When each agent's last `send()` went out, to catch a double tap sending the same text twice.
+    private var lastSendAt: [String: Date] = [:]
     /// First/last time this session saw each message grow over the socket; feeds "Worked for 42s".
     private(set) var liveSpans: [String: ClosedRange<Date>] = [:]
+    /// In-progress assistant text preview from `reply.live`, keyed by agent id; never persisted.
+    private(set) var liveReplyText: [String: String] = [:]
+    private var liveReplySeq: [String: Int] = [:]
     private var seen: [String: Date]
     /// Client-side archive (App Group defaults); it never closes the agent.
     private(set) var archived: Set<String>
@@ -49,11 +57,20 @@ final class AppStore {
     var filter: SessionFilter {
         didSet { AppDefaults.standard.set(filter.rawValue, forKey: "sessionFilter") }
     }
+    /// The bridge rejected the token (rotated on the Mac, or a stale pairing). Sticky until a request
+    /// succeeds again or the person re-pairs; never auto-dismissed like a transient error.
+    private(set) var needsRePairing = false
     /// Thumbnails and files already fetched, by attachment id.
     private var attachmentCache: [String: Data] = [:]
     var errorMessage: String?
 
     private var eventsTask: Task<Void, Never>?
+    /// Bumped every time a message load starts for an agent, so a reply from an earlier, slower
+    /// request (a rapid agent switch, or a reconnect racing an `open()`) can't overwrite a newer one.
+    private var messagesRequest: [String: Int] = [:]
+    /// Bumped every time a full resync starts, so an overlapping `refresh()` (foreground and a
+    /// reconnect can both trigger one at once) can't apply its agents/workspaces snapshot out of order.
+    private var refreshGeneration = 0
 
     init(backend: any Backend, hostLabel: String) {
         self.backend = backend
@@ -87,8 +104,13 @@ final class AppStore {
 
     var selectedAgent: Agent? { state.agent(selectedAgentId) }
 
+    /// SwiftUI reads this on every body evaluation. With no pending bubble (the steady state once a
+    /// send resolves) this returns the transcript array as is, no copy; `+` would otherwise reallocate
+    /// and copy the whole thing, which on a 5,000-message transcript is real main-thread work for
+    /// nothing.
     func messages(for agentId: String) -> [Message] {
-        (state.messages[agentId] ?? []) + (pending[agentId] ?? [])
+        guard let pending = pending[agentId], !pending.isEmpty else { return state.messages[agentId] ?? [] }
+        return (state.messages[agentId] ?? []) + pending
     }
 
     func isLoaded(_ agentId: String) -> Bool { state.messages[agentId] != nil }
@@ -144,8 +166,15 @@ final class AppStore {
             let start = min(liveSpans[message.id]?.lowerBound ?? message.createdAt, now)
             liveSpans[message.id] = start...now
             if message.role == .user { resolvePending(agentId: agentId, with: [message]) }
+        case .replyLive(let agentId, let text, let seq):
+            guard seq > (liveReplySeq[agentId] ?? 0) else { break }
+            liveReplySeq[agentId] = seq
+            liveReplyText[agentId] = text
         case .agentClosed(let id):
+            for message in pending[id] ?? [] { failedPending.remove(message.id) }
             pending[id] = nil
+            liveReplyText[id] = nil
+            liveReplySeq[id] = nil
             if id == selectedAgentId { selectedAgentId = firstAgentId() }
         case .agentUpdated(let agent) where agent.id == selectedAgentId:
             unarchiveIfBlocked([agent])
@@ -163,10 +192,13 @@ final class AppStore {
 
     /// Full resync: agents, workspaces, then the open chat.
     func refresh() async {
+        refreshGeneration += 1
+        let generation = refreshGeneration
         do {
             async let agents = backend.agents()
             async let workspaces = backend.workspaces()
             let (a, w) = try await (agents, workspaces)
+            guard refreshGeneration == generation else { return }  // a newer refresh already landed
             var s = state
             for agent in a { s.upsert(agent) }  // drops chats whose session changed
             s.agents = a
@@ -179,17 +211,30 @@ final class AppStore {
                 selectedAgentId = firstAgentId()
             }
             if connection == .connecting { connection = .connected }
+            needsRePairing = false
         } catch {
+            guard refreshGeneration == generation else { return }
             report(error)
         }
+        guard refreshGeneration == generation else { return }
         hasLoadedAgents = true
+        // Machine info doesn't depend on the selected agent, so fetch it alongside the open chat's
+        // controls/messages/approval instead of one round trip after another: on a slow Tailscale
+        // link that's the difference between the chat reappearing in ~1s after a long background
+        // and several seconds. (Claude's catalog stays ahead of `loadAgentControls`, which falls
+        // back to it for older bridges with no per-agent route.)
+        async let machineFetch: Machine? = try? await backend.machine()
         if controls == nil { controls = try? await backend.controls() }
-        if let id = selectedAgentId { await loadAgentControls(id) }
-        if let machine = try? await backend.machine() {
-            machines = [machine]
+        if let id = selectedAgentId {
+            async let controlsLoad: Void = loadAgentControls(id)
+            async let messagesLoad: Void = loadMessages(id)
+            async let approvalLoad: Void = refreshApproval()
+            _ = await (controlsLoad, messagesLoad, approvalLoad)
+        } else {
+            await refreshApproval()
         }
-        if let id = selectedAgentId { await loadMessages(id) }
-        await refreshApproval()
+        guard refreshGeneration == generation else { return }
+        if let machine = await machineFetch { machines = [machine] }
     }
 
     private func firstAgentId() -> String? {
@@ -211,11 +256,15 @@ final class AppStore {
     }
 
     func loadMessages(_ agentId: String) async {
+        messagesRequest[agentId, default: 0] += 1
+        let generation = messagesRequest[agentId]
         do {
             let page = try await backend.messages(agentId: agentId, before: nil, limit: 50)
+            guard messagesRequest[agentId] == generation else { return }  // superseded by a newer load
             state.setPage(page, agentId: agentId)
             resolvePending(agentId: agentId, with: page.messages)
         } catch {
+            guard messagesRequest[agentId] == generation else { return }
             report(error)
         }
     }
@@ -236,15 +285,47 @@ final class AppStore {
         var blocks = attachments.map { Block.attachment($0.ref) }
         if !trimmed.isEmpty { blocks.append(.text(trimmed)) }
         let local = Message(id: "local-\(UUID().uuidString)", role: .user, createdAt: Date(), blocks: blocks)
+        // A double tap on send (or a stuck composer) can re-fire with the same text while the first
+        // send is still in flight; a matching, still-live pending bubble from the last couple of
+        // seconds means this is that duplicate, not a genuine repeat message.
+        if let lastAt = lastSendAt[agentId], Date().timeIntervalSince(lastAt) < 2,
+           let last = pending[agentId]?.last, !failedPending.contains(last.id), Self.pendingKey(last) == Self.pendingKey(local) {
+            return
+        }
+        lastSendAt[agentId] = Date()
         pending[agentId, default: []].append(local)
         Task {
             do {
                 try await backend.prompt(agentId: agentId, text: trimmed, attachments: attachments.map(\.id))
             } catch {
-                pending[agentId]?.removeAll { $0.id == local.id }
+                // Keep the bubble and flag it, so a failed send is visible and retryable rather than
+                // silently vanishing from the transcript (only the transient error banner would remain).
+                failedPending.insert(local.id)
                 report(error)
             }
         }
+    }
+
+    /// Resends a bubble that failed; e.g. a send attempted while reconnecting.
+    func retry(_ messageId: String, to agentId: String) {
+        guard let message = pending[agentId]?.first(where: { $0.id == messageId }) else { return }
+        failedPending.remove(messageId)
+        Task {
+            do {
+                try await backend.prompt(agentId: agentId, text: message.plainText, attachments: message.attachments.map(\.id))
+            } catch {
+                failedPending.insert(messageId)
+                report(error)
+            }
+        }
+    }
+
+    /// Discards a failed bubble instead of retrying it.
+    func discardFailed(_ messageId: String, from agentId: String) {
+        if let remaining = pending[agentId]?.filter({ $0.id != messageId }) {
+            pending[agentId] = remaining.isEmpty ? nil : remaining
+        }
+        failedPending.remove(messageId)
     }
 
     /// Attachment bytes for thumbnails, full-screen images and QuickLook; cached for the session.
@@ -259,6 +340,16 @@ final class AppStore {
     /// Uploaded bytes are known locally already; seeding the cache avoids a round trip for our own thumbnails.
     func cacheAttachment(_ id: String, data: Data) {
         attachmentCache[id] = data
+    }
+
+    /// System memory pressure: drop everything that isn't needed to keep the open chat on screen.
+    /// Nothing is lost — `open(_:)` always reloads a chat's messages, so a background agent's
+    /// transcript is just refetched if it's opened again.
+    func handleMemoryWarning() {
+        attachmentCache.removeAll()
+        let keep = selectedAgentId
+        state.messages = state.messages.filter { $0.key == keep }
+        state.hasMore = state.hasMore.filter { $0.key == keep }
     }
 
     func interrupt(_ agentId: String) {
@@ -419,8 +510,10 @@ final class AppStore {
         guard var list = pending[agentId], !list.isEmpty else { return }
         // Stop markers are Claude's, not the user's prompt; never let one resolve a pending prompt.
         let keys = Set(messages.filter { $0.role == .user && !$0.isInterruptionMarker }.map(Self.pendingKey))
+        let resolved = list.filter { keys.contains(Self.pendingKey($0)) }
         list.removeAll { keys.contains(Self.pendingKey($0)) }
         pending[agentId] = list.isEmpty ? nil : list
+        for message in resolved { failedPending.remove(message.id) }
     }
 
     /// Stopgap for agents without a transcript (`unsupported`, screen-read fallback): nothing will ever echo a prompt
@@ -428,9 +521,10 @@ final class AppStore {
     private func dropPendingIfFinished(_ agent: Agent, previous: AgentStatus?) {
         guard agent.transcript == .unsupported, previous == .working,
               agent.status == .idle || agent.status == .done,
-              pending[agent.id] != nil
+              let dropped = pending[agent.id]
         else { return }
         pending[agent.id] = nil
+        for message in dropped { failedPending.remove(message.id) }
     }
 
     /// Same text and same attachment ids: the transcript copy of a prompt sent from the phone.
@@ -446,6 +540,11 @@ final class AppStore {
     private func report(_ error: any Error, prefix: String? = nil) {
         if error is CancellationError { return }
         if let url = error as? URLError, url.code == .cancelled { return }
-        errorMessage = prefix.map { "\($0): \(error.localizedDescription)" } ?? error.localizedDescription
+        // Only RelayError's curated copy (and the bridge's own `message`, api.md) ever reaches the UI:
+        // anything else (a decode failure that slipped past RelayKit, etc.) gets a generic message
+        // instead of raw Swift/Foundation error text.
+        let text = (error as? RelayError)?.errorDescription ?? "Something went wrong. Try again."
+        errorMessage = prefix.map { "\($0): \(text)" } ?? text
+        if case .unauthorized = error as? RelayError { needsRePairing = true }
     }
 }

@@ -5,6 +5,9 @@ public enum RelayError: LocalizedError, Equatable, Sendable {
     case http(status: Int, code: String?, message: String?)
     case badResponse
     case invalidPairingLink
+    /// The request never reached the bridge (offline, host unreachable, timed out). Never the raw
+    /// `URLError` text: its wording varies by OS version and can look like debug output.
+    case unreachable(timedOut: Bool)
 
     public var errorDescription: String? {
         switch self {
@@ -12,6 +15,10 @@ public enum RelayError: LocalizedError, Equatable, Sendable {
         case .http(let status, _, let message): message ?? "The bridge returned HTTP \(status)."
         case .badResponse: "The bridge sent something unexpected."
         case .invalidPairingLink: "That isn't a Relay pairing code."
+        case .unreachable(let timedOut):
+            timedOut
+                ? "The bridge didn't respond in time. Check that it's running and reachable."
+                : "Can't reach the bridge. Check your connection and that it's running."
         }
     }
 }
@@ -67,8 +74,14 @@ public struct APIClient: Sendable {
             filename.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? "file",
             forHTTPHeaderField: "X-Filename"
         )
-        let (body, response) = try await session.upload(for: request, from: data, delegate: UploadProgress(progress))
-        return try RelayJSON.decoder().decode(Attachment.self, from: try check(body, response).0)
+        let body: Data
+        let response: URLResponse
+        do {
+            (body, response) = try await session.upload(for: request, from: data, delegate: UploadProgress(progress))
+        } catch let error as URLError {
+            throw RelayError.unreachable(timedOut: error.code == .timedOut)
+        }
+        return try decode(Attachment.self, from: try check(body, response).0)
     }
 
     public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
@@ -89,7 +102,7 @@ public struct APIClient: Sendable {
     public func approval(agentId: String) async throws -> Approval? {
         let (data, status) = try await raw("GET", "/agents/\(Self.encode(agentId))/approval")
         if status == 204 || data.isEmpty { return nil }
-        return try RelayJSON.decoder().decode(Approval.self, from: data)
+        return try decode(Approval.self, from: data)
     }
 
     public func controls() async throws -> ControlsCatalog { try await send("GET", "/controls") }
@@ -107,7 +120,7 @@ public struct APIClient: Sendable {
             "POST", "/agents/\(Self.encode(agentId))/control",
             body: try RelayJSON.encoder().encode(request), timeout: request.timeout
         )
-        return try RelayJSON.decoder().decode(Agent.self, from: data)
+        return try decode(Agent.self, from: data)
     }
 
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
@@ -131,16 +144,28 @@ public struct APIClient: Sendable {
 
     private func send<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = []) async throws -> T {
         let (data, _) = try await raw(method, path, query: query, body: nil)
-        return try RelayJSON.decoder().decode(T.self, from: data)
+        return try decode(T.self, from: data)
     }
 
     private func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, body: B) async throws -> T {
         let (data, _) = try await raw(method, path, body: try RelayJSON.encoder().encode(body))
-        return try RelayJSON.decoder().decode(T.self, from: data)
+        return try decode(T.self, from: data)
     }
 
     private func sendIgnoringBody<B: Encodable>(_ method: String, _ path: String, body: B) async throws {
         _ = try await raw(method, path, body: try RelayJSON.encoder().encode(body))
+    }
+
+    /// Wraps `DecodingError` (and anything else a decoder can throw) so a malformed or unexpected
+    /// response never surfaces Swift's internal error text to the user; see `RelayError.badResponse`.
+    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        do {
+            return try RelayJSON.decoder().decode(type, from: data)
+        } catch let error as RelayError {
+            throw error
+        } catch {
+            throw RelayError.badResponse
+        }
     }
 
     private func raw(
@@ -154,7 +179,13 @@ public struct APIClient: Sendable {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        let (data, response) = try await session.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError {
+            throw RelayError.unreachable(timedOut: error.code == .timedOut)
+        }
         return try check(data, response)
     }
 

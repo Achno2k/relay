@@ -487,10 +487,13 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
     case agentCreated(Agent)
     case agentClosed(agentId: String)
     case messageUpserted(agentId: String, message: Message)
+    /// In-progress assistant text preview while an agent is working; `text: nil` clears it. See
+    /// api.md "Live reply".
+    case replyLive(agentId: String, text: String?, seq: Int)
     case unknown(type: String)
 
     private enum CodingKeys: String, CodingKey {
-        case type, agent, agentId, message
+        case type, agent, agentId, message, text, seq
     }
 
     public init(from decoder: any Decoder) throws {
@@ -505,6 +508,12 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
             self = .messageUpserted(
                 agentId: try c.decode(String.self, forKey: .agentId),
                 message: try c.decode(Message.self, forKey: .message)
+            )
+        case "reply.live":
+            self = .replyLive(
+                agentId: try c.decode(String.self, forKey: .agentId),
+                text: try c.decodeIfPresent(String.self, forKey: .text),
+                seq: try c.decode(Int.self, forKey: .seq)
             )
         default: self = .unknown(type: type)
         }

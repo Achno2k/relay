@@ -89,14 +89,16 @@ final class AppModel {
             store?.stop()
             store = Self.makeStore(pairing)
         } catch {
-            pairingError = error.localizedDescription
+            // Only RelayError's curated copy ever reaches the pairing screen; anything else
+            // (a decode failure, etc.) is already normalized to RelayError by APIClient.
+            pairingError = (error as? RelayError)?.errorDescription ?? RelayError.badResponse.errorDescription
         }
     }
 
     func handle(url: URL) {
         guard let scheme = url.scheme?.lowercased(), Pairing.schemes.contains(scheme) else { return }
         guard let pairing = Pairing(link: url) else {
-            pairingError = RelayError.invalidPairingLink.localizedDescription
+            pairingError = RelayError.invalidPairingLink.errorDescription
             return
         }
         Task { await pair(pairing) }

@@ -17,7 +17,7 @@ struct RelayState: Equatable, Sendable {
 
     mutating func apply(_ event: ServerEvent) {
         switch event {
-        case .hello, .unknown:
+        case .hello, .unknown, .replyLive:
             break
         case .agentUpdated(let agent), .agentCreated(let agent):
             upsert(agent)
@@ -50,15 +50,20 @@ struct RelayState: Equatable, Sendable {
 
     /// Replaces a message with the same id (the last assistant message grows while working),
     /// otherwise inserts it in `createdAt` order.
+    ///
+    /// Mutates through the dictionary's own subscript (`messages[agentId]!...`) rather than
+    /// `var list = messages[agentId]!; ...; messages[agentId] = list`: the latter holds two live
+    /// references to the array (the dictionary's and `list`'s) across the mutation, forcing a full
+    /// copy-on-write of the whole transcript on every delta. On a long-running turn in a large
+    /// transcript that ran on every streamed token; this keeps growth O(1) amortized instead of O(n).
     mutating func upsert(_ message: Message, agentId: String) {
-        guard var list = messages[agentId] else { return }
-        if let i = list.firstIndex(where: { $0.id == message.id }) {
-            list[i] = message
+        guard messages[agentId] != nil else { return }
+        if let i = messages[agentId]!.firstIndex(where: { $0.id == message.id }) {
+            messages[agentId]![i] = message
         } else {
-            let i = list.lastIndex { $0.createdAt <= message.createdAt }.map { $0 + 1 } ?? 0
-            list.insert(message, at: i)
+            let i = messages[agentId]!.lastIndex { $0.createdAt <= message.createdAt }.map { $0 + 1 } ?? 0
+            messages[agentId]!.insert(message, at: i)
         }
-        messages[agentId] = list
     }
 
     mutating func setPage(_ page: MessagePage, agentId: String) {
