@@ -79,7 +79,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 - Keep only lines with `type` of `user` or `assistant` and `isSidechain == false`.
 - Consecutive assistant lines (one line per content block) merge into one assistant Message.
 - A `user` line whose content is only `tool_result` attaches to the preceding assistant Message as a `toolResult` block. It is not a user bubble.
-- User string content that starts with `<command-`, `<local-command`, or `<system-reminder` is dropped. So is `isMeta: true`.
+- User string content that starts with `<command-`, `<local-command`, or `<system-reminder` is dropped. So are `isMeta: true` and `isCompactSummary: true` (the summary `/compact` injects).
 - Absolute paths in `summary`, `input`, and `preview` are made cwd-relative. Anything else absolute keeps only its last component.
 - pi: `agent_session.kind == "path"`. Parse that JSONL with the same Message model (best effort).
 
@@ -126,6 +126,10 @@ Controls {
     - `501 not_implemented`: this Claude version has no reliable way to set that control.
     - `504 control_timeout`: sent, but the change never showed up.
 - Every change to `model`, `modelLabel`, `permissionMode`, `effort` or `sessionId` also emits `agent.updated`.
+- Scope:
+  - A switch applies to that agent's session only. Claude's `/model` and `/effort` also save the choice as the default for new sessions, but the bridge puts `~/.claude/settings.json` back afterwards.
+  - Claude calls the default mode "manual" in its footer; the API calls it `default`.
+  - Claude Code 2.1.280 cycles auto → default → acceptEdits → plan. `bypassPermissions` is only in the cycle when Claude was started with it.
 
 ## WebSocket `/ws?token=...`
 Server → client only, one JSON object per frame:

@@ -3,6 +3,7 @@ import Hummingbird
 import HummingbirdWebSocket
 import Logging
 import ServiceLifecycle
+import Synchronization
 
 /// Wires herdr, the monitor and one HTTP server per bind address.
 public struct HerdApp: Sendable {
@@ -26,9 +27,14 @@ public struct HerdApp: Sendable {
         }()
         let port = self.port
         let herdr = HerdrClient(socketPath: socketPath)
-        let service = AgentService(herdr: herdr, locator: TranscriptLocator())
+        let monitorRef = Mutex<AgentMonitor?>(nil)
+        let service = AgentService(herdr: herdr, locator: TranscriptLocator(), onChange: {
+            guard let m = monitorRef.withLock({ $0 }) else { return }
+            Task { await m.trigger() }
+        })
         let hub = EventHub()
         let monitor = AgentMonitor(service: service, hub: hub, stream: HerdrEventStream(socketPath: socketPath))
+        monitorRef.withLock { $0 = monitor }
         let router = HerdRoutes.router(service: service, hub: hub, token: token)
 
         var services: [any Service] = [monitor]

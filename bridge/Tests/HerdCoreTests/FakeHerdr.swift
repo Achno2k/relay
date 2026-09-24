@@ -67,7 +67,7 @@ final class FakeHerdr: Sendable {
                 guard let req = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
                       let method = req["method"] as? String else { continue }
                 let params = req["params"] as? [String: Any] ?? [:]
-                let pjson = (try? JSONSerialization.data(withJSONObject: params, options: .sortedKeys)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+                let pjson = (try? JSONSerialization.data(withJSONObject: params, options: [.sortedKeys, .withoutEscapingSlashes])).map { String(decoding: $0, as: UTF8.self) } ?? ""
                 calls.withLock { $0.append((method, pjson)) }
                 let out = handler(method, params)
                 var resp: [String: Any] = ["id": req["id"] ?? ""]

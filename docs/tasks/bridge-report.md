@@ -50,3 +50,27 @@ All three items are fixed and checked live on port 7979. `swift test` passes 60 
 
 **Free text, agreed with herd-ios through api.md.** The bridge sets `freeText: true` on "Type something.". Its keys are arrow moves from the cursor, not the row number. Pressing the number typed a stray digit: the answer was recorded as "3Carrier pigeon". `POST /agents/:id/text` sends the text with `pane.send_text`, waits 150 ms, then presses Enter.
 - Live: `/keys ["down","down"]` then `/text "Green tea, please"`. The file Claude wrote contains exactly "Green tea, please".
+
+## Controls
+
+`GET /controls` and `POST /agents/:id/control` are live. `Agent` now carries `model`, `modelLabel`, `permissionMode`, `effort` and `sessionId`. `swift test` passes 80 tests with 0 warnings.
+
+**Where the values come from**
+- **model / effort:** the last 1 MB of the transcript, from assistant `message.model` / `effort` and from Claude's own `Set model to …` / `Set effort level to …` output. Right after `/clear`, when the new transcript is still empty, they come from the session banner ("Sonnet 5 with medium effort"). If neither is available, the last known value is used.
+- **permissionMode:** Claude's footer ("⏸ plan mode on"). The transcript's `permission-mode` lines lag: one said `auto` while the footer showed plan.
+
+**How each control works** (all run live on w14:p2)
+- **Model** (`opus`, `sonnet`, `haiku`, `fable`): sends `/model <alias>` through herdr `agent.prompt`, into an empty input box. It's confirmed when "Set model to <label>" shows up in the transcript or on screen. Takes 0.7–2.3 s. No picker opened for a model name.
+- **Effort** (`low` … `max`): `/effort <level>`, confirmed the same way. Takes about 0.7–1 s.
+- **Mode:** Shift+Tab, herdr key `shift+tab`, one press per call: two presses in one call only moved one step. The bridge reads the footer after each press and stops at the target. It returns `400 unsupported` after one full cycle and ends back where it started. On this Claude the cycle is auto → manual (`default`) → acceptEdits → plan, so `bypassPermissions` returns 400. Takes 0.2–0.5 s.
+- **/compact:** confirmed by a `compact_boundary` transcript line or "Compacted" on screen. Took 10–22 s live; the bridge waits up to 120 s.
+- **/clear:** confirmed when herdr reports a new `agent_session` id. This took 0.7 s in one run and over 10 s in another, so the wait is 30 s. The locator and tailer follow the new file, and messages come back empty for the new session.
+- A plan-mode agent that finishes a plan sits at "ready to execute?" (`blocked`). Controls return `409 agent_blocked` until it's answered.
+- Stress run: 3 rounds of opus → high → sonnet → medium → plan → auto, back to back, gave 18 of 18 × 202 and left `settings.json` byte-identical.
+
+**Things I had to work around**
+- **Saved defaults.** Claude's `/model` and `/effort` save the choice as the default for new sessions in `~/.claude/settings.json` (top-level `model`, and `modelSettings.<model>.effortLevel`). The bridge snapshots the file before the command and writes the exact bytes back afterwards, in place so it keeps its 0600 permissions. The running session keeps its new model; I checked that the next reply was on the new model.
+- **Your settings.** My first manual tests, before the guard existed, set `"model": "sonnet"` and added `modelSettings.claude-sonnet-5.effortLevel: "low"`. I reverted both by hand, with `"model"` set to `"opus"`. I don't know what the value was before, so check it's what you want.
+- **Lost Enter.** Right after a `/model`, Claude sometimes drops the Enter while it re-renders, and the command sits in the input box. Typing the text with `pane.send_text` and then pressing Enter lost commands this way. So the bridge now uses `agent.prompt`, checks the last `❯` line, and presses Enter again if the command is still there.
+- **Late transcript writes.** Claude sometimes writes `/model` output to the transcript a few seconds after the screen shows it. A confirmed value is held for up to 15 s so the response and `agent.updated` don't show the old value.
+- **Transcript parser.** It now drops `isCompactSummary` lines, the summary `/compact` injects as a user message. The plain `/compact` line still shows as a user message.

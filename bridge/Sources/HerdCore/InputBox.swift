@@ -23,6 +23,13 @@ public enum InputBox {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Text on the last `❯` line of the screen: the input line, even while an autocomplete list
+    /// covers the footer. Empty when the input is empty.
+    public static func lastPromptLine(_ screen: String) -> String? {
+        guard let line = screen.components(separatedBy: "\n").last(where: { $0.hasPrefix("❯") }) else { return nil }
+        return line.dropFirst().trimmingCharacters(in: .whitespaces)
+    }
+
     /// Enough `ctrl+u` presses to empty `text`: one per line plus one per line break.
     public static func clearKeys(for text: String) -> [String] {
         let lines = text.components(separatedBy: "\n").count

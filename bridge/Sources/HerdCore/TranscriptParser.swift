@@ -56,6 +56,8 @@ public struct TranscriptParser: Sendable {
     private mutating func consumeClaude(_ o: [String: Any]) -> Message? {
         guard let type = o["type"] as? String, type == "user" || type == "assistant" else { return nil }
         if (o["isSidechain"] as? Bool) == true || (o["isMeta"] as? Bool) == true { return nil }
+        // `/compact` injects the whole summary as a user message.
+        if (o["isCompactSummary"] as? Bool) == true { return nil }
         guard let message = o["message"] as? [String: Any] else { return nil }
         let id = (o["uuid"] as? String) ?? UUID().uuidString
         let createdAt = Timestamps.normalize(o["timestamp"]) ?? Timestamps.format(.now)

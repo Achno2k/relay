@@ -7,6 +7,13 @@ public final class AgentService: Sendable {
     public let locator: TranscriptLocator
     private let seen = Mutex<[String: (seq: UInt64, changed: Date?, first: Date)]>([:])
     private let cache = Mutex<[URL: CachedTranscript]>([:])
+    private let controlCache = Mutex<[URL: (size: UInt64, mtime: Date, state: ControlState)]>([:])
+    private let lastControls = Mutex<[String: ControlState]>([:])
+    /// Values a control just confirmed on screen, held until the transcript catches up.
+    private let confirmed = Mutex<[String: (state: ControlState, until: Date)]>([:])
+    let settings: SettingsGuard
+    /// Called after a control changed something, so the monitor can push `agent.updated` right away.
+    let onChange: @Sendable () -> Void
 
     private struct CachedTranscript {
         var size: UInt64
@@ -15,9 +22,11 @@ public final class AgentService: Sendable {
         var used: Date
     }
 
-    public init(herdr: HerdrClient, locator: TranscriptLocator) {
+    public init(herdr: HerdrClient, locator: TranscriptLocator, settings: SettingsGuard = SettingsGuard(), onChange: @escaping @Sendable () -> Void = {}) {
         self.herdr = herdr
         self.locator = locator
+        self.settings = settings
+        self.onChange = onChange
     }
 
     // MARK: Agents
@@ -32,7 +41,15 @@ public final class AgentService: Sendable {
         async let agents = herdr.agents()
         async let workspaces = herdr.workspaces()
         let names = Dictionary(try await workspaces.map { ($0.workspaceId, $0.label) }, uniquingKeysWith: { a, _ in a })
-        return try await agents.map { snapshot($0, workspaceName: names[$0.workspaceId]) }
+        let raw = try await agents
+        return await withTaskGroup(of: (Int, Snapshot).self) { group in
+            for (i, a) in raw.enumerated() {
+                group.addTask { (i, await self.snapshot(a, workspaceName: names[a.workspaceId])) }
+            }
+            var out = [Snapshot?](repeating: nil, count: raw.count)
+            for await (i, s) in group { out[i] = s }
+            return out.compactMap { $0 }
+        }
     }
 
     public func agents() async throws -> [Agent] {
@@ -44,17 +61,18 @@ public final class AgentService: Sendable {
         async let workspaces = herdr.workspaces()
         let a = try await raw
         let name = try await workspaces.first { $0.workspaceId == a.workspaceId }?.label
-        return snapshot(a, workspaceName: name)
+        return await snapshot(a, workspaceName: name)
     }
 
     public func agent(id: String) async throws -> Agent {
         try await snapshot(id: id).agent
     }
 
-    func snapshot(_ a: HerdrAgent, workspaceName: String?) -> Snapshot {
+    func snapshot(_ a: HerdrAgent, workspaceName: String?) async -> Snapshot {
         let ref = locator.locate(a)
         let mtime = ref.flatMap { try? $0.url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
-        let agent = Agent(
+        let controls = await controls(a, ref: ref)
+        var agent = Agent(
             id: a.paneId,
             name: a.name,
             kind: a.agent ?? a.agentSession?.agent ?? "unknown",
@@ -65,7 +83,76 @@ public final class AgentService: Sendable {
             status: a.agentStatus,
             hasTranscript: ref != nil,
             updatedAt: Timestamps.format(updatedAt(a, transcriptModified: mtime)))
+        agent.model = controls?.model
+        agent.modelLabel = controls?.model.flatMap(ClaudeControls.label(forModel:))
+        agent.permissionMode = controls?.permissionMode
+        agent.effort = controls?.effort
+        agent.sessionId = a.agentSession.map { s in
+            s.kind == "path" ? URL(fileURLWithPath: s.value).deletingPathExtension().lastPathComponent : s.value
+        }
         return Snapshot(agent: agent, raw: a, transcript: ref)
+    }
+
+    static func isClaude(_ a: HerdrAgent) -> Bool {
+        (a.agent ?? a.agentSession?.agent) == "claude"
+    }
+
+    /// Transcript tail for model/effort, the footer for the permission mode (the transcript's
+    /// `permission-mode` lines lag). Gaps are filled from the last known values, e.g. right after
+    /// `/clear` when the new transcript has no assistant message yet.
+    func controls(_ a: HerdrAgent, ref: TranscriptRef?) async -> ControlState? {
+        guard Self.isClaude(a) else { return nil }
+        var s = ref.map(transcriptControls) ?? ControlState()
+        if let screen = try? await herdr.read(a.paneId, source: .detection).text {
+            if let mode = ClaudeControls.footerMode(screen) { s.permissionMode = mode }
+            s = s.merged(over: ClaudeControls.banner(screen))
+        }
+        if let held = confirmed.withLock({ c -> ControlState? in
+            guard let e = c[a.paneId] else { return nil }
+            if e.until < Date() {
+                c.removeValue(forKey: a.paneId)
+                return nil
+            }
+            return e.state
+        }) {
+            s.model = held.model ?? s.model
+            s.effort = held.effort ?? s.effort
+        }
+        return lastControls.withLock { last in
+            let merged = s.merged(over: last[a.paneId])
+            last[a.paneId] = merged
+            return merged
+        }
+    }
+
+    /// Claude sometimes writes `/model` and `/effort` output to the transcript seconds late.
+    func holdConfirmed(_ paneId: String, _ state: ControlState) {
+        confirmed.withLock { c in
+            var merged = state
+            if let e = c[paneId], e.until > Date() { merged = state.merged(over: e.state) }
+            c[paneId] = (merged, Date().addingTimeInterval(15))
+        }
+    }
+
+    func dropConfirmed(_ paneId: String) {
+        confirmed.withLock { _ = $0.removeValue(forKey: paneId) }
+    }
+
+    static let controlTailBytes: UInt64 = 1 << 20
+
+    func transcriptControls(_ ref: TranscriptRef) -> ControlState {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: ref.url.path) else { return ControlState() }
+        let size = (attrs[.size] as? NSNumber)?.uint64Value ?? 0
+        let mtime = (attrs[.modificationDate] as? Date) ?? .distantPast
+        if let hit = controlCache.withLock({ $0[ref.url] }), hit.size == size, hit.mtime == mtime { return hit.state }
+        guard let h = try? FileHandle(forReadingFrom: ref.url) else { return ControlState() }
+        defer { try? h.close() }
+        let start = size > Self.controlTailBytes ? size - Self.controlTailBytes : 0
+        try? h.seek(toOffset: start)
+        let data = (try? h.readToEnd()) ?? Data()
+        let state = ClaudeControls.scan(data)
+        controlCache.withLock { $0[ref.url] = (size, mtime, state) }
+        return state
     }
 
     private func title(_ a: HerdrAgent) -> String {

@@ -25,6 +25,11 @@ public struct Agent: Codable, Sendable, Equatable {
     public var status: AgentStatus
     public var hasTranscript: Bool
     public var updatedAt: String
+    public var model: String? = nil
+    public var modelLabel: String? = nil
+    public var permissionMode: String? = nil
+    public var effort: String? = nil
+    public var sessionId: String? = nil
 
     // Encode `name` as an explicit null so the app sees a stable shape.
     public func encode(to encoder: any Encoder) throws {
@@ -39,6 +44,11 @@ public struct Agent: Codable, Sendable, Equatable {
         try c.encode(status, forKey: .status)
         try c.encode(hasTranscript, forKey: .hasTranscript)
         try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encode(model, forKey: .model)
+        try c.encode(modelLabel, forKey: .modelLabel)
+        try c.encode(permissionMode, forKey: .permissionMode)
+        try c.encode(effort, forKey: .effort)
+        try c.encode(sessionId, forKey: .sessionId)
     }
 }
 

@@ -63,6 +63,25 @@ public enum HerdRoutes {
     struct PromptBody: Decodable { var text: String }
     struct KeysBody: Decodable { var keys: [String] }
     struct TextBody: Decodable { var text: String; var submit: Bool? }
+    struct ControlBody: Decodable {
+        var model: String?
+        var permissionMode: String?
+        var effort: String?
+        var command: String?
+
+        func request() throws -> ControlRequest {
+            let set = [model, permissionMode, effort, command].compactMap { $0 }
+            guard set.count == 1 else { throw APIError.badRequest("send exactly one of model, permissionMode, effort, command") }
+            if let model { return .model(model) }
+            if let permissionMode { return .permissionMode(permissionMode) }
+            if let effort { return .effort(effort) }
+            switch command {
+            case "compact": return .compact
+            case "clear": return .clear
+            default: throw APIError.badRequest("command must be compact or clear")
+            }
+        }
+    }
     struct CreateBody: Decodable {
         var workspaceId: String
         var kind: String
@@ -123,6 +142,14 @@ public enum HerdRoutes {
             guard !body.text.isEmpty else { throw APIError.badRequest("text is required") }
             try await service.text(id: try agentId(context), text: body.text, submit: body.submit ?? true)
             return try JSONResponse.make(Empty(), status: .accepted)
+        }
+
+        router.get("/controls") { _, _ in try JSONResponse.make(ClaudeControls.catalog) }
+
+        router.post("/agents/:id/control") { request, context in
+            let body = try await decode(ControlBody.self, request, context)
+            let agent = try await service.control(id: try agentId(context), try body.request())
+            return try JSONResponse.make(agent, status: .accepted)
         }
 
         router.get("/agents/:id/approval") { _, context in
