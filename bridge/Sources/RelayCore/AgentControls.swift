@@ -19,7 +19,7 @@ extension AgentService {
 
     public func control(id: String, _ request: ControlRequest) async throws -> Agent {
         var a = try await herdr.agent(id)
-        let kind = a.agent ?? a.agentSession?.agent ?? "unknown"
+        let kind = kind(of: a) ?? "unknown"
         guard let driver = driver(for: a) else {
             throw APIError(.badRequest, "unsupported", "controls aren't available for \(kind) agents")
         }
@@ -71,7 +71,7 @@ extension AgentService {
     }
 
     func driver(for a: HerdrAgent) -> (any ControlDriver)? {
-        switch a.agent ?? a.agentSession?.agent {
+        switch kind(of: a) {
         case "claude": ClaudeDriver()
         case "pi": PiDriver()
         case "codex": CodexDriver()

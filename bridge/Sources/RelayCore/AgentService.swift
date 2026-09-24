@@ -9,6 +9,8 @@ public final class AgentService: Sendable {
     private let cache = Mutex<[URL: CachedTranscript]>([:])
     private let controlCache = Mutex<[URL: (size: UInt64, mtime: Date, state: ControlState)]>([:])
     private let lastControls = Mutex<[String: ControlState]>([:])
+    /// Kinds from `POST /agents`, for the second or two before herdr has classified the new agent.
+    private let createdKinds = Mutex<[String: (kind: String, until: Date)]>([:])
     private let sticky = Mutex<[String: (mode: String, at: Date, session: String?)]>([:])
     /// Values a control just confirmed on screen, held until the transcript catches up.
     private let confirmed = Mutex<[String: (state: ControlState, until: Date)]>([:])
@@ -82,7 +84,7 @@ public final class AgentService: Sendable {
         var agent = Agent(
             id: a.paneId,
             name: a.name,
-            kind: a.agent ?? a.agentSession?.agent ?? "unknown",
+            kind: kind(of: a) ?? "unknown",
             title: title(a),
             workspaceId: a.workspaceId,
             workspaceName: workspaceName ?? a.workspaceId,
@@ -99,6 +101,24 @@ public final class AgentService: Sendable {
             s.kind == "path" ? URL(fileURLWithPath: s.value).deletingPathExtension().lastPathComponent : s.value
         }
         return Snapshot(agent: agent, raw: a, transcript: ref)
+    }
+
+    /// herdr's kind, else the kind this bridge just started in that pane (so a new agent reads
+    /// `pending`, never `unsupported` with a screen dump, while herdr is still detecting it).
+    func kind(of a: HerdrAgent) -> String? {
+        if let k = a.agent ?? a.agentSession?.agent {
+            createdKinds.withLock { _ = $0.removeValue(forKey: a.paneId) }
+            return k
+        }
+        return createdKinds.withLock { c in
+            guard let e = c[a.paneId] else { return nil }
+            if e.until < Date() { c.removeValue(forKey: a.paneId); return nil }
+            return e.kind
+        }
+    }
+
+    func rememberCreated(_ paneId: String, kind: String) {
+        createdKinds.withLock { $0[paneId] = (kind, Date().addingTimeInterval(120)) }
     }
 
     static func isClaude(_ a: HerdrAgent) -> Bool {
@@ -303,7 +323,7 @@ public final class AgentService: Sendable {
         guard a.agentStatus == .blocked else { return nil }
         let scrubber = PathScrubber(cwd: a.cwd)
         let cwdName = CwdName.of(a.cwd ?? a.foregroundCwd)
-        let kind = a.agent ?? a.agentSession?.agent
+        let kind = kind(of: a)
         let detection = try await herdr.read(a.paneId, source: .detection)
         var approval = ApprovalParser.parse(detection.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName, kind: kind)
         var screen = detection.text
@@ -440,6 +460,7 @@ public final class AgentService: Sendable {
         }
         let agentName = name ?? "\(kind.lowercased().filter { $0.isLetter || $0.isNumber })-\(String(UUID().uuidString.lowercased().prefix(4)))"
         let pane = try await herdr.createTab(workspaceId: workspaceId, cwd: cwd, label: name)
+        rememberCreated(pane.paneId, kind: kind)
 
         // The new shell may need a moment before herdr considers it available.
         var started: HerdrAgent?
