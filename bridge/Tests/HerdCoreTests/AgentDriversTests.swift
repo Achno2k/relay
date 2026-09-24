@@ -8,6 +8,8 @@ import Testing
     @Test func piFooter() throws {
         #expect(PiDriver.footer(try Fixture.text("pi-footer.txt")) == ControlState(model: "openai-codex/gpt-5.6-terra", effort: "low"))
         #expect(PiDriver.footer("   (anthropic) claude-sonnet-5") == ControlState(model: "anthropic/claude-sonnet-5", effort: nil))
+        #expect(PiDriver.footer("$0.000 (sub) 0.0%/272k (auto)     (openai-codex) gpt-5.6-sol • thinking off")
+            == ControlState(model: "openai-codex/gpt-5.6-sol", effort: "off"))
         #expect(PiDriver.footer("nothing here") == nil)
     }
 
@@ -38,6 +40,22 @@ import Testing
         try Data(#"{"defaultProvider":"openai-codex","defaultModel":"gpt-5.6-sol","defaultThinkingLevel":"high","enabledModels":["sonnet"]}"#.utf8).write(to: url)
         let s = ModelCatalogs(run: { _ in nil }, piSettingsURL: url).piSettings()
         #expect(s == .init(defaultModel: "openai-codex/gpt-5.6-sol", defaultThinking: "high", enabledModels: ["sonnet"]))
+    }
+
+    @Test func piThinkingLevelsPerModel() throws {
+        let catalogs = ModelCatalogs(run: { _ in nil }, piSettingsURL: URL(fileURLWithPath: "/nonexistent"),
+                                     piModelsStoreURL: Fixture.url("pi-models-store.json"))
+        #expect(catalogs.piLevels("anthropic/claude-fable-5") == ["minimal", "low", "medium", "high", "xhigh", "max"])
+        #expect(catalogs.piLevels("anthropic/claude-sonnet-5") == ["off", "minimal", "low", "medium", "high", "xhigh", "max"])
+        #expect(catalogs.piLevels("anthropic/claude-haiku-4-5") == ["off", "minimal", "low", "medium", "high"])
+        #expect(catalogs.piLevels("openai-codex/gpt-5.5") == ["off", "minimal", "low", "medium", "high"])
+        #expect(catalogs.piLevels("opencode-go/plain-model") == ["off"])
+        #expect(catalogs.piLevels("unknown/model") == nil)
+        // What pi says at runtime wins.
+        catalogs.learnPiLevels("unknown/model", ["low", "high"])
+        #expect(catalogs.piLevels("unknown/model") == ["low", "high"])
+        #expect(PiDriver.availableLevels(#" Error: Unknown thinking level "off". Available levels: minimal, low, medium, high, xhigh, max."#)
+            == ["minimal", "low", "medium", "high", "xhigh", "max"])
     }
 
     // MARK: codex

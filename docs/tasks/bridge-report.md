@@ -191,3 +191,18 @@ The contract went into api.md first (`6d6daa4`: Attachments and Machine sections
 - codex's Plan-mode toggle (`shift+tab`) isn't exposed. It's a separate "collaboration mode", not a permission mode.
 - A model that exists only in codex's config (e.g. `gpt-5.6-sol`) can't be selected in the picker again, and its effort can't be changed. Both return `400 unsupported` with the reason.
 - On codex, pressing a digit in a picker only moves the cursor, and Enter confirms. That matters for approvals: the approval keys `["N"]` may need an extra `enter` on codex. I haven't changed the approval parser for codex yet.
+
+### Follow-up: pi thinking levels per model (reported by herd-ios)
+- **Bug:** `{"effort":"off"}` on pi with `anthropic/claude-fable-5` returned 504 even though the list offered `off`. pi replies `Error: Unknown thinking level "off". Available levels: minimal, low, medium, high, xhigh, max.` because thinking levels differ per model.
+- **Fix, part 1:** `efforts` now follows pi's own rule (`getSupportedThinkingLevels` in pi's bundle), applied to each model's `thinkingLevelMap` in `~/.pi/agent/models-store.json`:
+  - no reasoning → `off` only;
+  - otherwise every level except those mapped to `null`;
+  - `xhigh`/`max` only when mapped explicitly.
+- **Fix, part 2:** if pi still rejects a level, the bridge parses "Available levels:", returns `400 unsupported` right away, and remembers that list for the model.
+- **Second bug:** with thinking off, pi's footer reads `• thinking off`, not `• off`. So `off` on gpt-5.6-sol also timed out. The footer pattern now handles both.
+- **Live on w14:p4:**
+  - claude-fable-5 lists minimal…max. `off` → `400 bad_request` in 2 ms. `minimal`/`max` → 202.
+  - gpt-5.6-sol lists off…max. `off`/`minimal`/`off`/`high` → 202 in about 0.56 s.
+  - claude-haiku-4-5 lists off…high.
+  - Left on gpt-5.6-sol · high.
+- **Tests:** 118 pass, 0 warnings, including pi's rule on a models-store fixture and a fake pi that rejects a level.

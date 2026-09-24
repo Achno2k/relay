@@ -30,15 +30,20 @@ public final class ModelCatalogs: Sendable {
 
     let run: Runner
     let piSettingsURL: URL
+    let piModelsStoreURL: URL
     let codexSessions: URL
+    /// Levels pi reported itself ("Available levels: …"), per provider/id; wins over the store.
+    private let learnedPiLevels = Mutex<[String: [String]]>([:])
     private let cache = Mutex<[String: (at: Date, data: Data)]>([:])
     private let rollouts = Mutex<[String: URL]>([:])
 
     public init(run: @escaping Runner = ModelCatalogs.process,
                 piSettingsURL: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".pi/agent/settings.json"),
+                piModelsStoreURL: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".pi/agent/models-store.json"),
                 codexSessions: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions")) {
         self.run = run
         self.piSettingsURL = piSettingsURL
+        self.piModelsStoreURL = piModelsStoreURL
         self.codexSessions = codexSessions
     }
 
@@ -81,6 +86,35 @@ public final class ModelCatalogs: Sendable {
     public func codex() -> [CodexModel] {
         guard let data = cached("codex", ["codex", "debug", "models"]) else { return [] }
         return Self.parseCodexCatalog(data)
+    }
+
+    public static let piLevels = ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
+
+    /// pi's own rule (`getSupportedThinkingLevels`): no reasoning → `off` only; otherwise every level
+    /// whose `thinkingLevelMap` entry isn't `null`, with `xhigh`/`max` only when mapped explicitly.
+    public static func piSupportedLevels(reasoning: Bool, map: [String: Any]?) -> [String] {
+        guard reasoning else { return ["off"] }
+        return piLevels.filter { level in
+            guard let map, map.keys.contains(level) else { return level != "xhigh" && level != "max" }
+            return !(map[level] is NSNull)
+        }
+    }
+
+    /// Thinking levels pi accepts for `provider/id`, from what pi reported or `models-store.json`.
+    public func piLevels(_ model: String) -> [String]? {
+        if let learned = learnedPiLevels.withLock({ $0[model] }) { return learned }
+        let parts = model.split(separator: "/", maxSplits: 1).map(String.init)
+        guard parts.count == 2, let data = try? Data(contentsOf: piModelsStoreURL),
+              let store = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let provider = store[parts[0]] as? [String: Any],
+              let models = provider["models"] as? [[String: Any]],
+              let m = models.first(where: { $0["id"] as? String == parts[1] })
+        else { return nil }
+        return Self.piSupportedLevels(reasoning: m["reasoning"] as? Bool ?? false, map: m["thinkingLevelMap"] as? [String: Any])
+    }
+
+    public func learnPiLevels(_ model: String, _ levels: [String]) {
+        learnedPiLevels.withLock { $0[model] = levels }
     }
 
     public func piSettings() -> PiSettings {

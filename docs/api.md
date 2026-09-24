@@ -174,7 +174,7 @@ AgentControls {
 | kind | models (`id` → what `Agent.model` holds) | efforts | modes | compact / clear |
 |---|---|---|---|---|
 | claude | aliases `opus` `sonnet` `haiku` `fable`; `Agent.model` is the full id (`claude-sonnet-5`), so match by substring | low medium high xhigh max | default acceptEdits plan auto bypassPermissions (the Shift+Tab cycle) | `/compact`, `/clear` |
-| pi | `pi --list-models` as `provider/id`. The saved default and scoped (`enabledModels`) come first, then the rest by provider. `Agent.model` is exactly one of these ids. | off minimal low medium high xhigh max (only `off` if the current model has no thinking) | none (`supports.mode: false`) | `/compact`, `/new` |
+| pi | `pi --list-models` as `provider/id`. The saved default and scoped (`enabledModels`) come first, then the rest by provider. `Agent.model` is exactly one of these ids. | per model, using pi's own rule on `~/.pi/agent/models-store.json`. Examples: claude-fable-5 has minimal…max (no `off`); claude-haiku-4-5 has off…high; a model without thinking has only `off`. | none (`supports.mode: false`) | `/compact`, `/new` |
 | codex | `codex debug models` entries with `visibility: list` (`id` = slug, `label` = display name), plus the current model if it's not in the catalogue. `Agent.model` is the slug. | the current model's `supported_reasoning_levels` (e.g. low medium high xhigh max ultra) | `ask` Ask for approval, `approveForMe` Approve for me, `fullAccess` Full Access | `/compact`, `/new` (current checkout) |
 
 - `POST /agents/:id/control` takes the same body for every kind: `model` and `effort` use ids from that agent's lists, `permissionMode` uses an id from `modes`, and `command` is `compact` or `clear`.
@@ -183,7 +183,8 @@ AgentControls {
   - Claude: the settings file is restored.
   - pi: `/model` and `/thinking` don't save anything.
   - codex: the bridge picks "for this session only".
-- On pi, switching model resets thinking to that model's default, and `Agent.effort` reflects that.
+- On pi, switching model resets thinking to that model's default, and `Agent.effort` reflects that. The `efforts` list changes with the model, so refetch `GET /agents/:id/controls` after a model switch.
+- If pi still rejects a level ("Unknown thinking level … Available levels: …"), the bridge returns `400 unsupported` with pi's list at once, and leaves that level out for this model from then on.
 - codex has no direct command, so the bridge drives its `/model` picker. It picks the model row, then the effort row (Max/Ultra sit under "More reasoning…"), then presses `s`, re-reading the screen after every key.
   - A model outside the catalogue can't be re-selected there, and changing only the effort needs the current model to be in the list. Otherwise it's `400 unsupported`.
 - `Agent.model`, `modelLabel` and `effort` are filled for pi and codex from the footer, falling back to the session file. `permissionMode` is filled for codex from the last `turn_context`, or from what the bridge just set.

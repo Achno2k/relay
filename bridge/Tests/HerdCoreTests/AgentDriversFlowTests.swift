@@ -13,6 +13,7 @@ import Testing
             // pi
             var piModel = "openai-codex/gpt-5.6-sol"
             var piThinking = "high"
+            var piRejects: [String] = []
             // codex
             var model = "gpt-5.6-terra"
             var effort = "high"
@@ -56,6 +57,8 @@ import Testing
                 let parts = text.split(separator: " ").map(String.init)
                 switch (s.kind, parts[0]) {
                 case ("pi", "/model"): s.piModel = parts[1]; s.lines.append(" Model: \(parts[1])")
+                case ("pi", "/thinking") where s.piRejects.contains(parts[1]):
+                    s.lines.append(#" Error: Unknown thinking level "\#(parts[1])". Available levels: minimal, low, medium, high, xhigh, max."#)
                 case ("pi", "/thinking"): s.piThinking = parts[1]; s.lines.append(" Thinking level: \(parts[1])")
                 case ("pi", "/new"): s.session = "s\(Int(s.session.dropFirst())! + 1)"
                 case ("codex", "/model"):
@@ -132,6 +135,7 @@ import Testing
         let codexJSON = try Fixture.data("codex-models.json")
         let catalogs = ModelCatalogs(run: { args in args.first == "pi" ? piList : codexJSON },
                                      piSettingsURL: URL(fileURLWithPath: "/nonexistent"),
+                                     piModelsStoreURL: Fixture.url("pi-models-store.json"),
                                      codexSessions: URL(fileURLWithPath: "/nonexistent"))
         try await body(AgentService(herdr: HerdrClient(socketPath: fake.socketPath),
                                     locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent")),
@@ -167,6 +171,34 @@ import Testing
             #expect(c.sessionId == "s2")
             await expectError("bad_request") { _ = try await service.control(id: "w14:p9", .model("nope/x")) }
             await expectError("unsupported") { _ = try await service.control(id: "w14:p9", .permissionMode("plan")) }
+        }
+    }
+
+    @Test func piEffortsFollowTheModel() async throws {
+        let tui = TUI(kind: "pi")
+        tui.state.withLock { $0.piModel = "anthropic/claude-fable-5" }
+        try await withService(tui) { service in
+            let caps = try await service.controls(id: "w14:p9")
+            #expect(caps.efforts.map(\.id) == ["minimal", "low", "medium", "high", "xhigh", "max"])
+            // "off" isn't offered, and asking anyway is a clear 400 before anything is typed.
+            await expectError("bad_request") { _ = try await service.control(id: "w14:p9", .effort("off")) }
+        }
+    }
+
+    @Test func piRejectionIsUnsupportedNotTimeout() async throws {
+        let tui = TUI(kind: "pi")
+        tui.state.withLock { s in
+            s.piModel = "unlisted/model"  // not in models-store: bridge offers everything
+            s.piRejects = ["off"]
+        }
+        try await withService(tui) { service in
+            let clock = ContinuousClock()
+            let start = clock.now
+            await expectError("unsupported") { _ = try await service.control(id: "w14:p9", .effort("off")) }
+            #expect(clock.now - start < .seconds(3))
+            // Learned: now "off" isn't offered for that model.
+            let learned = try await service.controls(id: "w14:p9")
+            #expect(!learned.efforts.map(\.id).contains("off"))
         }
     }
 

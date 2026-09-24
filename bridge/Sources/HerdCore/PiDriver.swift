@@ -5,9 +5,9 @@ import Foundation
 struct PiDriver: ControlDriver {
     static let efforts = ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
 
-    private static let footer = try! NSRegularExpression(pattern: #"\(([\w.\-]+)\)\s+([\w.:\-]+)(?:\s+•\s+([a-z]+))?\s*$"#)
+    private static let footer = try! NSRegularExpression(pattern: #"\(([\w.\-]+)\)\s+([\w.:\-]+)(?:\s+•\s+(?:thinking\s+)?([a-z]+))?\s*$"#)
 
-    /// Model and thinking from pi's footer.
+    /// Model and thinking from pi's footer (`• high`, or `• thinking off`).
     static func footer(_ screen: String) -> ControlState? {
         for line in screen.components(separatedBy: "\n").suffix(8).reversed() {
             let ns = line as NSString
@@ -17,6 +17,13 @@ struct PiDriver: ControlDriver {
                                 effort: effort.flatMap { efforts.contains($0) ? $0 : nil })
         }
         return nil
+    }
+
+    /// `Error: Unknown thinking level "off". Available levels: minimal, low, medium, high, xhigh, max.`
+    static func availableLevels(_ line: String) -> [String] {
+        guard let r = line.range(of: "Available levels:") else { return [] }
+        return line[r.upperBound...].trimmingCharacters(in: CharacterSet(charactersIn: " .")).components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
     /// Last `model_change` / `thinking_level_change` in a pi session file.
@@ -70,11 +77,13 @@ struct PiDriver: ControlDriver {
     func capabilities(_ a: HerdrAgent, current: ControlState, service: AgentService) async -> AgentControls {
         let models = service.catalogs.pi()
         let thinking = current.model.flatMap { cur in models.first { $0.full == cur }?.thinking } ?? true
+        // Per model: e.g. claude-fable-5 has no "off", gpt-5.6-sol has off…max.
+        let levels = current.model.flatMap(service.catalogs.piLevels) ?? (thinking ? Self.efforts : ["off"])
         return AgentControls(
             models: Self.ordered(models, settings: service.catalogs.piSettings(), current: current.model),
-            efforts: Effort.choices(thinking ? Self.efforts : ["off"]),
+            efforts: Effort.choices(levels),
             modes: [],
-            supports: .init(model: !models.isEmpty || current.model != nil, effort: thinking, mode: false, compact: true, clear: true))
+            supports: .init(model: !models.isEmpty || current.model != nil, effort: levels.count > 1, mode: false, compact: true, clear: true))
     }
 
     func apply(_ request: ControlRequest, to a: HerdrAgent, current: ControlState, service: AgentService) async throws {
@@ -87,9 +96,19 @@ struct PiDriver: ControlDriver {
             // Switching model resets thinking to that model's default; the footer shows it.
             service.holdConfirmed(a.paneId, ControlState(model: id))
         case .effort(let level):
+            let before = try await service.screen(a)
+            let unknown = "Unknown thinking level"
             try await service.submit(a, "/thinking \(level)")
             try await service.waitFor(AgentService.controlTimeout, what: "/thinking \(level)") {
-                Self.footer(try await service.screen(a))?.effort == level
+                let screen = try await service.screen(a)
+                if AgentService.count(unknown, in: screen) > AgentService.count(unknown, in: before),
+                   let line = screen.components(separatedBy: "\n").last(where: { $0.contains(unknown) }) {
+                    let available = Self.availableLevels(line)
+                    if let model = current.model, !available.isEmpty { service.catalogs.learnPiLevels(model, available) }
+                    throw APIError(.badRequest, "unsupported",
+                                   "\(current.model.flatMap { label(forModel: $0, service: service) } ?? "this model") doesn't support thinking \(level); available: \(available.joined(separator: ", "))")
+                }
+                return Self.footer(screen)?.effort == level
             }
             service.holdConfirmed(a.paneId, ControlState(effort: level))
         case .compact:
