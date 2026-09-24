@@ -34,14 +34,9 @@ struct PerAgentControlsTests {
         #expect(ControlDisplay.modelId(piAgent, models: pi.models) == "openai-codex/gpt-5.6-sol")
         let piControls = AgentControls(agent: piAgent, info: pi, pending: nil)
         #expect(piControls.subtitle == "gpt-5.6-sol · High", "pi has no modes, so effort shows")
-        #expect(!piControls.showsModeChip)
         let codexControls = AgentControls(agent: codexAgent, info: codex, pending: nil)
         #expect(codexControls.modelId == "gpt-5.6-terra")
         #expect(codexControls.subtitle == "GPT-5.6-Terra · Approve for me")
-        #expect(codexControls.showsModeChip, "not codex's first mode (ask)")
-        var asking = codexAgent
-        asking.permissionMode = "ask"
-        #expect(!AgentControls(agent: asking, info: codex, pending: nil).showsModeChip)
     }
 
     @Test func decodesWithMissingLists() throws {

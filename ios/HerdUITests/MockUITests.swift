@@ -81,7 +81,7 @@ final class MockUITests: XCTestCase {
         let subtitle = app.staticTexts["titleSubtitle"]
         XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
         XCTAssertEqual(subtitle.label, "Opus 5.5 · Default")
-        XCTAssertFalse(app.buttons["modeChip"].exists, "no chip in default mode")
+        XCTAssertFalse(app.buttons["modeChip"].exists, "mode lives in the title pill, not the composer")
 
         app.buttons["titleMenu"].tap()
         shot("controls-menu")
@@ -97,13 +97,13 @@ final class MockUITests: XCTestCase {
         menuItem("Plan").tap()
         XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Plan"), "pill didn't follow the mode")
         waitForIdle()
-        let chip = app.buttons["modeChip"]
-        XCTAssertTrue(chip.waitForExistence(timeout: 5), "no Plan chip")
-        shot("controls-plan-chip")
+        XCTAssertFalse(app.buttons["modeChip"].exists, "no mode chip in the composer")
+        shot("controls-plan")
 
         // A mode outside Claude's cycle is refused; the pill reverts and a toast explains.
-        chip.tap()
-        shot("controls-chip-menu")
+        app.buttons["titleMenu"].tap()
+        menuItem("Mode").tap()
+        shot("controls-mode-menu")
         menuItem("Bypass permissions").tap()
         let toast = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Couldn\u{2019}t switch' OR label CONTAINS \"Couldn't switch\"")).firstMatch
         XCTAssertTrue(toast.waitForExistence(timeout: 5), "no error toast")
@@ -111,11 +111,11 @@ final class MockUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Plan"), "pill didn't revert")
         waitForIdle()
 
-        chip.tap()
+        app.buttons["titleMenu"].tap()
+        menuItem("Mode").tap()
         menuItem("Default").tap()
         XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Default"))
         waitForIdle()
-        XCTAssertFalse(chip.waitForExistence(timeout: 2) && chip.isHittable, "chip should go away in default mode")
 
         // Clear asks first, then the chat starts over.
         app.buttons["titleMenu"].tap()
@@ -134,7 +134,7 @@ final class MockUITests: XCTestCase {
         let subtitle = app.staticTexts["titleSubtitle"]
         XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
         XCTAssertEqual(subtitle.label, "Opus 5.5 · Auto")
-        XCTAssertTrue(app.buttons["modeChip"].waitForExistence(timeout: 5), "Auto isn't default, so the chip shows")
+        XCTAssertFalse(app.buttons["modeChip"].exists, "mode lives in the title pill only")
         app.buttons["titleMenu"].tap()
         XCTAssertTrue(app.staticTexts["Agent is working"].waitForExistence(timeout: 5))
         shot("controls-busy")

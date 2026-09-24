@@ -188,16 +188,14 @@ private struct LockedRow: View {
     }
 }
 
-/// The Mode picker, shared by the title menu and the composer's mode chip.
+/// The Mode picker in the title menu.
 struct ModeMenuItems: View {
     let store: AppStore
     let controls: AgentControls
-    /// The chip lists the modes directly; the title menu nests them under "Mode ▸".
-    var inline = false
 
     var body: some View {
         if let modes = controls.info?.modes, !modes.isEmpty {
-            let picker = Picker(selection: Binding(
+            Picker(selection: Binding(
                 get: { controls.mode ?? "" },
                 set: { new in
                     guard new != controls.mode else { return }
@@ -209,54 +207,12 @@ struct ModeMenuItems: View {
                 Label("Mode", systemImage: ControlDisplay.modeSymbol(controls.mode))
                 Text(subtitle)
             }
-            if inline {
-                picker.pickerStyle(.inline)
-            } else {
-                picker.pickerStyle(.menu)
-            }
+            .pickerStyle(.menu)
         }
     }
 
     private var subtitle: String {
         if case .permissionMode = controls.pending { return "Switching to \(controls.modeLabel ?? "…")" }
         return controls.modeLabel ?? "Unknown"
-    }
-}
-
-/// Composer chip for a non-default mode ("Plan"); tapping opens the Mode menu. Like ChatGPT's tool chips.
-struct ModeChip: View {
-    let store: AppStore
-    let controls: AgentControls
-
-    var body: some View {
-        let tint = ControlDisplay.modeTint(controls.mode)
-        Menu {
-            if let caption = controls.busyCaption {
-                Section(caption) {
-                    LockedRow(title: "Mode", symbol: ControlDisplay.modeSymbol(controls.mode), value: controls.modeLabel)
-                }
-            } else {
-                ModeMenuItems(store: store, controls: controls, inline: true)
-            }
-        } label: {
-            HStack(spacing: 5) {
-                if case .permissionMode = controls.pending {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: ControlDisplay.modeSymbol(controls.mode))
-                        .font(.caption.weight(.semibold))
-                }
-                Text(controls.modeLabel ?? "")
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(tint.opacity(0.14), in: .capsule)
-            .contentShape(.capsule)
-        }
-        .accessibilityIdentifier("modeChip")
-        .accessibilityLabel("Mode: \(controls.modeLabel ?? "")")
     }
 }

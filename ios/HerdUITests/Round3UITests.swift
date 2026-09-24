@@ -57,7 +57,7 @@ final class Round3UITests: XCTestCase {
         let subtitle = app.staticTexts["titleSubtitle"]
         XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
         XCTAssertEqual(subtitle.label, "GPT-5.6-Terra · Approve for me")
-        XCTAssertTrue(app.buttons["modeChip"].waitForExistence(timeout: 5), "Approve for me isn't codex's default (Ask)")
+        XCTAssertFalse(app.buttons["modeChip"].exists, "mode lives in the title pill only")
         waitForIdle()
 
         app.buttons["titleMenu"].tap()
@@ -76,12 +76,11 @@ final class Round3UITests: XCTestCase {
         app.buttons["Max"].tap()
         waitForIdle()
 
-        app.buttons["modeChip"].tap()
-        XCTAssertTrue(app.buttons["Full Access"].waitForExistence(timeout: 3))
+        app.buttons["titleMenu"].tap()
+        menuRow("Mode").tap()
+        XCTAssertTrue(app.buttons["Full Access"].waitForExistence(timeout: 3), "codex's own modes")
         app.buttons["Ask for approval"].tap()
         XCTAssertTrue(waitForLabel(subtitle, "GPT-5.5 · Ask for approval"))
-        let chipGone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["modeChip"])
-        wait(for: [chipGone], timeout: 5)
     }
 
     // MARK: - Helpers

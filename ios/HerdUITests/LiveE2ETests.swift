@@ -152,7 +152,7 @@ final class LiveE2ETests: XCTestCase {
 
         pick("Mode", "Plan")
         XCTAssertTrue(subtitle.label.hasSuffix("· Plan"), "pill shows \(subtitle.label), not Plan")
-        XCTAssertTrue(app.buttons["modeChip"].exists, "no Plan chip")
+        XCTAssertFalse(app.buttons["modeChip"].exists, "mode lives in the title pill only")
         shot("ctl-2-sonnet-plan")
 
         pick("Mode", "Auto")

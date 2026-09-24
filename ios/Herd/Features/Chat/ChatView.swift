@@ -177,12 +177,6 @@ private struct ChatTranscript: View {
     }
 
     private var messages: [Message] { store.messages(for: agent.id) }
-    private var controls: AgentControls {
-        store.controlsState(for: agent)
-    }
-    private var showsModeChip: Bool {
-        controls.showsModeChip
-    }
     private var items: [ChatItem] {
         var items = ChatItem.build(from: messages)
         items = items.map { item in
@@ -247,14 +241,8 @@ private struct ChatTranscript: View {
                             store.send(text, attachments: files, to: agent.id)
                         },
                         onStop: { store.interrupt(agent.id) },
-                        onNewChat: { onNewChat(agent.workspaceId) },
-                        showsAccessory: showsModeChip
-                    ) {
-                        if showsModeChip {
-                            ModeChip(store: store, controls: controls)
-                                .transition(.scale.combined(with: .opacity))
-                        }
-                    }
+                        onNewChat: { onNewChat(agent.workspaceId) }
+                    )
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)

@@ -27,10 +27,6 @@ enum ControlDisplay {
         }
     }
 
-    /// Modes that skip every approval are orange.
-    static func modeTint(_ mode: String?) -> Color {
-        mode == "bypassPermissions" || mode == "fullAccess" ? .orange : .blue
-    }
 
     /// "Couldn't switch to Sonnet 5" etc., in front of the bridge's error message.
     static func failurePrefix(_ request: ControlRequest, info: AgentControlsInfo?) -> String {
@@ -76,11 +72,6 @@ struct AgentControls {
 
     var modeLabel: String? { mode.map { ControlDisplay.label($0, in: info?.modes) } }
 
-    /// The kind's first mode is its everyday one (Claude `default`, codex `ask`); anything else gets a chip.
-    var showsModeChip: Bool {
-        guard supports.mode, let mode else { return false }
-        return mode != (info?.modes.first?.id ?? "default")
-    }
 
     var effort: String? {
         if case .effort(let id) = pending { return id }

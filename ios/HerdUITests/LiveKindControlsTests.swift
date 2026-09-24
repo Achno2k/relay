@@ -58,9 +58,16 @@ final class LiveKindControlsTests: XCTestCase {
 
         // Cancel
         XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 30))
-        send(Self.prompt(Self.freshURL()), via: composer)
-        let no = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'No'")).firstMatch
+        try await waitUntil(timeout: 30, "first question still open") { try await bridge.approvalStatus() == 204 }
+        let cancelURL = Self.freshURL()
+        send(Self.prompt(cancelURL), via: composer)
+        let no = app.buttons["No, and tell Codex what to do differently"]
         XCTAssertTrue(no.waitForExistence(timeout: 90), "codex never asked the second time")
+        // Must be the second question, not the first one coming back.
+        let tag = String(cancelURL.split(separator: "/").last ?? "")
+        let question = app.staticTexts["approvalQuestion"]
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertTrue(question.label.contains(tag), "the sheet shows \(question.label), not the second command")
         no.tap()
         try await waitUntil(timeout: 60, "approval never cleared after No") { try await bridge.approvalStatus() == 204 }
         try await waitUntil(timeout: 60, "codex still blocked after No") { try await bridge.agentStatus() != "blocked" }

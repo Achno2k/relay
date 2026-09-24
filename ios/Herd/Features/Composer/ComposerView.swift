@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /// Floating glass composer: `+` menu (attachments, new chat), growing field with an attachment tray,
 /// and a send button that morphs into stop.
-struct ComposerView<Accessory: View>: View {
+struct ComposerView: View {
     @Binding var text: String
     let placeholder: String
     let workspaceName: String?
@@ -15,10 +15,6 @@ struct ComposerView<Accessory: View>: View {
     let onSend: (String, [Attachment]) -> Void
     let onStop: () -> Void
     let onNewChat: () -> Void
-    /// Whether `accessory` currently shows anything; tightens the field's leading inset around it.
-    var showsAccessory = false
-    /// Sits inside the field on the leading side, e.g. the mode chip.
-    @ViewBuilder var accessory: Accessory
 
     @FocusState private var focused: Bool
     @Namespace private var glass
@@ -47,16 +43,11 @@ struct ComposerView<Accessory: View>: View {
                         ComposerAttachmentTray(attachments: attachments)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    HStack(alignment: .bottom, spacing: 6) {
-                        accessory
-                            .padding(.bottom, 7)
-                        TextField(placeholder, text: $text, axis: .vertical)
-                            .lineLimit(1...6)
-                            .focused($focused)
-                            .padding(.vertical, 13)
-                    }
-                    .padding(.leading, showsAccessory ? 7 : 18)
-                    .padding(.trailing, 18)
+                    TextField(placeholder, text: $text, axis: .vertical)
+                        .lineLimit(1...6)
+                        .focused($focused)
+                        .padding(.vertical, 13)
+                        .padding(.horizontal, 18)
                 }
                 // The tray is a horizontal scroll view; without this the field shrinks to its width.
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
@@ -66,7 +57,6 @@ struct ComposerView<Accessory: View>: View {
             }
         }
         .animation(.smooth(duration: 0.35), value: showsStop)
-        .animation(.smooth, value: showsAccessory)
         .animation(.smooth, value: attachments?.items.count)
         .sensoryFeedback(.impact(weight: .medium), trigger: sends)
         .photosPicker(
