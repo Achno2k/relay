@@ -22,6 +22,11 @@ final class AppStore {
         didSet { UserDefaults.standard.set(selectedAgentId, forKey: "selectedAgentId") }
     }
 
+    /// Choices for the title menu; nil until fetched (or on a bridge without controls).
+    private(set) var controls: ControlsCatalog?
+    /// Control changes in flight per agent. The UI shows the requested value until the bridge answers.
+    private(set) var pendingControls: [String: ControlRequest] = [:]
+
     /// Approval for the open agent, fetched when it turns blocked.
     private(set) var approval: Approval?
     var isApprovalSheetPresented = false
@@ -104,6 +109,7 @@ final class AppStore {
             if id == selectedAgentId { selectedAgentId = firstAgentId() }
         case .agentUpdated(let agent) where agent.id == selectedAgentId:
             markSeen(agent)
+            reloadIfDropped(agent.id)
         default:
             break
         }
@@ -118,6 +124,7 @@ final class AppStore {
             async let workspaces = backend.workspaces()
             let (a, w) = try await (agents, workspaces)
             var s = state
+            for agent in a { s.upsert(agent) }  // drops chats whose session changed
             s.agents = a
             s.workspaces = w
             let live = Set(a.map(\.id))
@@ -131,6 +138,7 @@ final class AppStore {
             report(error)
         }
         hasLoadedAgents = true
+        if controls == nil { controls = try? await backend.controls() }
         if let id = selectedAgentId { await loadMessages(id) }
         await refreshApproval()
     }
@@ -242,6 +250,31 @@ final class AppStore {
         }
     }
 
+    // MARK: - Controls
+
+    /// Model, mode, effort, /compact or /clear. One change per agent at a time.
+    func control(_ request: ControlRequest, for agentId: String) {
+        guard pendingControls[agentId] == nil else { return }
+        pendingControls[agentId] = request
+        Task {
+            do {
+                let agent = try await backend.control(agentId: agentId, request)
+                state.upsert(agent)
+                reloadIfDropped(agent.id)
+                if case .command(.compact) = request { await loadMessages(agentId) }
+            } catch {
+                report(error, prefix: ControlDisplay.failurePrefix(request, catalog: controls))
+            }
+            pendingControls[agentId] = nil
+        }
+    }
+
+    /// A new session (after /clear) drops the cached chat; refetch it if it's open.
+    private func reloadIfDropped(_ agentId: String) {
+        guard agentId == selectedAgentId, !isLoaded(agentId) else { return }
+        Task { await loadMessages(agentId) }
+    }
+
     // MARK: - Approval
 
     func refreshApproval() async {
@@ -276,9 +309,9 @@ final class AppStore {
         UserDefaults.standard.set(seen.mapValues(\.timeIntervalSince1970), forKey: "seenAgents")
     }
 
-    private func report(_ error: any Error) {
+    private func report(_ error: any Error, prefix: String? = nil) {
         if error is CancellationError { return }
         if let url = error as? URLError, url.code == .cancelled { return }
-        errorMessage = error.localizedDescription
+        errorMessage = prefix.map { "\($0): \(error.localizedDescription)" } ?? error.localizedDescription
     }
 }

@@ -32,6 +32,11 @@ struct HerdState: Equatable, Sendable {
 
     mutating func upsert(_ agent: Agent) {
         if let i = agents.firstIndex(where: { $0.id == agent.id }) {
+            // A new session (/clear) means a different transcript: drop the cached chat so it's refetched.
+            if let old = agents[i].sessionId, let new = agent.sessionId, old != new {
+                messages[agent.id] = nil
+                hasMore[agent.id] = nil
+            }
             agents[i] = agent
         } else {
             agents.append(agent)

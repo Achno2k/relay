@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Floating glass composer: `+` menu, growing field, and a send button that morphs into stop.
-struct ComposerView: View {
+struct ComposerView<Accessory: View>: View {
     @Binding var text: String
     let placeholder: String
     let workspaceName: String?
@@ -9,6 +9,10 @@ struct ComposerView: View {
     let onSend: (String) -> Void
     let onStop: () -> Void
     let onNewChat: () -> Void
+    /// Whether `accessory` currently shows anything; tightens the field's leading inset around it.
+    var showsAccessory = false
+    /// Sits inside the field on the leading side, e.g. the mode chip.
+    @ViewBuilder var accessory: Accessory
 
     @FocusState private var focused: Bool
     @Namespace private var glass
@@ -37,18 +41,24 @@ struct ComposerView: View {
                 .glassEffect(.regular.interactive(), in: .circle)
                 .accessibilityLabel("More")
 
-                TextField(placeholder, text: $text, axis: .vertical)
-                    .lineLimit(1...6)
-                    .focused($focused)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 13)
-                    .frame(minHeight: 48)
-                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
+                HStack(alignment: .bottom, spacing: 6) {
+                    accessory
+                        .padding(.bottom, 7)
+                    TextField(placeholder, text: $text, axis: .vertical)
+                        .lineLimit(1...6)
+                        .focused($focused)
+                        .padding(.vertical, 13)
+                }
+                .padding(.leading, showsAccessory ? 7 : 18)
+                .padding(.trailing, 18)
+                .frame(minHeight: 48)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
 
                 actionButton
             }
         }
         .animation(.smooth(duration: 0.35), value: showsStop)
+        .animation(.smooth, value: showsAccessory)
         .sensoryFeedback(.impact(weight: .medium), trigger: sends)
     }
 

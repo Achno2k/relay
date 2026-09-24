@@ -29,7 +29,7 @@ struct ChatView: View {
                 }
                 ToolbarItem(placement: .principal) {
                     if let agent = store.selectedAgent {
-                        TitleMenu(agent: agent, onStop: { store.interrupt(agent.id) })
+                        TitleMenu(store: store, agent: agent)
                     } else {
                         Text("Herd").font(.headline)
                     }
@@ -47,37 +47,72 @@ struct ChatView: View {
     }
 }
 
-/// Centre title: agent title + chevron; the menu shows where the agent lives.
+/// Centre pill: agent title + chevron, with "Opus 5.5 · Auto" underneath. The menu switches
+/// model, mode and effort and runs /compact and /clear (ChatGPT's model picker, for agents).
 private struct TitleMenu: View {
+    let store: AppStore
     let agent: Agent
-    let onStop: () -> Void
+    @State private var confirmClear = false
+
+    private var controls: AgentControls {
+        AgentControls(agent: agent, catalog: store.controls, pending: store.pendingControls[agent.id])
+    }
 
     var body: some View {
+        let controls = controls
         Menu {
+            if controls.isAvailable {
+                ControlMenuItems(store: store, controls: controls, onClear: { confirmClear = true })
+            }
             Section {
                 Label(agent.workspaceName, systemImage: "folder")
                 Label(agent.kind.capitalized, systemImage: "cpu")
                 Label(statusText, systemImage: statusSymbol)
             }
             if agent.status == .working {
-                Button(role: .destructive, action: onStop) {
+                Button(role: .destructive) {
+                    store.interrupt(agent.id)
+                } label: {
                     Label("Stop", systemImage: "stop.circle")
                 }
             }
         } label: {
-            HStack(spacing: 5) {
-                Text(agent.displayTitle)
-                    .font(.headline)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 1) {
+                HStack(spacing: 5) {
+                    Text(agent.displayTitle)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                if let subtitle = controls.subtitle {
+                    HStack(spacing: 4) {
+                        if controls.pending != nil {
+                            ProgressView().controlSize(.mini)
+                        }
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .contentTransition(.opacity)
+                            .accessibilityIdentifier("titleSubtitle")
+                    }
+                }
             }
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.vertical, controls.subtitle == nil ? 9 : 5)
             .frame(maxWidth: 240)
             .glassEffect(.regular.interactive(), in: .capsule)
+            .animation(.smooth, value: controls.subtitle)
+        }
+        .accessibilityIdentifier("titleMenu")
+        .accessibilityValue(controls.pending == nil ? "idle" : "applying")
+        .confirmationDialog("Clear this conversation?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Clear conversation", role: .destructive) { store.control(.command(.clear), for: agent.id) }
+        } message: {
+            Text("\(agent.displayName) starts a new session and forgets this chat. The old transcript stays on your Mac.")
         }
     }
 
@@ -116,6 +151,12 @@ private struct ChatTranscript: View {
     @State private var loadingEarlier = false
 
     private var messages: [Message] { store.messages(for: agent.id) }
+    private var controls: AgentControls {
+        AgentControls(agent: agent, catalog: store.controls, pending: store.pendingControls[agent.id])
+    }
+    private var showsModeChip: Bool {
+        controls.isAvailable && controls.mode != nil && controls.mode != "default"
+    }
     private var items: [ChatItem] {
         var items = ChatItem.build(from: messages)
         items = items.map { item in
@@ -152,8 +193,14 @@ private struct ChatTranscript: View {
                     isWorking: working,
                     onSend: { store.send($0, to: agent.id) },
                     onStop: { store.interrupt(agent.id) },
-                    onNewChat: { onNewChat(agent.workspaceId) }
-                )
+                    onNewChat: { onNewChat(agent.workspaceId) },
+                    showsAccessory: showsModeChip
+                ) {
+                    if showsModeChip {
+                        ModeChip(store: store, controls: controls)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)

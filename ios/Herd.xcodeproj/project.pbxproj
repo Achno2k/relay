@@ -19,10 +19,13 @@
 		534BC0B5153A4F30F0F42DA1 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 417340D458DE1C2AFF1A42F5 /* ChatView.swift */; };
 		55F01AE7E78D6992510B8883 /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A64542D1A93701870F02070 /* PairingView.swift */; };
 		6BE60C0D71CB8EDE72D3ED38 /* Indicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40D2810F1108B175C5503F7 /* Indicators.swift */; };
+		701F85684E3546F564FD8CE7 /* ControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB34291BC321FF7A0AB00E0A /* ControlsTests.swift */; };
 		76FC129D6A4D683DC3651534 /* HerdState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0B7E9F60323212B7A29AA9 /* HerdState.swift */; };
 		77A9AD80D74FC5877B5710BE /* MockUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E01281AC5F4F6B422AAE5BE /* MockUITests.swift */; };
 		7B07960A1CBC6044001F9D6F /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 086CE66DA0ABB4412580F444 /* StoreTests.swift */; };
 		7DE162A2168BC60DF34A80A1 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF41E9F8DEF849BEFD7AA04C /* AppStore.swift */; };
+		81C15412A74CE04DF81D72EC /* ControlMenus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A44897C7CEE1F3886C1B8CB /* ControlMenus.swift */; };
+		886C6CBA397D71DD1DCDBE49 /* ControlDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D06D7C727C91D1F28BAC45 /* ControlDisplay.swift */; };
 		958B1C3763599A50F0BB19D2 /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6F7FA098C78EEB4F610FEAC /* DecodingTests.swift */; };
 		B0FC8A394429435E7D2B8ADC /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85407D9D408FC728F36ADAF6 /* SidebarView.swift */; };
 		C178B944247134CEB88817D3 /* MockChats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C8F98B6778E0114E8BA759 /* MockChats.swift */; };
@@ -59,6 +62,7 @@
 		29C8F98B6778E0114E8BA759 /* MockChats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockChats.swift; sourceTree = "<group>"; };
 		2EBD90FF4ECD8CDB3E42AD59 /* HerdApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HerdApp.swift; sourceTree = "<group>"; };
 		30B6134E29646D5C1FD48082 /* Markdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Markdown.swift; sourceTree = "<group>"; };
+		3A44897C7CEE1F3886C1B8CB /* ControlMenus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlMenus.swift; sourceTree = "<group>"; };
 		417340D458DE1C2AFF1A42F5 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		43E1ECE8C23DE2D08CCCD839 /* ReducerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReducerTests.swift; sourceTree = "<group>"; };
 		652A587E672BD3EC89F43EAA /* LiveE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveE2ETests.swift; sourceTree = "<group>"; };
@@ -69,7 +73,9 @@
 		85407D9D408FC728F36ADAF6 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		9364EA9952130B166466420A /* ChatItems.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatItems.swift; sourceTree = "<group>"; };
 		94AE940114BBD9AA540782B8 /* HerdTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HerdTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB34291BC321FF7A0AB00E0A /* ControlsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlsTests.swift; sourceTree = "<group>"; };
 		AC0B7E9F60323212B7A29AA9 /* HerdState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HerdState.swift; sourceTree = "<group>"; };
+		B5D06D7C727C91D1F28BAC45 /* ControlDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlDisplay.swift; sourceTree = "<group>"; };
 		BF41E9F8DEF849BEFD7AA04C /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
 		C40D2810F1108B175C5503F7 /* Indicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Indicators.swift; sourceTree = "<group>"; };
 		C5454742F2CBBB7600184DC1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -106,6 +112,7 @@
 		0229F19BF85C9A97F15148ED /* HerdTests */ = {
 			isa = PBXGroup;
 			children = (
+				AB34291BC321FF7A0AB00E0A /* ControlsTests.swift */,
 				F6F7FA098C78EEB4F610FEAC /* DecodingTests.swift */,
 				43E1ECE8C23DE2D08CCCD839 /* ReducerTests.swift */,
 				086CE66DA0ABB4412580F444 /* StoreTests.swift */,
@@ -165,6 +172,7 @@
 				6C43FE8E0B722AA4E95C6CD8 /* Approval */,
 				B3F7581E7D4EC06A4DE2C271 /* Chat */,
 				CEEF073EC892316ED96B79B0 /* Composer */,
+				A565597EAC60A9E92E9C36A2 /* Controls */,
 				6704BF6945C86CD949822285 /* NewChat */,
 				979DA4164646BFCDA11BB875 /* Pairing */,
 				8705F50D99CBE04948FC2647 /* Sidebar */,
@@ -202,6 +210,15 @@
 				7A64542D1A93701870F02070 /* PairingView.swift */,
 			);
 			path = Pairing;
+			sourceTree = "<group>";
+		};
+		A565597EAC60A9E92E9C36A2 /* Controls */ = {
+			isa = PBXGroup;
+			children = (
+				B5D06D7C727C91D1F28BAC45 /* ControlDisplay.swift */,
+				3A44897C7CEE1F3886C1B8CB /* ControlMenus.swift */,
+			);
+			path = Controls;
 			sourceTree = "<group>";
 		};
 		B1F6EF5E7B274BB9D2BECEC9 = {
@@ -422,6 +439,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				701F85684E3546F564FD8CE7 /* ControlsTests.swift in Sources */,
 				958B1C3763599A50F0BB19D2 /* DecodingTests.swift in Sources */,
 				E67BEB55D59F8A9609816603 /* ReducerTests.swift in Sources */,
 				7B07960A1CBC6044001F9D6F /* StoreTests.swift in Sources */,
@@ -439,6 +457,8 @@
 				44B8DCD66AFF3AA56D1D2406 /* ChatRows.swift in Sources */,
 				534BC0B5153A4F30F0F42DA1 /* ChatView.swift in Sources */,
 				28C0F1E2F2787C9CCDBEA662 /* ComposerView.swift in Sources */,
+				886C6CBA397D71DD1DCDBE49 /* ControlDisplay.swift in Sources */,
+				81C15412A74CE04DF81D72EC /* ControlMenus.swift in Sources */,
 				3B27F76EA9861E11971BF878 /* HerdApp.swift in Sources */,
 				76FC129D6A4D683DC3651534 /* HerdState.swift in Sources */,
 				6BE60C0D71CB8EDE72D3ED38 /* Indicators.swift in Sources */,

@@ -10,6 +10,7 @@ actor MockBackend: Backend {
     private var workspaceList: [Workspace]
     private var chats: [String: [Message]]
     private var approvals: [String: Approval]
+    private let catalog: ControlsCatalog
     private let replay: [ServerEvent]
     private let replayInterval: Duration?
     private var continuation: AsyncStream<ConnectionEvent>.Continuation?
@@ -22,6 +23,7 @@ actor MockBackend: Backend {
         workspaceList = fixtures.workspaces
         approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
         replay = fixtures.events
+        catalog = fixtures.controls
         self.replayInterval = replayInterval
         chats = MockChats.all(fixtureMessages: fixtures.messages)
     }
@@ -97,13 +99,56 @@ actor MockBackend: Backend {
         return approvals[agentId]
     }
 
+    func controls() async throws -> ControlsCatalog { catalog }
+
+    /// Mirrors the bridge: 409 while busy, 400 for non-Claude agents and for bypass (not in this cycle),
+    /// then a short "confirm on screen" delay before the updated agent comes back.
+    func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
+        guard let i = agentList.firstIndex(where: { $0.id == agentId }) else {
+            throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
+        }
+        let agent = agentList[i]
+        if agent.kind != "claude" { throw HerdError.http(status: 400, code: "unsupported", message: "Only Claude agents have controls.") }
+        if agent.status == .working { throw HerdError.http(status: 409, code: "agent_busy", message: "The agent is working.") }
+        if agent.status == .blocked { throw HerdError.http(status: 409, code: "agent_blocked", message: "The agent is waiting at a dialog.") }
+        if request == .permissionMode("bypassPermissions") {
+            throw HerdError.http(status: 400, code: "unsupported", message: "Bypass permissions isn't in this agent's Shift+Tab cycle.")
+        }
+        try await Task.sleep(for: request == .command(.compact) ? .seconds(2.5) : .seconds(1.2))
+        var updated = agentList[i]
+        switch request {
+        case .model(let alias):
+            let option = catalog.models.first { $0.id == alias }
+            updated.model = "claude-\(alias)-mock"
+            updated.modelLabel = option?.label ?? alias
+        case .permissionMode(let mode):
+            updated.permissionMode = mode
+        case .effort(let effort):
+            updated.effort = effort
+        case .command(.compact):
+            push(Message(id: nextId(), role: .assistant, createdAt: Date(), blocks: [.text("Compacted the conversation.")]), to: agentId)
+        case .command(.clear):
+            updated.sessionId = UUID().uuidString
+            chats[agentId] = []
+        }
+        updated.updatedAt = Date()
+        agentList[i] = updated
+        continuation?.yield(.event(.agentUpdated(updated)))
+        return updated
+    }
+
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
         let workspace = workspaceList.first { $0.id == request.workspaceId }
         let pane = agentList.filter { $0.workspaceId == request.workspaceId }.count + 1
         let agent = Agent(
             id: "\(request.workspaceId):p\(pane + 10)", name: request.name, kind: request.kind, title: request.kind,
             workspaceId: request.workspaceId, workspaceName: workspace?.name ?? request.workspaceId,
-            cwdName: workspace?.name ?? request.workspaceId, status: .idle, hasTranscript: true, updatedAt: Date()
+            cwdName: workspace?.name ?? request.workspaceId, status: .idle, hasTranscript: true, updatedAt: Date(),
+            model: request.kind == "claude" ? "claude-opus-5-5" : nil,
+            modelLabel: request.kind == "claude" ? "Opus 5.5" : nil,
+            permissionMode: request.kind == "claude" ? "default" : nil,
+            effort: request.kind == "claude" ? "medium" : nil,
+            sessionId: UUID().uuidString
         )
         agentList.append(agent)
         chats[agent.id] = []
@@ -187,6 +232,7 @@ struct Fixtures: Sendable {
     var messages: MessagePage = MessagePage(messages: [], hasMore: false)
     var approval: Approval?
     var events: [ServerEvent] = []
+    var controls = ControlsCatalog(models: [], modes: [], efforts: [])
 
     init(directory: URL? = Bundle.main.url(forResource: "Fixtures", withExtension: nil)) {
         guard let directory else { return }
@@ -199,6 +245,7 @@ struct Fixtures: Sendable {
         workspaces = load("workspaces.json") ?? []
         messages = load("messages.json") ?? messages
         approval = load("approval.json")
+        controls = load("controls.json") ?? controls
         if let text = try? String(contentsOf: directory.appending(path: "ws-events.jsonl"), encoding: .utf8) {
             events = text.split(separator: "\n").compactMap { try? decoder.decode(ServerEvent.self, from: Data($0.utf8)) }
         }
