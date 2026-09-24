@@ -17,6 +17,7 @@ struct Serve: AsyncParsableCommand {
 
     @Option(help: "Port to listen on.") var port = 7878
     @Flag(help: "Bind to 127.0.0.1 only, even if Tailscale is up.") var localOnly = false
+    @Flag(help: "Exit instead of falling back to 127.0.0.1 when Tailscale is down (for launchd).") var requireTailscale = false
 
     func run() async throws {
         let token = try TokenStore.load()
@@ -24,6 +25,9 @@ struct Serve: AsyncParsableCommand {
         if !localOnly {
             if let ip = Tailscale.ipv4() {
                 hosts.append(ip)
+            } else if requireTailscale {
+                print("tailscale ip -4 unavailable; exiting so launchd retries")
+                throw ExitCode(75)
             } else {
                 print("tailscale ip -4 unavailable; listening on 127.0.0.1 only")
             }

@@ -62,6 +62,6 @@ import Testing
     @Test func launchdPlist() throws {
         let data = try LaunchAgent.plist(executable: "/usr/local/bin/herd", port: 7878)
         let p = try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
-        #expect(p["ProgramArguments"] as? [String] == ["/usr/local/bin/herd", "serve", "--port", "7878"])
+        #expect(p["ProgramArguments"] as? [String] == ["/usr/local/bin/herd", "serve", "--port", "7878", "--require-tailscale"])
     }
 }

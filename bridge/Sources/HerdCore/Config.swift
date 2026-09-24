@@ -110,7 +110,8 @@ public enum LaunchAgent {
         let log = HerdHome.url.appendingPathComponent("herd.log").path
         let dict: [String: Any] = [
             "Label": label,
-            "ProgramArguments": [executable, "serve", "--port", String(port)],
+            // At login Tailscale may not be up yet; exiting lets KeepAlive retry until it is.
+            "ProgramArguments": [executable, "serve", "--port", String(port), "--require-tailscale"],
             "RunAtLoad": true,
             "KeepAlive": true,
             "StandardOutPath": log,
