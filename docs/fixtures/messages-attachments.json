@@ -1,0 +1,12 @@
+{"hasMore":false,"messages":[
+ {"id":"m1","role":"user","createdAt":"2026-09-24T12:00:00+00:00","blocks":[
+  {"type":"attachment","id":"9f2c4e1a7b3d5f60","name":"screenshot.jpg","kind":"image"},
+  {"type":"attachment","id":"0a1b2c3d4e5f6071","name":"spec.pdf","kind":"pdf"},
+  {"type":"text","text":"What's wrong with this layout? The spec is attached."}]},
+ {"id":"m2","role":"assistant","createdAt":"2026-09-24T12:00:04+00:00","blocks":[
+  {"type":"toolCall","id":"t1","name":"Read","summary":"Read 9f2c4e1a7b3d5f60-screenshot.jpg","input":"{\"file_path\":\"9f2c4e1a7b3d5f60-screenshot.jpg\"}"},
+  {"type":"toolResult","toolCallId":"t1","isError":false,"preview":"[image]"},
+  {"type":"text","text":"The sidebar overlaps the header by 12 pt."}]},
+ {"id":"m3","role":"user","createdAt":"2026-09-24T12:01:00+00:00","blocks":[
+  {"type":"attachment","id":"1122334455667788","name":"notes.txt","kind":"file"}]}
+]}
