@@ -47,6 +47,30 @@ import Testing
         #expect(none?.options.last == .init(label: "Type something.", keys: ["2"], freeText: true))
     }
 
+    @Test func codexCommandApproval() throws {
+        let a = try #require(ApprovalParser.parse(try Fixture.text("codex-approval.txt"), agentId: "w14:p5", kind: "codex"))
+        #expect(a.question == "Would you like to run the following command?\n`curl -sI https://example.com | head -1`")
+        #expect(a.options == [
+            .init(label: "Yes, proceed", keys: ["enter"]),
+            .init(label: "Yes, and don't ask again for commands that start with `curl -sI https://example.com`", keys: ["down", "enter"]),
+            .init(label: "No, and tell Codex what to do differently", keys: ["esc"]),
+        ])
+    }
+
+    @Test func codexEditApprovalWithCursorOnSecondRow() throws {
+        let a = try #require(ApprovalParser.parse(try Fixture.text("codex-approval-edit.txt"), agentId: "w14:p5",
+                                                  scrubber: PathScrubber(cwd: "/Users/dev/project"), kind: "codex"))
+        #expect(a.question == "Would you like to make the following edits?")
+        #expect(a.options.map(\.keys) == [["up", "enter"], ["enter"], ["esc"]])
+        #expect(a.options[1].label == "Yes, and don't ask again for these files")
+    }
+
+    @Test func claudeParsingUnchangedWithoutKind() throws {
+        // The same codex screen parsed the Claude way keeps digit keys (regression guard for other kinds).
+        let a = try #require(ApprovalParser.parse(try Fixture.text("codex-approval.txt"), agentId: "x"))
+        #expect(a.options.first?.keys == ["1"])
+    }
+
     @Test func trustFolderCursorMenu() throws {
         let a = ApprovalParser.parse(try Fixture.text("approval-trust.txt"), agentId: "w15:p2",
                                      scrubber: PathScrubber(cwd: "/Users/dev/fresh-project"), cwdName: "fresh-project")

@@ -286,12 +286,13 @@ public final class AgentService: Sendable {
         guard a.agentStatus == .blocked else { return nil }
         let scrubber = PathScrubber(cwd: a.cwd)
         let cwdName = CwdName.of(a.cwd ?? a.foregroundCwd)
+        let kind = a.agent ?? a.agentSession?.agent
         let detection = try await herdr.read(a.paneId, source: .detection)
-        var approval = ApprovalParser.parse(detection.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName)
+        var approval = ApprovalParser.parse(detection.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName, kind: kind)
         var screen = detection.text
         if approval == nil {
             let visible = try await herdr.read(a.paneId, source: .visible)
-            approval = ApprovalParser.parse(visible.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName)
+            approval = ApprovalParser.parse(visible.text, agentId: a.paneId, scrubber: scrubber, cwdName: cwdName, kind: kind)
             screen = visible.text
         }
         guard var approval else { return ApprovalParser.fallback(detection.text, agentId: a.paneId, scrubber: scrubber) }

@@ -20,8 +20,10 @@ public enum ApprovalParser {
         _ screen: String,
         agentId: String,
         scrubber: PathScrubber = PathScrubber(cwd: nil),
-        cwdName: String? = nil
+        cwdName: String? = nil,
+        kind: String? = nil
     ) -> Approval? {
+        if kind == "codex" { return codex(screen, agentId: agentId, scrubber: scrubber) }
         let lines = screen.components(separatedBy: "\n").map { $0.trimmingCharacters(in: frame) }
         return numbered(lines, agentId: agentId, scrubber: scrubber)
             ?? cursorMenu(lines, agentId: agentId, scrubber: scrubber, cwdName: cwdName)
@@ -65,6 +67,48 @@ public enum ApprovalParser {
         }
 
         return Approval(agentId: agentId, question: scrubber.scrub(question(above: run[0].line, in: lines)), options: options)
+    }
+
+    // MARK: codex
+
+    private static let shortcut = try! NSRegularExpression(pattern: #"\s*\((esc|[a-z])\)\s*$"#)
+
+    /// codex: `› 1. Yes, proceed (y)` … `3. No, and tell Codex what to do differently (esc)`.
+    /// A digit only moves codex's cursor, so keys move to the row and press Enter. The question is
+    /// codex's heading ("Would you like to run the following command?") plus the `$ command`.
+    static func codex(_ screen: String, agentId: String, scrubber: PathScrubber) -> Approval? {
+        guard let picker = Picker.parse(screen), let cursor = picker.cursor else { return nil }
+        let lines = screen.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        // The run Picker found is the last one on screen, so its row 1 is the last "1." line.
+        guard let firstRow = lines.lastIndex(where: { $0.range(of: #"^([›❯]\s*)?1\.\s"#, options: .regularExpression) != nil }) else { return nil }
+
+        var options: [ApprovalOption] = []
+        for (i, raw) in picker.labels.enumerated() {
+            var label = raw
+            var esc = false
+            let ns = label as NSString
+            if let m = shortcut.firstMatch(in: label, range: NSRange(location: 0, length: ns.length)) {
+                esc = ns.substring(with: m.range(at: 1)) == "esc"
+                label = ns.substring(to: m.range.location)
+            }
+            let keys = esc && i == picker.labels.count - 1 ? ["esc"] : arrows(from: cursor, to: i) + ["enter"]
+            options.append(ApprovalOption(label: scrubber.scrub(label), keys: keys))
+        }
+
+        // Heading: the nearest "…?" line above the options, skipping codex's "Reason: …?" line.
+        var heading: String?
+        var command: String?
+        var i = firstRow - 1
+        while i >= 0 && firstRow - i <= 20 {
+            let l = lines[i]
+            i -= 1
+            if l.isEmpty { continue }
+            if l.hasPrefix("$ ") && command == nil { command = String(l.dropFirst(2)) }
+            if l.hasSuffix("?") && !l.hasPrefix("Reason:") { heading = l; break }
+        }
+        var question = heading ?? picker.title ?? "Codex is waiting for your answer"
+        if let command { question += "\n`\(command)`" }
+        return Approval(agentId: agentId, question: scrubber.scrub(question), options: options)
     }
 
     // MARK: Cursor menus

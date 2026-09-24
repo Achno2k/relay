@@ -95,6 +95,13 @@ struct CodexDriver: ControlDriver {
             let before = try await service.screen(a)
             let requested = "Permission selection requested: \(label)"
             try await service.submit(a, "/permissions")
+            _ = try await waitForPicker(a, title: "Permissions", service: service)
+            // Already in that mode: codex prints nothing when you pick the current row.
+            if try await service.screen(a).contains("\(label) (current)") {
+                try await service.herdr.sendKeys(a.paneId, keys: ["esc"])
+                service.setStickyMode(a.paneId, mode, session: a.agentSession?.value)
+                return
+            }
             try await service.drivePicker(a, title: "Permissions", pick: { $0 == label }, key: "enter", what: label)
             try await service.waitFor(AgentService.controlTimeout, what: "/permissions \(label)") {
                 let screen = try await service.screen(a)

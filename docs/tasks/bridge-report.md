@@ -206,3 +206,24 @@ The contract went into api.md first (`6d6daa4`: Attachments and Machine sections
   - claude-haiku-4-5 lists off…high.
   - Left on gpt-5.6-sol · high.
 - **Tests:** 118 pass, 0 warnings, including pi's rule on a models-store fixture and a fake pi that rejects a level.
+
+### Follow-up: codex approvals
+- **The real prompt** (seen live on w14:p5 in "Ask for approval" mode, after asking codex to run `curl` with escalated permissions; herdr reports `blocked`):
+  - the heading "Would you like to run the following command?";
+  - `Environment:` and `Reason: …?` lines, then `$ <command>`;
+  - `› 1. Yes, proceed (y)` / `2. Yes, and don't ask again for commands that start with … (p)` / `3. No, and tell Codex what to do differently (esc)`;
+  - the footer "Press enter to confirm or esc to cancel".
+- **Parser:** a codex branch (`ApprovalParser.parse(…, kind: "codex")`).
+  - Question: the nearest "…?" heading above the options, skipping `Reason:`, plus the `$` command in backticks.
+  - Labels: the `(y)`/`(p)`/`(a)` shortcut hints are removed.
+  - Keys: arrow moves from the `›` row plus `enter`; the trailing "No … (esc)" is `["esc"]`.
+  - Claude and other kinds keep their existing parsing.
+- **Live on w14:p5 (bridge on 7979):**
+  - "Yes, proceed" `["enter"]` → "✔ You approved codex to run curl -sI https://example.com | head -1 this time" → `HTTP/2 200`, and `/approval` went back to 204.
+  - "No" `["esc"]` → "✗ You canceled the request…", and the command didn't run.
+  - A raw `["down","down","enter"]` on a third prompt reached "No" the same way, which shows arrows plus Enter drive the real dialog. I didn't press option 2 on a real prompt, because "don't ask again" would save a rule.
+- **pi:** no approval prompts ("no … permission popups" in its README); its only dialog is a startup project-trust prompt. Nothing to wire.
+- **Also fixed:**
+  - Setting codex's current mode again used to return 504, because codex prints nothing for the "(current)" row. It's now a 202 no-op that closes the picker. Live: ask → ask → approveForMe → ask all 202.
+  - The settle wait before `409 agent_busy` is now about 3 s.
+- **Tests:** 121 pass, including the real codex approval screen, an edit approval with the cursor on row 2, and the current-mode no-op in the fake codex.

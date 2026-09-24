@@ -24,7 +24,7 @@ extension AgentService {
             throw APIError(.badRequest, "unsupported", "controls aren't available for \(kind) agents")
         }
         // codex flips to "working" for a moment after some UI actions; give it a beat to settle.
-        for _ in 0..<6 where a.agentStatus == .working {
+        for _ in 0..<12 where a.agentStatus == .working {
             try await Task.sleep(for: .milliseconds(250))
             a = try await herdr.agent(id)
         }

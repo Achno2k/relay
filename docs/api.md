@@ -71,6 +71,10 @@ ApprovalOption {
   "freeText": true                // optional, default false. Choosing it opens a text input in the agent's menu
 }                                 // (Claude's "Type something." row). The app sends `keys`, then the typed answer via POST /agents/:id/text.
 ```
+- Keys differ by agent kind. Send each option's `keys` exactly as given:
+  - Claude: a digit selects a row (`["1"]`); a trailing "No … (esc)" is `["esc"]`.
+  - codex: a digit only moves the cursor, so options are arrow moves from the `›` row plus `"enter"` (`["enter"]`, `["down","enter"]`); "No, and tell Codex … (esc)" is `["esc"]`. The question is codex's heading plus the command, e.g. "Would you like to run the following command?\n`curl -sI https://example.com | head -1`". Shortcut hints like `(y)`/`(p)` are removed from labels.
+  - pi has no approval prompts (it has no permission gates by design).
 - Free-text options: the bridge sets `freeText: true` on Claude's "Type something." row. Clients also treat a label of exactly `Type something.` as free text, so older bridges still work.
   - Its `keys` are arrow moves from the menu cursor to that row (e.g. `["down","down"]`), not its number: pressing the number also types the digit into the field. If the cursor is already on it, `keys` is `["up","down"]`. `keys` is never empty.
   - Send `POST /keys` with those keys, then `POST /text` right away. No delay is needed between them.

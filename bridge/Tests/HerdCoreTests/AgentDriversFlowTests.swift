@@ -21,6 +21,7 @@ import Testing
             var pickedModel: String?
             var savedDefault = false
             var lines: [String] = []
+            var mode = "ask"
         }
         let state: Mutex<State>
         static let codexModels: [(slug: String, name: String, efforts: [String])] = [
@@ -65,7 +66,10 @@ import Testing
                     let cur = Self.codexModels.firstIndex { $0.slug == s.model } ?? 0
                     s.picker = ("Select Model and Effort", Self.codexModels.map(\.name), cur)
                 case ("codex", "/permissions"):
-                    s.picker = ("Update Model Permissions", ["Ask for approval (current)", "Approve for me", "Full Access"], 0)
+                    let current = s.mode
+                    s.picker = ("Update Model Permissions",
+                                [("ask", "Ask for approval"), ("approveForMe", "Approve for me"), ("fullAccess", "Full Access")]
+                                    .map { $0.0 == current ? "\($0.1) (current)" : $0.1 }, 0)
                 default: break
                 }
             }
@@ -100,7 +104,11 @@ import Testing
                         else { s.lines.append("• Model changed to \(s.model) \(effort) for this session only") }
                     } else if p.title == "Update Model Permissions", k == "enter" {
                         s.picker = nil
-                        s.lines.append("• Permission selection requested: \(label.replacingOccurrences(of: " (current)", with: ""))")
+                        // Like codex: picking the current row prints nothing.
+                        if !p.labels[p.cursor].contains("(current)") {
+                            s.lines.append("• Permission selection requested: \(label)")
+                            s.mode = ["Ask for approval": "ask", "Approve for me": "approveForMe", "Full Access": "fullAccess"][label] ?? s.mode
+                        }
                     }
                 default: break
                 }
@@ -244,6 +252,10 @@ import Testing
             #expect(a.permissionMode == "fullAccess")
             let b = try await service.control(id: "w14:p9", .permissionMode("ask"))
             #expect(b.permissionMode == "ask")
+            // Already in "ask": no confirmation line from codex, still a 202, and the picker is closed.
+            let c = try await service.control(id: "w14:p9", .permissionMode("ask"))
+            #expect(c.permissionMode == "ask")
+            #expect(tui.state.withLock { $0.picker } == nil)
         }
     }
 
