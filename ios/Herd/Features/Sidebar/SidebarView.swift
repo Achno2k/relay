@@ -378,16 +378,22 @@ private struct ProjectRow: View {
     let expanded: Bool
     let onToggle: () -> Void
     let onNewChat: () -> Void
+    /// Matches the SF Symbol at `.body` it replaced, and follows Dynamic Type.
+    @ScaledMetric(relativeTo: .body) private var folderSize: CGFloat = 20
 
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onToggle) {
                 HStack(spacing: 12) {
-                    Image(systemName: expanded ? "folder.fill" : "folder")
-                        .font(.body)
+                    // Lucide folder-closed / folder-open (ios/THIRD_PARTY.md), template vectors tinted like text.
+                    Image(expanded ? "folder-open" : "folder-closed")
+                        .resizable()
+                        .renderingMode(.template)
+                        .scaledToFit()
+                        .frame(width: folderSize, height: folderSize)
                         .foregroundStyle(.secondary)
                         .frame(width: 26)
-                        .contentTransition(.symbolEffect(.replace))
+                        .accessibilityHidden(true)
                     Text(project.name)
                         .font(.body.weight(.medium))
                         .lineLimit(1)
