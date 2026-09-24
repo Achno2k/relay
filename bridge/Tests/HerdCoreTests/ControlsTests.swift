@@ -122,7 +122,7 @@ import Testing
             try? FileManager.default.removeItem(at: claude.settings)
         }
         let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath),
-                                   locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent")),
+                                   locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent"), codex: CodexRollouts(root: URL(fileURLWithPath: "/nonexistent"))),
                                    settings: SettingsGuard(url: claude.settings))
         try await body(service, fake)
     }

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum TranscriptFormat: String, Sendable {
-    case claude, pi
+    case claude, pi, codex
 }
 
 /// Turns agent JSONL into `[Message]`, one line at a time.
@@ -53,6 +53,7 @@ public struct TranscriptParser: Sendable {
         switch format {
         case .claude: return consumeClaude(obj)
         case .pi: return consumePi(obj)
+        case .codex: return consumeCodex(obj)
         }
     }
 
@@ -161,6 +162,85 @@ public struct TranscriptParser: Sendable {
                 toolCallId: (message["toolCallId"] as? String) ?? "",
                 isError: (message["isError"] as? Bool) ?? false,
                 preview: ToolSummary.preview(Self.resultText(content), scrubber: scrubber))])
+        default:
+            return nil
+        }
+    }
+
+    // MARK: codex
+
+    /// codex rollouts: only `event_msg` / `item_completed` items (what codex's own UI shows).
+    /// The raw `response_item`s repeat them with injected context and JS tool wrappers.
+    private mutating func consumeCodex(_ o: [String: Any]) -> Message? {
+        guard o["type"] as? String == "event_msg",
+              let p = o["payload"] as? [String: Any], p["type"] as? String == "item_completed",
+              let item = p["item"] as? [String: Any], let type = item["type"] as? String
+        else { return nil }
+        let id = (item["id"] as? String) ?? UUID().uuidString
+        let createdAt = Timestamps.normalize(o["timestamp"]) ?? Timestamps.format(.now)
+        currentDate = (o["timestamp"] as? String).flatMap(Timestamps.parse)
+
+        func texts(_ key: String = "content") -> [String] {
+            (item[key] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }
+        }
+        switch type {
+        case "UserMessage":
+            return appendUser(id: id, createdAt: createdAt, texts: [texts().joined(separator: "\n")])
+        case "AgentMessage":
+            let t = texts().joined(separator: "\n")
+            return t.isEmpty ? nil : appendAssistant(id: id, createdAt: createdAt, blocks: [.text(scrubber.scrub(t))])
+        case "Reasoning":
+            let t = (item["summary_text"] as? [String] ?? []).joined(separator: "\n\n")
+            return t.isEmpty ? nil : appendAssistant(id: id, createdAt: createdAt, blocks: [.thinking(scrubber.scrub(t))])
+        default:
+            guard let blocks = codexTool(type, item, id: id), !blocks.isEmpty else { return nil }
+            return appendAssistant(id: id, createdAt: createdAt, blocks: blocks)
+        }
+    }
+
+    /// A finished codex tool item as a toolCall plus its toolResult.
+    private func codexTool(_ type: String, _ item: [String: Any], id: String) -> [Block]? {
+        func strip(_ s: String) -> String { s.hasPrefix("file://") ? String(s.dropFirst(7)) : s }
+        let failed = (item["status"] as? String).map { $0 == "failed" || $0 == "declined" } ?? false
+        func pair(_ name: String, _ summary: String, _ input: Any, _ output: String, error: Bool) -> [Block] {
+            [.toolCall(id: id, name: name, summary: ToolSummary.truncate(scrubber.scrub(summary), 120),
+                       input: ToolSummary.inputString(input, scrubber: scrubber)),
+             .toolResult(toolCallId: id, isError: error, preview: ToolSummary.preview(output, scrubber: scrubber))]
+        }
+        switch type {
+        case "CommandExecution":
+            let argv = item["command"] as? [String] ?? []
+            // `["/bin/zsh", "-lc", "<script>"]` → the script.
+            let cmd = argv.count >= 3 && ["-lc", "-c"].contains(argv[1]) ? argv[2] : argv.joined(separator: " ")
+            var input: [String: Any] = ["command": cmd]
+            if let cwd = item["cwd"] as? String { input["cwd"] = strip(cwd) }
+            let exit = item["exit_code"] as? Int
+            let output = (item["aggregated_output"] as? String) ?? [item["stdout"], item["stderr"]].compactMap { $0 as? String }.joined(separator: "\n")
+            return pair("Shell", "Ran \(ToolSummary.firstLine(cmd))", input, output, error: failed || (exit ?? 0) != 0)
+        case "FileChange":
+            let changes = item["changes"] as? [String: Any] ?? [:]
+            let paths = changes.keys.sorted()
+            let summary = paths.count == 1 ? "Edited \(scrubber.scrub(paths[0]))" : "Edited \(paths.count) files"
+            let diff = paths.compactMap { p -> String? in
+                guard let c = changes[p] as? [String: Any] else { return nil }
+                return "\(p)\n" + ((c["unified_diff"] as? String) ?? (c["content"] as? String) ?? (c["type"] as? String ?? ""))
+            }.joined(separator: "\n")
+            return pair("Edit", summary, ["files": paths], diff, error: failed)
+        case "McpToolCall":
+            let name = [item["server"] as? String, item["tool"] as? String].compactMap { $0 }.joined(separator: ".")
+            let result = item["result"] as? [String: Any]
+            let text = (result?["content"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }.joined(separator: "\n")
+            return pair(name.isEmpty ? "MCP" : name, "Called \(name)", item["arguments"] ?? [:], text,
+                        error: failed || (result?["isError"] as? Bool ?? false))
+        case "Extension":
+            let query = (item["query"] as? String) ?? ((item["action"] as? [String: Any])?["queries"] as? [String])?.first ?? ""
+            let results = (item["results"] as? [[String: Any]] ?? []).compactMap { $0["domain"] as? String }
+            let kind = item["kind"] as? String ?? "extension"
+            return pair(kind == "web.search" ? "WebSearch" : kind, kind == "web.search" ? "Searched the web for \(query)" : kind,
+                        ["query": query], results.joined(separator: "\n"), error: failed)
+        case "ImageView":
+            let path = strip(item["path"] as? String ?? "")
+            return pair("ViewImage", "Viewed \(path)", ["path": path], "", error: false)
         default:
             return nil
         }

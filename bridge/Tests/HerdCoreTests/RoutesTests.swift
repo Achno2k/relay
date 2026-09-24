@@ -58,7 +58,7 @@ import Testing
         defer { fake.stop() }
 
         let uploads = UploadStore(root: projects.appendingPathComponent("uploads"))
-        let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: projects), uploads: uploads)
+        let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: projects, codex: CodexRollouts(root: projects.appendingPathComponent("codex"))), uploads: uploads)
         let hub = EventHub()
         let router = HerdRoutes.router(service: service, hub: hub, token: Self.token)
         let app = Application(router: router, server: .http1WebSocketUpgrade(webSocketRouter: router))
@@ -331,7 +331,7 @@ import Testing
     @Test func monitorEmitsCreatedUpdatedClosed() async throws {
         let statuses = Mutex<[String: String]>(["w1:p1": "idle", "w1:p2": "blocked", "w2:p3": "idle"])
         try await withApp(status: { id in statuses.withLock { $0[id] ?? "idle" } }) { _, fake, _ in
-            let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent")))
+            let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent"), codex: CodexRollouts(root: URL(fileURLWithPath: "/nonexistent"))))
             let hub = EventHub()
             let (sid, events) = hub.subscribe()
             defer { hub.unsubscribe(sid) }

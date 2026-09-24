@@ -11,10 +11,13 @@ public struct TranscriptRef: Sendable, Equatable {
 /// Claude: `~/.claude/projects/<cwd with non-alphanumerics as ->/<sessionId>.jsonl`. pi: the session path.
 public final class TranscriptLocator: Sendable {
     public let claudeProjects: URL
+    public let codex: CodexRollouts
     private let found = Mutex<[String: URL]>([:])
 
-    public init(claudeProjects: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")) {
+    public init(claudeProjects: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects"),
+                codex: CodexRollouts = CodexRollouts()) {
         self.claudeProjects = claudeProjects
+        self.codex = codex
     }
 
     public static func projectDirName(for cwd: String) -> String {
@@ -24,9 +27,15 @@ public final class TranscriptLocator: Sendable {
     }
 
     public func locate(_ a: HerdrAgent) -> TranscriptRef? {
+        let cwd = a.cwd ?? a.foregroundCwd
+        if (a.agent ?? a.agentSession?.agent)?.lowercased() == "codex" {
+            // herdr's session id, else the newest rollout started in this folder (herdr has no id
+            // until codex's first message).
+            let url = a.agentSession.flatMap { codex.find(sessionId: $0.value) } ?? cwd.flatMap(codex.newest(cwd:))
+            return url.map { TranscriptRef(url: $0, format: .codex, cwd: cwd) }
+        }
         guard let session = a.agentSession else { return nil }
         let kind = (a.agent ?? session.agent).lowercased()
-        let cwd = a.cwd ?? a.foregroundCwd
         let fm = FileManager.default
 
         if session.kind == "path" {

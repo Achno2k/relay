@@ -227,3 +227,15 @@ The contract went into api.md first (`6d6daa4`: Attachments and Machine sections
   - Setting codex's current mode again used to return 504, because codex prints nothing for the "(current)" row. It's now a 202 no-op that closes the picker. Live: ask → ask → approveForMe → ask all 202.
   - The settle wait before `409 agent_busy` is now about 3 s.
 - **Tests:** 121 pass, including the real codex approval screen, an edit approval with the cursor on row 2, and the current-mode no-op in the fake codex.
+
+### Follow-up: codex transcripts
+- **What codex's rollout holds:** two parallel streams. `response_item` has the raw model I/O: injected developer/user context, and tool calls wrapped in JS (`const r = await tools.exec_command({cmd:…})`). `event_msg` → `item_completed` has what codex's own UI shows: `UserMessage`, `AgentMessage`, `Reasoning` (`summary_text`), `CommandExecution` (argv, cwd, `aggregated_output`, `exit_code`, `status`), `FileChange` (path → `unified_diff`), `McpToolCall`, `Extension` (web.search), `ImageView`, `ContextCompaction`. Across the 12 most recent local rollouts, no `UserMessage` had injected context.
+- **Parser:** `TranscriptFormat.codex` reads only `item_completed` and maps it onto the same Message/Block model (see api.md). Paths are scrubbed relative to the cwd (`file://` stripped), and consecutive assistant items merge into one assistant message.
+- **Finding the file:** `CodexRollouts` looks up herdr's session id across the newest 60 day folders (cached). Without an id, it uses the newest rollout from the last 2 days whose `session_meta.cwd` matches the agent's. `TranscriptLocator` uses it for codex, so `hasTranscript`, `/messages`, the tailer and `message.upserted` now work for codex as they do for Claude and pi.
+- **Live on w14:p5 (bridge on 7979, then 7878):**
+  - `hasTranscript: true`, and `/messages` showed the earlier approval turns with tool calls and results. No paths appeared in the JSON.
+  - A new prompt ("run `echo herd-tail-check`, reply done") produced `message.upserted` for the user message, then the assistant message growing from 1 to 3 to 4 blocks, alongside `agent.updated` working → done.
+- **Limits:**
+  - Older rollouts without `item_completed` events show no history.
+  - After `/new`, herdr keeps the old session id until codex's next message, so the old conversation shows until then.
+- **Tests:** 126 pass. They cover a synthetic rollout with every item type, the ignored raw items, incremental growth, a declined command as an error, and lookup by id and by cwd.

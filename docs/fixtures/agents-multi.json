@@ -1,4 +1,4 @@
 [
  {"id":"w3:p1","name":"pi-helper","kind":"pi","title":"pi","workspaceId":"w3","workspaceName":"tools","cwdName":"tools","status":"idle","hasTranscript":true,"updatedAt":"2026-09-24T13:20:00+00:00","model":"openai-codex/gpt-5.6-sol","modelLabel":"gpt-5.6-sol","permissionMode":null,"effort":"high","sessionId":"2026-09-24T13-15-59-129Z_01a0d38e-0000-73ca-91e9-000000000001"},
- {"id":"w3:p2","name":"codex-helper","kind":"codex","title":"codex","workspaceId":"w3","workspaceName":"tools","cwdName":"tools","status":"done","hasTranscript":false,"updatedAt":"2026-09-24T13:21:00+00:00","model":"gpt-5.6-terra","modelLabel":"GPT-5.6-Terra","permissionMode":"approveForMe","effort":"high","sessionId":"01a0d390-0000-7a41-979a-000000000002"}
+ {"id":"w3:p2","name":"codex-helper","kind":"codex","title":"codex","workspaceId":"w3","workspaceName":"tools","cwdName":"tools","status":"done","hasTranscript":true,"updatedAt":"2026-09-24T13:21:00+00:00","model":"gpt-5.6-terra","modelLabel":"GPT-5.6-Terra","permissionMode":"approveForMe","effort":"high","sessionId":"01a0d390-0000-7a41-979a-000000000002"}
 ]

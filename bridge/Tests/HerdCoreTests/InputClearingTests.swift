@@ -40,7 +40,7 @@ import Testing
             }
         }
         defer { fake.stop() }
-        try await body(AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent"))))
+        try await body(AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent"), codex: CodexRollouts(root: URL(fileURLWithPath: "/nonexistent")))))
     }
 
     @Test func stopClearsTheRestoredPrompt() async throws {

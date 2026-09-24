@@ -146,7 +146,7 @@ import Testing
                                      piModelsStoreURL: Fixture.url("pi-models-store.json"),
                                      codexSessions: URL(fileURLWithPath: "/nonexistent"))
         try await body(AgentService(herdr: HerdrClient(socketPath: fake.socketPath),
-                                    locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent")),
+                                    locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent"), codex: CodexRollouts(root: URL(fileURLWithPath: "/nonexistent"))),
                                     catalogs: catalogs))
     }
 
