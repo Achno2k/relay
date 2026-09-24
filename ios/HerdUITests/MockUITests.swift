@@ -11,7 +11,7 @@ final class MockUITests: XCTestCase {
     }
 
     private func launch(_ args: String...) {
-        app.launchArguments = ["-mock", "-replay", "off"] + args
+        app.launchArguments = ["-uitest", "-mock", "-replay", "off", "-resetSidebar"] + args
         app.launch()
     }
 
@@ -28,10 +28,12 @@ final class MockUITests: XCTestCase {
         XCTAssertFalse(scrollToBottom.exists, "opened scrolled up")
 
         app.buttons["Open sidebar"].tap()
+        expand("project-shop-api")
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Refactor auth middleware'")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Option 2'")).firstMatch.waitForExistence(timeout: 10))
 
         app.buttons["Open sidebar"].tap()
+        expand("project-website")
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Landing page hero redesign'")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Done"].waitForExistence(timeout: 10), "latest message not visible after switching")
         sleep(1)
@@ -132,13 +134,20 @@ final class MockUITests: XCTestCase {
         let subtitle = app.staticTexts["titleSubtitle"]
         XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
         XCTAssertEqual(subtitle.label, "Opus 5.5 · Auto")
-        XCTAssertTrue(app.buttons["modeChip"].exists, "Auto isn't default, so the chip shows")
+        XCTAssertTrue(app.buttons["modeChip"].waitForExistence(timeout: 5), "Auto isn't default, so the chip shows")
         app.buttons["titleMenu"].tap()
         XCTAssertTrue(app.staticTexts["Agent is working"].waitForExistence(timeout: 5))
         shot("controls-busy")
         // XCUITest reports disabled menu pickers as enabled; check the submenu doesn't open instead.
         menuItem("Model").tap()
         XCTAssertFalse(app.buttons["Sonnet 5"].waitForExistence(timeout: 2), "Model opened while working")
+    }
+
+    /// Sidebar folders start collapsed.
+    private func expand(_ project: String) {
+        let row = app.buttons[project]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        if row.value as? String != "expanded" { row.tap() }
     }
 
     private func waitForIdle() {

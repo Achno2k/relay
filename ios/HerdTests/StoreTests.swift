@@ -9,6 +9,7 @@ actor RecordingBackend: Backend {
         case keys([String])
         case text(String, submit: Bool)
         case control(ControlRequest)
+        case prompt(String, attachments: [String])
     }
 
     private(set) var calls: [Call] = []
@@ -23,7 +24,18 @@ actor RecordingBackend: Backend {
     func workspaces() async throws -> [Workspace] { [] }
     func agents() async throws -> [Agent] { [agent] }
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage { MessagePage(messages: [], hasMore: false) }
-    func prompt(agentId: String, text: String) async throws {}
+    func prompt(agentId: String, text: String, attachments: [String]) async throws {
+        calls.append(.prompt(text, attachments: attachments))
+    }
+    func uploadAttachment(
+        agentId: String, data: Data, filename: String, contentType: String,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> HerdKit.Attachment {
+        progress(1)
+        return HerdKit.Attachment(id: "a\(calls.count)", name: filename, kind: contentType.hasPrefix("image/") ? .image : .file, size: data.count)
+    }
+    func attachmentData(agentId: String, attachmentId: String) async throws -> Data { Data() }
+    func machine() async throws -> Machine { try FixtureFiles.decode(Machine.self, "machine.json") }
     func sendKeys(agentId: String, keys: [String]) async throws { calls.append(.keys(keys)) }
     func sendText(agentId: String, text: String, submit: Bool) async throws { calls.append(.text(text, submit: submit)) }
     func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : nil }

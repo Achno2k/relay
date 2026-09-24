@@ -8,6 +8,7 @@ import XCTest
 final class LiveE2ETests: XCTestCase {
     private var env: [String: String] { ProcessInfo.processInfo.environment }
     private var app: XCUIApplication!
+    private let testWord = "HERD" + String((0..<4).map { _ in "BCDFGHJKLMNPQRSTVWXZ".randomElement()! })
 
     override func setUp() async throws {
         continueAfterFailure = false
@@ -15,7 +16,8 @@ final class LiveE2ETests: XCTestCase {
             throw XCTSkip("HERD_E2E_LINK / HERD_E2E_AGENT not set")
         }
         app = XCUIApplication()
-        app.launchArguments = ["-pair", link, "-agent", agent]
+        // A fresh word per run for the generated attachments, so replies from earlier runs can't match.
+        app.launchArguments = ["-uitest", "-pair", link, "-agent", agent, "-uitestAttachments", "-testWord", testWord]
         app.launch()
     }
 
@@ -161,6 +163,58 @@ final class LiveE2ETests: XCTestCase {
         if !originalModel.isEmpty, originalModel != "Sonnet 5" {
             pick("Model", originalModel)
             XCTAssertTrue(subtitle.label.hasPrefix(originalModel))
+        }
+    }
+
+    /// A generated PNG that reads "HERD": the agent must read it from the uploaded file.
+    func testImageAttachment() throws {
+        let composer = composerField()
+        attach("Test image (HERD)")
+        waitForUploads(1)
+        composer.tap()
+        composer.typeText("What text is in the attached image? Reply with just that text, nothing else.")
+        shot("att-1-composer")
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.buttons["attachmentImage"].firstMatch.waitForExistence(timeout: 15), "no thumbnail in the sent bubble")
+        let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", testWord)).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 120), "the agent never read \(testWord) from the image")
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 60))
+        shot("att-2-image-reply")
+    }
+
+    /// A generated one-page PDF; the code word only exists inside the file.
+    func testPDFAttachment() throws {
+        let composer = composerField()
+        attach("Test PDF")
+        waitForUploads(1)
+        composer.tap()
+        composer.typeText("What is the code word in the attached PDF? Reply with just the word.")
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.buttons["attachmentFile"].firstMatch.waitForExistence(timeout: 15), "no file chip in the sent bubble")
+        let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", testWord)).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 120), "the agent never read \(testWord) from the PDF")
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 60))
+        shot("att-3-pdf-reply")
+    }
+
+    private func composerField() -> XCUIElement {
+        let composer = app.descendants(matching: .any).matching(NSPredicate(format: "placeholderValue BEGINSWITH 'Message'")).firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 15), "composer never appeared")
+        return composer
+    }
+
+    private func attach(_ item: String) {
+        app.buttons["composerPlus"].tap()
+        let button = app.buttons[item]
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "no \(item) in the + menu")
+        button.tap()
+    }
+
+    private func waitForUploads(_ count: Int) {
+        let items = app.descendants(matching: .any).matching(identifier: "trayItem")
+        for i in 0..<count {
+            let done = expectation(for: NSPredicate(format: "value == 'uploaded'"), evaluatedWith: items.element(boundBy: i))
+            wait(for: [done], timeout: 30)
         }
     }
 
