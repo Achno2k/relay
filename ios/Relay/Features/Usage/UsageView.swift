@@ -85,38 +85,51 @@ private struct UsageProviderCard: View {
     }
 }
 
-private struct UsageWindowRow: View {
-    let window: UsageWindow
+/// Never green — a usage bar isn't a "good/bad" gauge, just neutral until it's actually high.
+enum UsageLevel: Equatable {
+    case neutral, amber, red
 
-    private var percent: Double { min(100, max(0, window.usedPercent ?? 0)) }
-
-    private var level: Color {
+    static func classify(_ percent: Double) -> UsageLevel {
         switch percent {
-        case ..<60: .green
-        case ..<85: .orange
+        case ..<75: .neutral
+        case ..<90: .amber
         default: .red
         }
     }
 
+    var color: Color {
+        switch self {
+        case .neutral: .accentColor
+        case .amber: .orange
+        case .red: .red
+        }
+    }
+}
+
+struct UsageWindowRow: View {
+    let window: UsageWindow
+
+    private var percent: Double { min(100, max(0, window.usedPercent ?? 0)) }
+    private var level: Color { UsageLevel.classify(percent).color }
+
     var body: some View {
-        HStack(spacing: 14) {
-            UsageRing(percent: percent, color: level)
-                .frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(window.label).font(.subheadline.weight(.medium))
-                if let resetsAt = window.resetsAt {
-                    Text("Resets \(Self.countdown(to: resetsAt))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Spacer()
+                if window.usedPercent != nil {
+                    Text("\(Int(percent.rounded()))%")
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(level)
+                } else {
+                    Text("—").font(.subheadline).foregroundStyle(.secondary)
                 }
             }
-            Spacer()
-            if window.usedPercent != nil {
-                Text("\(Int(percent.rounded()))%")
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(level)
-            } else {
-                Text("—").font(.subheadline).foregroundStyle(.secondary)
+            UsageBar(percent: percent, color: level)
+            if let resetsAt = window.resetsAt {
+                Text("Resets \(Self.countdown(to: resetsAt))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -133,18 +146,36 @@ private struct UsageWindowRow: View {
     }
 }
 
-private struct UsageRing: View {
+/// A thin rounded percentage bar. Fills with a spring on appear and whenever `percent` changes.
+private struct UsageBar: View {
     let percent: Double
     let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var fill: CGFloat = 0
+
+    private static let trackHeight: CGFloat = 6
 
     var body: some View {
-        ZStack {
-            Circle().stroke(color.opacity(0.18), lineWidth: 5)
-            Circle()
-                .trim(from: 0, to: percent / 100)
-                .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(color.opacity(0.16))
+                Capsule().fill(color)
+                    .frame(width: geo.size.width * fill)
+            }
         }
-        .animation(.smooth, value: percent)
+        .frame(height: Self.trackHeight)
+        .onAppear { setFill(animated: !reduceMotion) }
+        .onChange(of: percent) { _, _ in setFill(animated: !reduceMotion) }
+        .onChange(of: reduceMotion) { _, _ in setFill(animated: false) }
+    }
+
+    private func setFill(animated: Bool) {
+        let target = CGFloat(percent / 100)
+        if animated {
+            withAnimation(.spring(duration: 0.6, bounce: 0.2)) { fill = target }
+        } else {
+            fill = target
+        }
     }
 }
