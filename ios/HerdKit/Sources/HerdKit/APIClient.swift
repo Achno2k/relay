@@ -67,6 +67,16 @@ public struct APIClient: Sendable {
         return try HerdJSON.decoder().decode(Approval.self, from: data)
     }
 
+    public func controls() async throws -> ControlsCatalog { try await send("GET", "/controls") }
+
+    public func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
+        let (data, _) = try await raw(
+            "POST", "/agents/\(Self.encode(agentId))/control",
+            body: try HerdJSON.encoder().encode(request), timeout: request.timeout
+        )
+        return try HerdJSON.decoder().decode(Agent.self, from: data)
+    }
+
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
         try await send("POST", "/agents", body: request)
     }
@@ -100,10 +110,12 @@ public struct APIClient: Sendable {
         _ = try await raw(method, path, body: try HerdJSON.encoder().encode(body))
     }
 
-    private func raw(_ method: String, _ path: String, query: [URLQueryItem] = [], body: Data? = nil) async throws -> (Data, Int) {
+    private func raw(
+        _ method: String, _ path: String, query: [URLQueryItem] = [], body: Data? = nil, timeout: TimeInterval = 15
+    ) async throws -> (Data, Int) {
         var request = URLRequest(url: url(path, query: query))
         request.httpMethod = method
-        request.timeoutInterval = 15
+        request.timeoutInterval = timeout
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         if let body {
             request.httpBody = body

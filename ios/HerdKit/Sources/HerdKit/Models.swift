@@ -34,11 +34,22 @@ public struct Agent: Codable, Hashable, Identifiable, Sendable {
     public var status: AgentStatus
     public var hasTranscript: Bool
     public var updatedAt: Date
+    /// Claude only; nil when unknown. Full model id from the transcript, e.g. "claude-opus-5-5".
+    public var model: String?
+    /// Display name for `model`, e.g. "Opus 5.5"; the bridge owns the mapping.
+    public var modelLabel: String?
+    /// `default | acceptEdits | plan | auto | bypassPermissions`.
+    public var permissionMode: String?
+    public var effort: String?
+    /// Changes when the agent starts a new session (e.g. after /clear); the chat must be refetched.
+    public var sessionId: String?
 
     public init(
         id: String, name: String?, kind: String, title: String,
         workspaceId: String, workspaceName: String, cwdName: String,
-        status: AgentStatus, hasTranscript: Bool, updatedAt: Date
+        status: AgentStatus, hasTranscript: Bool, updatedAt: Date,
+        model: String? = nil, modelLabel: String? = nil, permissionMode: String? = nil,
+        effort: String? = nil, sessionId: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -50,6 +61,11 @@ public struct Agent: Codable, Hashable, Identifiable, Sendable {
         self.status = status
         self.hasTranscript = hasTranscript
         self.updatedAt = updatedAt
+        self.model = model
+        self.modelLabel = modelLabel
+        self.permissionMode = permissionMode
+        self.effort = effort
+        self.sessionId = sessionId
     }
 
     /// Title for lists and the chat header. herdr falls back to the kind when a pane has no title.
@@ -210,6 +226,61 @@ public struct Approval: Codable, Hashable, Sendable {
         self.question = question
         self.options = options
         self.step = step
+    }
+}
+
+/// One choice in `GET /controls`.
+public struct ControlOption: Codable, Hashable, Identifiable, Sendable {
+    public var id: String
+    public var label: String
+
+    public init(id: String, label: String) {
+        self.id = id
+        self.label = label
+    }
+}
+
+/// `GET /controls`: what the app may offer. The list lives in the bridge.
+public struct ControlsCatalog: Codable, Hashable, Sendable {
+    public var models: [ControlOption]
+    public var modes: [ControlOption]
+    public var efforts: [ControlOption]
+
+    public init(models: [ControlOption], modes: [ControlOption], efforts: [ControlOption]) {
+        self.models = models
+        self.modes = modes
+        self.efforts = efforts
+    }
+}
+
+/// Body of `POST /agents/:id/control`; exactly one key per call.
+public enum ControlRequest: Hashable, Sendable, Encodable {
+    /// `/compact` can take about 90 s on the bridge; everything else confirms within ~10 s.
+    public var timeout: TimeInterval {
+        self == .command(.compact) ? 120 : 20
+    }
+
+    case model(String)
+    case permissionMode(String)
+    case effort(String)
+    case command(Command)
+
+    public enum Command: String, Hashable, Sendable {
+        case compact, clear
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case model, permissionMode, effort, command
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .model(let v): try c.encode(v, forKey: .model)
+        case .permissionMode(let v): try c.encode(v, forKey: .permissionMode)
+        case .effort(let v): try c.encode(v, forKey: .effort)
+        case .command(let v): try c.encode(v.rawValue, forKey: .command)
+        }
     }
 }
 

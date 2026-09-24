@@ -12,6 +12,10 @@ public protocol Backend: Sendable {
     /// `nil` when the agent isn't blocked (204).
     func approval(agentId: String) async throws -> Approval?
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent
+    /// `GET /controls`.
+    func controls() async throws -> ControlsCatalog
+    /// `POST /agents/:id/control`. Returns the updated agent once the bridge has confirmed the change.
+    func control(agentId: String, _ request: ControlRequest) async throws -> Agent
     /// Socket state and deltas. Reconnects by itself until the stream is dropped.
     func events() -> AsyncStream<ConnectionEvent>
 }
@@ -37,5 +41,9 @@ public struct LiveBackend: Backend {
     }
     public func approval(agentId: String) async throws -> Approval? { try await client.approval(agentId: agentId) }
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent { try await client.createAgent(request) }
+    public func controls() async throws -> ControlsCatalog { try await client.controls() }
+    public func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
+        try await client.control(agentId: agentId, request)
+    }
     public func events() -> AsyncStream<ConnectionEvent> { socket.events() }
 }
