@@ -123,12 +123,14 @@ Controls {
     - `400 bad_request`: zero or several keys, or an unknown value.
     - `400 unsupported`: this agent can't reach that value, e.g. `bypassPermissions` isn't in its Shift+Tab cycle, or it isn't a Claude agent.
     - `409 agent_busy`: the agent is working. `409 agent_blocked`: it's at a dialog.
+    - `409 control_refused`: Claude declined the change, e.g. it printed "Kept model as Opus 5.5" because its "Switch model?" confirmation was answered No.
     - `501 not_implemented`: this Claude version has no reliable way to set that control.
     - `504 control_timeout`: sent, but the change never showed up.
 - Every change to `model`, `modelLabel`, `permissionMode`, `effort` or `sessionId` also emits `agent.updated`.
 - Scope:
   - A switch applies to that agent's session only. Claude's `/model` and `/effort` also save the choice as the default for new sessions, but the bridge puts `~/.claude/settings.json` back afterwards.
   - Claude calls the default mode "manual" in its footer; the API calls it `default`.
+  - On a long, cached conversation Claude asks "Switch model? … 1. Yes, switch to Sonnet 5 / 2. No, go back". The bridge answers Yes itself. If the change times out, the bridge presses Esc to close any dialog it opened.
   - Claude Code 2.1.280 cycles auto → default → acceptEdits → plan. `bypassPermissions` is only in the cycle when Claude was started with it.
 
 ## WebSocket `/ws?token=...`

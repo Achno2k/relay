@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// `POST /agents/:id/control`: drives Claude Code's own UI (slash commands, Shift+Tab) and waits
 /// until the change shows up in the transcript or on screen.
@@ -77,6 +78,8 @@ extension AgentService {
             for _ in 0..<6 {
                 try await Task.sleep(for: .milliseconds(150))
                 let screen = try await herdr.read(a.paneId, source: .detection).text
+                // A dialog (e.g. "Switch model?") means the command was taken.
+                if Self.dialog(screen) != nil { return }
                 pending = InputBox.lastPromptLine(screen) == command
                 if !pending { return }
             }
@@ -91,6 +94,7 @@ extension AgentService {
         let ref = locator.locate(a)
         let start = ref.map { fileSize($0.url) }
         let saved = settings.snapshot()
+        let keptBefore = Self.keptCount((try? await herdr.read(a.paneId, source: .detection).text) ?? "")
         defer {
             settings.restore(saved)
             // Claude may write the file again a moment later.
@@ -103,18 +107,66 @@ extension AgentService {
         try await slash(a, command)
         // The transcript quotes the value in backticks (`Set model to `Sonnet 5``); the screen doesn't.
         @Sendable func mentions(_ text: String) -> Bool { text.replacingOccurrences(of: "`", with: "").contains(confirm) }
-        try await waitFor(Self.controlTimeout, what: command) {
-            if let ref, let start, mentions(self.read(ref.url, from: start)) { return true }
-            let now = try await self.herdr.agent(a.paneId)
-            let screen = try await self.herdr.read(a.paneId, source: .detection).text
-            if now.agentStatus == .blocked {
-                // A picker instead of a direct switch: leave it rather than guess.
-                try await self.herdr.sendKeys(a.paneId, keys: ["esc"])
-                throw APIError(.badRequest, "unsupported", "Claude opened a picker for \(command)")
+        let answered = Mutex(false)
+        do {
+            try await waitFor(Self.controlTimeout, what: command) {
+                let tail = ref.flatMap { r in start.map { self.read(r.url, from: $0) } } ?? ""
+                if mentions(tail) { return true }
+                let screen = try await self.herdr.read(a.paneId, source: .detection).text
+                // Claude kept the old value (its confirmation was answered No): a refusal, not a timeout.
+                // Only new output counts: the transcript bytes written since the command, or on
+                // screen (no transcript) more "Kept" lines than before.
+                if command.hasPrefix("/model") {
+                    if ref != nil, let kept = Self.kept(tail, after: command) {
+                        throw APIError(.conflict, "control_refused", "Claude kept \(kept)")
+                    }
+                    if ref == nil, Self.keptCount(screen) > keptBefore, let kept = Self.kept(screen, after: command) {
+                        throw APIError(.conflict, "control_refused", "Claude kept \(kept)")
+                    }
+                }
+                if let dialog = Self.dialog(screen) {
+                    // e.g. "Switch model? … ❯ 1. Yes, switch to Sonnet 5 / 2. No, go back" on a long,
+                    // cached conversation. herdr doesn't always report it as blocked.
+                    guard let yes = dialog.options.first(where: { $0.label.lowercased().hasPrefix("yes") }) else {
+                        try await self.herdr.sendKeys(a.paneId, keys: ["esc"])
+                        throw APIError(.badRequest, "unsupported", "Claude asked \"\(dialog.question)\" for \(command)")
+                    }
+                    if !answered.withLock({ $0 }) {
+                        answered.withLock { $0 = true }
+                        try await self.herdr.sendKeys(a.paneId, keys: yes.keys)
+                    }
+                    return false
+                }
+                // Stale output of the same value would only confirm what's already true.
+                return mentions(screen)
             }
-            // Stale output of the same value would only confirm what's already true.
-            return mentions(screen)
+        } catch let e as APIError where e.code == "control_timeout" {
+            // Never leave a dialog of ours open.
+            if let screen = try? await herdr.read(a.paneId, source: .detection).text, Self.dialog(screen) != nil {
+                try? await herdr.sendKeys(a.paneId, keys: ["esc"])
+            }
+            throw e
         }
+    }
+
+    /// "Kept model as Opus 5.5" printed after `command` (on screen or in the new transcript bytes).
+    static func kept(_ text: String, after command: String) -> String? {
+        let clean = text.replacingOccurrences(of: "`", with: "")
+        let region = clean.range(of: command, options: .backwards).map { String(clean[$0.upperBound...]) } ?? clean
+        guard let r = region.range(of: "Kept model as ") else { return nil }
+        let rest = region[r.upperBound...]
+        let value = rest.prefix { $0 != "\n" && $0 != "<" }.trimmingCharacters(in: .whitespaces)
+        return value.isEmpty ? nil : value
+    }
+
+    static func keptCount(_ screen: String) -> Int {
+        screen.components(separatedBy: "Kept model as ").count - 1
+    }
+
+    /// A numbered menu that has replaced the input box (so it's current, not old output).
+    static func dialog(_ screen: String) -> Approval? {
+        guard InputBox.content(screen) == nil else { return nil }
+        return ApprovalParser.parse(screen, agentId: "")
     }
 
     // MARK: Permission mode

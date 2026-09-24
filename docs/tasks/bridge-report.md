@@ -74,3 +74,17 @@ All three items are fixed and checked live on port 7979. `swift test` passes 60 
 - **Lost Enter.** Right after a `/model`, Claude sometimes drops the Enter while it re-renders, and the command sits in the input box. Typing the text with `pane.send_text` and then pressing Enter lost commands this way. So the bridge now uses `agent.prompt`, checks the last `❯` line, and presses Enter again if the command is still there.
 - **Late transcript writes.** Claude sometimes writes `/model` output to the transcript a few seconds after the screen shows it. A confirmed value is held for up to 15 s so the response and `agent.updated` don't show the old value.
 - **Transcript parser.** It now drops `isCompactSummary` lines, the summary `/compact` injects as a user message. The plain `/compact` line still shows as a user message.
+
+**Controls fix (reported by herd-ios: `/model` returned 504 although the switch applied)**
+- **Cause:** on a long, cached conversation, `/model` first asks "Switch model? … ❯ 1. Yes, switch to Sonnet 5 / 2. No, go back". herdr doesn't report the agent as `blocked` there, so the bridge waited 10 s and left the dialog open. I reproduced it live: essay streaming, stop, `/model sonnet`.
+- **Fix:**
+  - When a numbered menu replaces the input box during a control, the bridge presses its "Yes…" option once.
+  - A menu without a "Yes" option gets Esc and `400 unsupported`.
+  - On timeout, the bridge presses Esc so no dialog is left open.
+- **Related fixes:**
+  - The "command still in the input box" check ignored indented dialog lines (`   ❯ 1. Yes…`) and kept pressing Enter. A visible dialog now counts as the command being taken.
+  - "Kept model as Opus 5.5" (the dialog answered No) now returns `409 control_refused` instead of timing out. Only output written after the command counts: my first version matched an old "Kept" line still on screen and refused two switches that had worked.
+- **Tests:**
+  - A fixture copied from the real dialog screen, plus fake-Claude tests for the Yes path and the refusal. 83 tests pass.
+  - Live on 7878: 12 of 12 back-to-back controls, and the stop-then-switch sequence, all return 202.
+  - The dialog itself didn't come up again in my live runs; it seems to need the cached conversation to sit for a while. So the Yes-press is only tested against the fixture copied from the real screen.

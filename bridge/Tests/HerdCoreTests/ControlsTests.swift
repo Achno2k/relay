@@ -17,6 +17,10 @@ import Testing
             var session = "s1"
             var history: [String] = []
             var shiftTabs = 0
+            /// Ask "Switch model?" before switching, like Claude does on a long cached conversation.
+            var confirmSwitch = false
+            var dialog: [String]?
+            var pendingModel: String?
         }
         let state = Mutex(State())
         let settings: URL
@@ -35,6 +39,7 @@ import Testing
                 default: "⏸ plan mode on (shift+tab to cycle)"
                 }
                 let rule = String(repeating: "─", count: 40)
+                if let dialog = s.dialog { return (s.history.suffix(10) + dialog).joined(separator: "\n") }
                 return (s.history.suffix(10) + [rule, "❯", rule, "  0/1.0M", "  \(footer) · ← 1 agent"]).joined(separator: "\n")
             }
         }
@@ -44,6 +49,11 @@ import Testing
                 s.history.append("❯ \(command)")
                 let parts = command.split(separator: " ").map(String.init)
                 switch parts[0] {
+                case "/model" where s.confirmSwitch:
+                    let label = ClaudeControls.catalog.models.first { $0.id == parts[1] }!.label
+                    s.pendingModel = label
+                    s.dialog = [String(repeating: "▔", count: 40), "   Switch model?", "   Your next response will be slower",
+                                "   ❯ 1. Yes, switch to \(label)", "     2. No, go back"]
                 case "/model":
                     let label = ClaudeControls.catalog.models.first { $0.id == parts[1] }!.label
                     s.history.append("  ⎿  Set model to \(label) and saved as your default for new sessions")
@@ -79,6 +89,23 @@ import Testing
                 claude.run(params["text"] as? String ?? "")
                 return ["type": "agent_prompted", "agent": [:] as [String: Any]]
             case "agent.send_keys":
+                if (params["keys"] as? [String]) == ["1"] {
+                    claude.state.withLock { s in
+                        guard s.dialog != nil, let label = s.pendingModel else { return }
+                        s.dialog = nil
+                        s.history.append("  ⎿  Set model to \(label) and saved as your default for new sessions")
+                    }
+                }
+                if (params["keys"] as? [String]) == ["2"] {
+                    claude.state.withLock { s in
+                        guard s.dialog != nil else { return }
+                        s.dialog = nil
+                        s.history.append("  ⎿  Kept model as Opus 5.5")
+                    }
+                }
+                if (params["keys"] as? [String]) == ["esc"] {
+                    claude.state.withLock { $0.dialog = nil }
+                }
                 if (params["keys"] as? [String]) == ["shift+tab"] {
                     claude.state.withLock { s in
                         s.shiftTabs += 1
@@ -110,6 +137,34 @@ import Testing
             #expect(fake.params(of: "agent.prompt") == #"{"target":"w14:p2","text":"/model sonnet"}"#)
             #expect(try Data(contentsOf: claude.settings) == before)
         }
+    }
+
+    @Test func answersSwitchModelConfirmation() async throws {
+        let claude = Claude()
+        claude.state.withLock { $0.confirmSwitch = true }
+        try await withService(claude) { service, fake in
+            let a = try await service.control(id: "w14:p2", .model("sonnet"))
+            #expect(a.model == "claude-sonnet-5")
+            #expect(fake.params(of: "agent.send_keys") == #"{"keys":["1"],"target":"w14:p2"}"#)
+            #expect(claude.state.withLock { $0.dialog } == nil)
+        }
+    }
+
+    @Test func realSwitchDialogIsDetected() throws {
+        let screen = try Fixture.text("switch-model-dialog.txt")
+        let d = try #require(AgentService.dialog(screen))
+        #expect(d.question == "Switch model?")
+        #expect(d.options.first == .init(label: "Yes, switch to Sonnet 5", keys: ["1"]))
+        // The normal input box is not a dialog.
+        #expect(AgentService.dialog(try Fixture.text("input-empty.txt")) == nil)
+    }
+
+    @Test func keptModelIsARefusal() {
+        let screen = "❯ /model sonnet\n  ⎿  Kept model as Opus 5.5\n───\n❯\n───"
+        #expect(AgentService.kept(screen, after: "/model sonnet") == "Opus 5.5")
+        #expect(AgentService.kept("<local-command-stdout>Kept model as `Opus 5.5`</local-command-stdout>", after: "/model sonnet") == "Opus 5.5")
+        // An old "Kept" line before this command doesn't count.
+        #expect(AgentService.kept("  ⎿  Kept model as Opus 5.5\n❯ /model sonnet\n  ⎿  Set model to Sonnet 5", after: "/model sonnet") == nil)
     }
 
     @Test func effort() async throws {
