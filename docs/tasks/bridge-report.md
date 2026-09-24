@@ -150,3 +150,44 @@ The contract went into api.md first (`6d6daa4`: Attachments and Machine sections
 - **/new:** asks "Where should the new conversation run?" (Current checkout / New worktree). After Current checkout it prints `To continue this session, run codex resume…`, and the model goes back to the config default. herdr keeps the old session id until the next message.
 - **/compact:** exists (`/compact`). Errors show as `■ Error …`.
 - **Side effect:** codex's trust answer adds a `[projects."<cwd>"] trust_level` entry to `~/.codex/config.toml`. I'll remove the entry for the scratch folder when done.
+
+### What's built
+- **`ControlDriver` protocol** with `ClaudeDriver` (the existing Claude code, moved behind it), `PiDriver` and `CodexDriver`. Each driver reads its agent's values, lists its capabilities, and applies and confirms changes. Shared pieces:
+  - `Picker`: parses numbered pickers with `›`/`❯` cursors, strips descriptions and "(default)".
+  - `drivePicker`: moves one key at a time, re-reading the screen until the cursor moves, then presses the confirm key.
+  - `waitForScreen`: only new output counts, and a new `■ Error…` fails the call with `502 control_failed`.
+- **`GET /agents/:id/controls`**: per-agent lists and `supports`. `POST /agents/:id/control` checks the request against that agent's lists: `400 bad_request` for a value not in them, `400 unsupported` for a control the kind doesn't have.
+- **`ModelCatalogs`**: `pi --list-models`, `codex debug models` and pi's `settings.json`, cached for 10 minutes, plus a lookup for codex rollout files. Tests swap in a fake command runner.
+- **Agent fields**: `Agent.model/modelLabel/effort` are now filled for pi (footer, then session file) and codex (footer, then `turn_context`). codex `permissionMode` uses a mode the bridge just set until a newer `turn_context` shows up.
+- **Settle wait**: codex reports `working` for a moment after some picker actions, so a control re-checks for about 1.5 s before answering `409 agent_busy`.
+- **Tests**: 115 pass, 0 warnings. That includes fake pi and codex UIs (a state machine with both pickers, the Advanced Reasoning submenu, and enter=save-default vs s=session) and fixtures of real footers, pickers, `--list-models` and rollouts.
+
+### Live results (bridge on 7979, real panes)
+- **pi (w14:p4):**
+  - `model` openai-codex/gpt-5.6-sol, openai-codex/gpt-5.5 and openai-codex/gpt-5.6-terra each switched in 0.56–2.1 s.
+  - `effort` low, minimal and high each switched in about 0.56 s.
+  - A bad model returned `400 bad_request`, and `permissionMode` returned `400 unsupported`.
+  - `clear` (`/new`) returned 202 in 0.56 s with a new sessionId, and the model went back to pi's default.
+  - `compact` on a two-message session returned `502 control_failed` "Compaction failed: Nothing to compact (session too small)". A successful pi compaction isn't live-tested; it's covered by the session-file check.
+  - `~/.pi/agent/settings.json` stayed byte-identical.
+- **codex (w14:p5):**
+  - 8/8 model/effort changes returned 202 in 1.0–3.3 s, including Max and Ultra through "More reasoning…" → Advanced Reasoning. Switching model keeps the effort when the new model supports it; otherwise it uses that model's default.
+  - `permissionMode` ask, fullAccess and approveForMe each took 0.8–1.3 s. No confirmation dialog appeared for Full Access here.
+  - `compact` returned 202 in 22.5 s, confirmed by "• Context compacted" (it also started a new session id). `clear` returned 202 in about 1 s via "Current checkout".
+  - `~/.codex/config.toml` unchanged.
+- **Claude regression (w14:p2):** 6/6 controls returned 202 in 0.16–1.0 s.
+
+### Bugs found live and fixed
+- **Stale errors:** the first codex run reported `502` from an old "■ Error running remote compact task" line still on screen. Error and confirmation checks now count only new output.
+- **Saved default by accident:** `drivePicker(title: "")` never matched, because Swift's `"x".contains("")` is false. So the Advanced Reasoning submenu stayed open, and the next command's Enter committed Max as codex's saved default. Now:
+  - an empty title matches any picker;
+  - a failed picker flow presses Esc until no picker is left;
+  - the Max/Ultra step waits for the submenu itself.
+
+  I restored `~/.codex/config.toml` from my snapshot straight away. My snapshot was taken before codex's folder trust ran, so the scratch folder's trust entry was removed along with the accidental change.
+- **Wrong confirmation for compact:** codex doesn't keep the typed `/compact` on screen, so compact is now confirmed by a new "Context compacted" line.
+
+### Not covered
+- codex's Plan-mode toggle (`shift+tab`) isn't exposed. It's a separate "collaboration mode", not a permission mode.
+- A model that exists only in codex's config (e.g. `gpt-5.6-sol`) can't be selected in the picker again, and its effort can't be changed. Both return `400 unsupported` with the reason.
+- On codex, pressing a digit in a picker only moves the cursor, and Enter confirms. That matters for approvals: the approval keys `["N"]` may need an extra `enter` on codex. I haven't changed the approval parser for codex yet.

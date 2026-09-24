@@ -177,6 +177,10 @@ public enum HerdRoutes {
 
         router.get("/controls") { _, _ in try JSONResponse.make(ClaudeControls.catalog) }
 
+        router.get("/agents/:id/controls") { _, context in
+            try JSONResponse.make(try await service.controls(id: try agentId(context)))
+        }
+
         router.post("/agents/:id/control") { request, context in
             let body = try await decode(ControlBody.self, request, context)
             let agent = try await service.control(id: try agentId(context), try body.request())

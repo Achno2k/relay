@@ -9,10 +9,12 @@ public final class AgentService: Sendable {
     private let cache = Mutex<[URL: CachedTranscript]>([:])
     private let controlCache = Mutex<[URL: (size: UInt64, mtime: Date, state: ControlState)]>([:])
     private let lastControls = Mutex<[String: ControlState]>([:])
+    private let sticky = Mutex<[String: (mode: String, at: Date, session: String?)]>([:])
     /// Values a control just confirmed on screen, held until the transcript catches up.
     private let confirmed = Mutex<[String: (state: ControlState, until: Date)]>([:])
     let settings: SettingsGuard
     public let uploads: UploadStore
+    public let catalogs: ModelCatalogs
     /// Called after a control changed something, so the monitor can push `agent.updated` right away.
     let onChange: @Sendable () -> Void
 
@@ -23,8 +25,10 @@ public final class AgentService: Sendable {
         var used: Date
     }
 
-    public init(herdr: HerdrClient, locator: TranscriptLocator, settings: SettingsGuard = SettingsGuard(), uploads: UploadStore = UploadStore(), onChange: @escaping @Sendable () -> Void = {}) {
+    public init(herdr: HerdrClient, locator: TranscriptLocator, settings: SettingsGuard = SettingsGuard(), uploads: UploadStore = UploadStore(), catalogs: ModelCatalogs = ModelCatalogs(),
+                onChange: @escaping @Sendable () -> Void = {}) {
         self.uploads = uploads
+        self.catalogs = catalogs
         self.herdr = herdr
         self.locator = locator
         self.settings = settings
@@ -86,7 +90,7 @@ public final class AgentService: Sendable {
             hasTranscript: ref != nil,
             updatedAt: Timestamps.format(updatedAt(a, transcriptModified: mtime)))
         agent.model = controls?.model
-        agent.modelLabel = controls?.model.flatMap(ClaudeControls.label(forModel:))
+        agent.modelLabel = controls?.model.flatMap { driver(for: a)?.label(forModel: $0, service: self) }
         agent.permissionMode = controls?.permissionMode
         agent.effort = controls?.effort
         agent.sessionId = a.agentSession.map { s in
@@ -103,12 +107,9 @@ public final class AgentService: Sendable {
     /// `permission-mode` lines lag). Gaps are filled from the last known values, e.g. right after
     /// `/clear` when the new transcript has no assistant message yet.
     func controls(_ a: HerdrAgent, ref: TranscriptRef?) async -> ControlState? {
-        guard Self.isClaude(a) else { return nil }
-        var s = ref.map(transcriptControls) ?? ControlState()
-        if let screen = try? await herdr.read(a.paneId, source: .detection).text {
-            if let mode = ClaudeControls.footerMode(screen) { s.permissionMode = mode }
-            s = s.merged(over: ClaudeControls.banner(screen))
-        }
+        guard let driver = driver(for: a) else { return nil }
+        let screen = try? await herdr.read(a.paneId, source: .detection).text
+        var s = await driver.read(a, ref: ref, screen: screen, service: self)
         if let held = confirmed.withLock({ c -> ControlState? in
             guard let e = c[a.paneId] else { return nil }
             if e.until < Date() {
@@ -119,6 +120,7 @@ public final class AgentService: Sendable {
         }) {
             s.model = held.model ?? s.model
             s.effort = held.effort ?? s.effort
+            s.permissionMode = held.permissionMode ?? s.permissionMode
         }
         return lastControls.withLock { last in
             let merged = s.merged(over: last[a.paneId])
@@ -133,6 +135,28 @@ public final class AgentService: Sendable {
             var merged = state
             if let e = c[paneId], e.until > Date() { merged = state.merged(over: e.state) }
             c[paneId] = (merged, Date().addingTimeInterval(15))
+        }
+    }
+
+    /// Last 1 MB of a file (session logs can be large).
+    func readTail(_ url: URL) -> Data {
+        guard let h = try? FileHandle(forReadingFrom: url) else { return Data() }
+        defer { try? h.close() }
+        let size = (try? h.seekToEnd()) ?? 0
+        try? h.seek(toOffset: size > Self.controlTailBytes ? size - Self.controlTailBytes : 0)
+        return (try? h.readToEnd()) ?? Data()
+    }
+
+    /// A mode the bridge set on an agent whose files only catch up on the next turn (codex).
+    func setStickyMode(_ paneId: String, _ mode: String?, session: String?) {
+        sticky.withLock { $0[paneId] = mode.map { ($0, Date(), session) } }
+    }
+
+    func stickyMode(_ paneId: String, session: String?, newerThan: Date?) -> String? {
+        sticky.withLock { s in
+            guard let e = s[paneId], e.session == session else { return nil }
+            if let newer = newerThan, newer > e.at { s.removeValue(forKey: paneId); return nil }
+            return e.mode
         }
     }
 

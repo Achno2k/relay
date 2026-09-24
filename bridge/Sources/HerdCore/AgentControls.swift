@@ -18,13 +18,69 @@ extension AgentService {
     static let clearTimeout: Duration = .seconds(30)
 
     public func control(id: String, _ request: ControlRequest) async throws -> Agent {
-        let a = try await herdr.agent(id)
-        guard Self.isClaude(a) else { throw APIError(.badRequest, "unsupported", "controls only work on Claude agents") }
+        var a = try await herdr.agent(id)
+        let kind = a.agent ?? a.agentSession?.agent ?? "unknown"
+        guard let driver = driver(for: a) else {
+            throw APIError(.badRequest, "unsupported", "controls aren't available for \(kind) agents")
+        }
+        // codex flips to "working" for a moment after some UI actions; give it a beat to settle.
+        for _ in 0..<6 where a.agentStatus == .working {
+            try await Task.sleep(for: .milliseconds(250))
+            a = try await herdr.agent(id)
+        }
         switch a.agentStatus {
         case .working: throw APIError(.conflict, "agent_busy", "agent is working")
         case .blocked: throw APIError(.conflict, "agent_blocked", "agent is waiting at a dialog")
         default: break
         }
+        let current = await controls(a, ref: locator.locate(a)) ?? ControlState()
+        let caps = await driver.capabilities(a, current: current, service: self)
+        try Self.validate(request, caps, kind: kind)
+        try await driver.apply(request, to: a, current: current, service: self)
+        onChange()
+        return try await agent(id: a.paneId)
+    }
+
+    public func controls(id: String) async throws -> AgentControls {
+        let a = try await herdr.agent(id)
+        guard let driver = driver(for: a) else {
+            let none = ControlSupport(model: false, effort: false, mode: false, compact: false, clear: false)
+            return AgentControls(models: [], efforts: [], modes: [], supports: none)
+        }
+        let current = await controls(a, ref: locator.locate(a)) ?? ControlState()
+        return await driver.capabilities(a, current: current, service: self)
+    }
+
+    static func validate(_ r: ControlRequest, _ caps: AgentControls, kind: String) throws {
+        func check(_ supported: Bool, _ name: String, _ value: String?, in list: [ControlChoice]) throws {
+            guard supported else { throw APIError(.badRequest, "unsupported", "\(kind) agents don't support changing \(name)") }
+            if let value, !list.contains(where: { $0.id == value }) {
+                let ids = list.map(\.id)
+                let shown = ids.prefix(8).joined(separator: ", ") + (ids.count > 8 ? ", … (\(ids.count) in GET /agents/:id/controls)" : "")
+                throw APIError.badRequest("\(value) isn't one of this agent's \(name) options (\(shown))")
+            }
+        }
+        switch r {
+        case .model(let m): try check(caps.supports.model, "model", m, in: caps.models)
+        case .effort(let e): try check(caps.supports.effort, "effort", e, in: caps.efforts)
+        case .permissionMode(let m):
+            try check(caps.supports.mode, "permission mode", kind == "claude" && m == "dontAsk" ? nil : m, in: caps.modes)
+        case .compact: try check(caps.supports.compact, "compact", nil, in: [])
+        case .clear: try check(caps.supports.clear, "clear", nil, in: [])
+        }
+    }
+
+    func driver(for a: HerdrAgent) -> (any ControlDriver)? {
+        switch a.agent ?? a.agentSession?.agent {
+        case "claude": ClaudeDriver()
+        case "pi": PiDriver()
+        case "codex": CodexDriver()
+        default: nil
+        }
+    }
+
+    /// Claude Code: slash commands and Shift+Tab. Values are already validated.
+    func applyClaude(_ request: ControlRequest, to a: HerdrAgent) async throws {
         let catalog = ClaudeControls.catalog
         switch request {
         case .model(let alias):
@@ -61,8 +117,6 @@ extension AgentService {
                 return now.agentSession?.value != nil && now.agentSession?.value != before
             }
         }
-        onChange()
-        return try await agent(id: a.paneId)
     }
 
     // MARK: Slash commands

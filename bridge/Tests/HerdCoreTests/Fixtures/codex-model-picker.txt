@@ -1,0 +1,7 @@
+  Tip: New For a limited time, Codex is included in your plan for free.
+  Select Model and Effort
+  1. GPT-6-Luna (default)  Fast and affordable model for easier tasks.
+› 2. GPT-5.6-Terra         Older balanced model for straightforward work.
+  3. GPT-5.6-Luna          Older fast and efficient model.
+  4. GPT-5.5               Legacy coding model.
+  enter select · esc back

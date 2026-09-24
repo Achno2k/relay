@@ -246,7 +246,7 @@ import Testing
 
     @Test func onlyClaude() async throws {
         let claude = Claude()
-        claude.state.withLock { $0.kind = "codex" }
+        claude.state.withLock { $0.kind = "gemini" }
         try await withService(claude) { service, _ in
             do {
                 _ = try await service.control(id: "w14:p2", .compact)

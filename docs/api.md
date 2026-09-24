@@ -187,6 +187,10 @@ AgentControls {
 - codex has no direct command, so the bridge drives its `/model` picker. It picks the model row, then the effort row (Max/Ultra sit under "More reasoning…"), then presses `s`, re-reading the screen after every key.
   - A model outside the catalogue can't be re-selected there, and changing only the effort needs the current model to be in the list. Otherwise it's `400 unsupported`.
 - `Agent.model`, `modelLabel` and `effort` are filled for pi and codex from the footer, falling back to the session file. `permissionMode` is filled for codex from the last `turn_context`, or from what the bridge just set.
+- More errors and side effects:
+  - `502 control_failed`: the agent itself reported an error, quoted in `message`. Examples: pi's "Compaction failed: Nothing to compact (session too small)", codex's "■ Error running remote compact task: …".
+  - `/compact` on codex starts a new session id, so refetch messages.
+  - `clear` (`/new`) puts pi and codex back on their saved default model and effort.
 - Fixtures: `docs/fixtures/agent-controls-claude.json`, `agent-controls-pi.json`, `agent-controls-codex.json`, and `agents-multi.json` (a pi and a codex agent with these fields).
 
 ### Claude details
