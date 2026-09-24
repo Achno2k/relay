@@ -35,19 +35,19 @@ struct ControlsTests {
     }
 
     @Test func pillLabelsFollowPendingChanges() throws {
-        let catalog = try FixtureFiles.decode(ControlsCatalog.self, "controls.json")
+        let catalog = AgentControlsInfo(claudeCatalog: try FixtureFiles.decode(ControlsCatalog.self, "controls.json"))
         let agent = try #require(FixtureFiles.decode([Agent].self, "agents.json").first { $0.id == "w2:p1" })
-        let idle = AgentControls(agent: agent, catalog: catalog, pending: nil)
+        let idle = AgentControls(agent: agent, info: catalog, pending: nil)
         #expect(idle.subtitle == "Opus 5.5 · Default")
-        #expect(idle.modelAlias == "opus")
+        #expect(idle.modelId == "opus")
         #expect(idle.busyCaption == nil)
-        let switching = AgentControls(agent: agent, catalog: catalog, pending: .model("sonnet"))
+        let switching = AgentControls(agent: agent, info: catalog, pending: .model("sonnet"))
         #expect(switching.subtitle == "Sonnet 5 · Default")
-        #expect(AgentControls(agent: agent, catalog: catalog, pending: .permissionMode("plan")).subtitle == "Opus 5.5 · Plan")
+        #expect(AgentControls(agent: agent, info: catalog, pending: .permissionMode("plan")).subtitle == "Opus 5.5 · Plan")
         var noLabel = agent
         noLabel.modelLabel = nil
         noLabel.model = "claude-haiku-4-5-20251001"
-        #expect(AgentControls(agent: noLabel, catalog: catalog, pending: nil).modelLabel == "Haiku 4.5")
+        #expect(AgentControls(agent: noLabel, info: catalog, pending: nil).modelLabel == "Haiku 4.5")
     }
 
     @Test func newSessionDropsCachedChat() throws {
@@ -88,7 +88,7 @@ struct StoreControlsTests {
         #expect(store.controls?.models.count == 4)
         store.control(.model("sonnet"), for: agent.id)
         #expect(store.pendingControls[agent.id] == .model("sonnet"))
-        #expect(AgentControls(agent: agent, catalog: store.controls, pending: store.pendingControls[agent.id]).modelLabel == "Sonnet 5")
+        #expect(store.controlsState(for: agent).modelLabel == "Sonnet 5")
         try await waitUntil { store.pendingControls[agent.id] == nil }
         #expect(await backend.calls == [.control(.model("sonnet"))])
         #expect(store.state.agent(agent.id)?.model == "claude-sonnet-5")

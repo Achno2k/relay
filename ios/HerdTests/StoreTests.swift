@@ -41,6 +41,15 @@ actor RecordingBackend: Backend {
     func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : nil }
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent { agent }
     func controls() async throws -> ControlsCatalog { try FixtureFiles.decode(ControlsCatalog.self, "controls.json") }
+    /// nil = an older bridge without the per-agent route (404).
+    var perAgentControls: AgentControlsInfo?
+    private(set) var agentControlsFetches = 0
+    func setPerAgentControls(_ info: AgentControlsInfo?) { perAgentControls = info }
+    func agentControls(agentId: String) async throws -> AgentControlsInfo {
+        agentControlsFetches += 1
+        guard let perAgentControls else { throw HerdError.http(status: 404, code: "not_found", message: "Not Found") }
+        return perAgentControls
+    }
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
         calls.append(.control(request))
         if let controlError { throw controlError }
