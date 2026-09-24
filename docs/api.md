@@ -99,7 +99,8 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | POST | /agents/:id/keys | `{"keys": ["esc"]}` | `202 {}` (stop = `["esc"]`). After a stop the bridge clears the prompt Claude puts back in its input box, so it may take up to ~2 s to answer. Other keys are sent as is. Key names are herdr's (`esc`, `enter`, `up`, `down`, `ctrl+u`, digits, …). |
 | POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
-| GET | /controls | – | `Controls` (the choices the app offers; see below) |
+| GET | /controls | – | `Controls`: Claude's list only, kept for older apps. Use `/agents/:id/controls`. |
+| GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
 | POST | /agents/:id/control | exactly one of `{"model":"sonnet"}`, `{"permissionMode":"plan"}`, `{"effort":"high"}`, `{"command":"compact"}`, `{"command":"clear"}` | `202 Agent` (fresh, with the new value) once the change shows on screen or in the transcript. Errors below. |
 | POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","prompt":"optional"}` | `201 Agent` (new tab in the workspace, cwd = workspace's first pane cwd, `agent.start`, then optional prompt) |
 
@@ -160,6 +161,36 @@ Controls {
                { "id": "xhigh", "label": "Extra high" }, { "id": "max", "label": "Max" } ]
 }
 ```
+### Per-agent controls (Claude, pi, codex)
+
+```jsonc
+AgentControls {
+  "models":  [ { "id": "openai-codex/gpt-5.6-sol", "label": "gpt-5.6-sol" }, … ],  // the agent's own list
+  "efforts": [ { "id": "off", "label": "Off" }, … ],                              // for the agent's current model
+  "modes":   [ { "id": "ask", "label": "Ask for approval" }, … ],                  // [] when the kind has none
+  "supports": { "model": true, "effort": true, "mode": false, "compact": true, "clear": true }
+}
+```
+| kind | models (`id` → what `Agent.model` holds) | efforts | modes | compact / clear |
+|---|---|---|---|---|
+| claude | aliases `opus` `sonnet` `haiku` `fable`; `Agent.model` is the full id (`claude-sonnet-5`), so match by substring | low medium high xhigh max | default acceptEdits plan auto bypassPermissions (the Shift+Tab cycle) | `/compact`, `/clear` |
+| pi | `pi --list-models` as `provider/id`. The saved default and scoped (`enabledModels`) come first, then the rest by provider. `Agent.model` is exactly one of these ids. | off minimal low medium high xhigh max (only `off` if the current model has no thinking) | none (`supports.mode: false`) | `/compact`, `/new` |
+| codex | `codex debug models` entries with `visibility: list` (`id` = slug, `label` = display name), plus the current model if it's not in the catalogue. `Agent.model` is the slug. | the current model's `supported_reasoning_levels` (e.g. low medium high xhigh max ultra) | `ask` Ask for approval, `approveForMe` Approve for me, `fullAccess` Full Access | `/compact`, `/new` (current checkout) |
+
+- `POST /agents/:id/control` takes the same body for every kind: `model` and `effort` use ids from that agent's lists, `permissionMode` uses an id from `modes`, and `command` is `compact` or `clear`.
+  - A value that isn't in the agent's list gives `400 bad_request`. A control the kind doesn't support gives `400 unsupported` with a message saying why.
+- Changes apply to the running session only. The bridge never saves them as the agent's default:
+  - Claude: the settings file is restored.
+  - pi: `/model` and `/thinking` don't save anything.
+  - codex: the bridge picks "for this session only".
+- On pi, switching model resets thinking to that model's default, and `Agent.effort` reflects that.
+- codex has no direct command, so the bridge drives its `/model` picker. It picks the model row, then the effort row (Max/Ultra sit under "More reasoning…"), then presses `s`, re-reading the screen after every key.
+  - A model outside the catalogue can't be re-selected there, and changing only the effort needs the current model to be in the list. Otherwise it's `400 unsupported`.
+- `Agent.model`, `modelLabel` and `effort` are filled for pi and codex from the footer, falling back to the session file. `permissionMode` is filled for codex from the last `turn_context`, or from what the bridge just set.
+- Fixtures: `docs/fixtures/agent-controls-claude.json`, `agent-controls-pi.json`, `agent-controls-codex.json`, and `agents-multi.json` (a pi and a codex agent with these fields).
+
+### Claude details
+
 - `Agent.model` is a full id (`claude-sonnet-5`). Match it to the menu with `modelLabel`, or check whether the id contains the alias (`"sonnet"`).
 - `POST /agents/:id/control` (Claude agents only):
   - `model`: an alias from `models`. `permissionMode` and `effort`: an `id` from their lists.

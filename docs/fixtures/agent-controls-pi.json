@@ -1,0 +1,4 @@
+{"models":[{"id":"openai-codex/gpt-5.6-sol","label":"gpt-5.6-sol"},{"id":"anthropic/claude-sonnet-5","label":"claude-sonnet-5"},{"id":"anthropic/claude-opus-5","label":"claude-opus-5"},{"id":"anthropic/claude-haiku-4-5","label":"claude-haiku-4-5"},{"id":"openai-codex/gpt-5.5","label":"gpt-5.5"},{"id":"openai-codex/gpt-6-luna","label":"gpt-6-luna"}],
+ "efforts":[{"id":"off","label":"Off"},{"id":"minimal","label":"Minimal"},{"id":"low","label":"Low"},{"id":"medium","label":"Medium"},{"id":"high","label":"High"},{"id":"xhigh","label":"Extra high"},{"id":"max","label":"Max"}],
+ "modes":[],
+ "supports":{"model":true,"effort":true,"mode":false,"compact":true,"clear":true}}

@@ -123,3 +123,30 @@ The contract went into api.md first (`6d6daa4`: Attachments and Machine sections
 **Not covered**
 - In the default permission mode, Claude may ask before reading a PDF outside the project folder. That shows up as a normal approval.
 - An upload directory whose path has spaces would break the marker. `~/.herd/uploads` normally has none.
+
+## Round 3: pi and codex controls
+
+### Findings from live throwaway panes (herd-e2e: pi at w14:p4, codex at w14:p5)
+
+**pi 0.85.1**
+- **Model:** `/model <provider>/<id>` switches directly, with no picker. It prints `Model: <id>` and the footer's right side becomes `(<provider>) <id> • <thinking>`. A bare `/model` opens a picker; Ctrl+L and Ctrl+P also select or cycle models.
+- **Thinking:** `/thinking <level>` works directly. It prints `Thinking level: <level>`, and the footer's `• <level>` updates. Levels are `off minimal low medium high xhigh max`; `shift+tab` cycles them.
+- **Defaults untouched:** neither command touches `~/.pi/agent/settings.json`. pi only saves a default on Ctrl+S in the picker.
+- **Model switch resets thinking:** switching model sets thinking to that model's default (seen: low → high).
+- **Session file:** records `model_change {provider, modelId}` and `thinking_level_change {thinkingLevel}`. pi only writes the file after the first message, so for a fresh session the footer is the only source.
+- **Model list:** `pi --list-models` prints a table (provider, model, context, max-out, thinking yes/no, images): 57 models here. `settings.json` has `defaultProvider`/`defaultModel` (+ optional `enabledModels` for Ctrl+P scoping).
+- **/new:** starts a new session. herdr's `agent_session.value` (a path) switches immediately. The model is kept and thinking resets to the default.
+- **/compact:** exists (`/compact [instructions]`). The session file gets a `compaction` entry.
+- **No permission mode.**
+
+**codex-cli 0.156.1**
+- **Trust dialog on start:** a new folder gets "Trust this folder?" with `› 1. Trust and continue`. Pressing the digit only moves the cursor here; Enter confirms. herdr shows the agent as `idle`, not `blocked`, during this dialog.
+- **Model:** there's no direct form. `/model gpt-5.5` is sent to the model as an ordinary chat message. `/model` opens "Select Model and Effort" (numbered rows `› 2. GPT-5.6-Terra  <description>`, wrapping cursor), then "Select Reasoning Level for <Model>" (Low / Medium (default) / High / Extra high / More reasoning… → Max, Ultra).
+- **Saving vs session-only:** on the effort step, `enter` saves the default to config.toml and `s` applies "for this session only". The bridge always uses `s`. Confirmation: `• Model changed to <slug> <effort> for this session only`.
+- **Footer:** `<Model> <effort> · <cwd> …`. It shows the display name (`GPT-5.6-Terra high`), or the slug for models not in the catalogue (`gpt-5.6-sol high`). Plan mode appends `Plan mode`.
+- **Model list:** `codex debug models` returns the catalogue: `slug`, `display_name`, `visibility` (list/hide), `supported_reasoning_levels`, `default_reasoning_level`. The picker shows the `visibility: list` models. The configured `gpt-5.6-sol` isn't in the catalogue, so it can't be re-selected from the picker. With this ChatGPT login it also fails on `/compact` ("model is not supported when using Codex with a ChatGPT account").
+- **Rollout file:** `~/.codex/sessions/YYYY/MM/DD/rollout-*-<sessionId>.jsonl`. `turn_context` has `model`, `effort`, `approval_policy`, `approvals_reviewer`, `sandbox_policy.type` and `collaboration_mode.mode`. It's written per turn only, so the footer is fresher.
+- **Permissions (mode):** `/permissions` opens "Update Model Permissions": Ask for approval / Approve for me / Full Access, with the current one marked "(current)". Choosing one prints `• Permission selection requested: <label>`. In `turn_context`, "Approve for me" is `approvals_reviewer: auto_review`, and Full Access is `sandbox_policy.type: danger-full-access`. `shift+tab` separately toggles Plan mode, shown in the footer. It isn't exposed in this round.
+- **/new:** asks "Where should the new conversation run?" (Current checkout / New worktree). After Current checkout it prints `To continue this session, run codex resume…`, and the model goes back to the config default. herdr keeps the old session id until the next message.
+- **/compact:** exists (`/compact`). Errors show as `■ Error …`.
+- **Side effect:** codex's trust answer adds a `[projects."<cwd>"] trust_level` entry to `~/.codex/config.toml`. I'll remove the entry for the scratch folder when done.
