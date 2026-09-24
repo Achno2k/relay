@@ -11,17 +11,22 @@ public enum TranscriptFormat: String, Sendable {
 public struct TranscriptParser: Sendable {
     public let format: TranscriptFormat
     public let scrubber: PathScrubber
+    /// Recognises the bridge's own `Attached files:` marker in user messages.
+    public let uploads: UploadStore
     public private(set) var messages: [Message] = []
+    /// Timestamp of the line being parsed, to match sent records.
+    private var currentDate: Date?
 
     static let droppedUserPrefixes = ["<command-", "<local-command", "<system-reminder"]
 
-    public init(format: TranscriptFormat, cwd: String?) {
+    public init(format: TranscriptFormat, cwd: String?, uploads: UploadStore = UploadStore()) {
         self.format = format
         self.scrubber = PathScrubber(cwd: cwd)
+        self.uploads = uploads
     }
 
-    public static func parse(_ data: Data, format: TranscriptFormat, cwd: String?) -> [Message] {
-        var p = TranscriptParser(format: format, cwd: cwd)
+    public static func parse(_ data: Data, format: TranscriptFormat, cwd: String?, uploads: UploadStore = UploadStore()) -> [Message] {
+        var p = TranscriptParser(format: format, cwd: cwd, uploads: uploads)
         p.consume(data: data)
         return p.messages
     }
@@ -61,6 +66,7 @@ public struct TranscriptParser: Sendable {
         guard let message = o["message"] as? [String: Any] else { return nil }
         let id = (o["uuid"] as? String) ?? UUID().uuidString
         let createdAt = Timestamps.normalize(o["timestamp"]) ?? Timestamps.format(.now)
+        currentDate = (o["timestamp"] as? String).flatMap(Timestamps.parse)
 
         if type == "assistant" {
             guard let content = message["content"] as? [[String: Any]] else { return nil }
@@ -180,7 +186,24 @@ public struct TranscriptParser: Sendable {
             return !trimmed.isEmpty && !Self.droppedUserPrefixes.contains(where: trimmed.hasPrefix)
         }
         guard !kept.isEmpty else { return nil }
-        let m = Message(id: id, role: .user, createdAt: createdAt, blocks: kept.map { .text(scrubber.scrub($0)) })
+        var blocks: [Block] = []
+        for t in kept {
+            // What the bridge sent, even though Claude Code rewrote the text.
+            if UploadStore.looksAttached(t), let sent = uploads.lookupSent(t, at: currentDate) {
+                blocks += sent.attachments.map { .attachment(id: $0.id, name: $0.name, kind: $0.kind) }
+                if !sent.text.isEmpty { blocks.append(.text(scrubber.scrub(sent.text))) }
+                continue
+            }
+            let t = PastedContent.strip(t)
+            // Before scrubbing: the marker's absolute paths identify our uploads.
+            if let parsed = uploads.parseMarker(t) {
+                blocks += parsed.attachments.map { .attachment(id: $0.id, name: $0.name, kind: $0.kind) }
+                if !parsed.text.isEmpty { blocks.append(.text(scrubber.scrub(parsed.text))) }
+            } else {
+                blocks.append(.text(scrubber.scrub(t)))
+            }
+        }
+        let m = Message(id: id, role: .user, createdAt: createdAt, blocks: blocks)
         messages.append(m)
         return m
     }

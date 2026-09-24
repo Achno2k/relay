@@ -61,9 +61,10 @@ public enum Block: Codable, Sendable, Equatable {
     case thinking(String)
     case toolCall(id: String, name: String, summary: String, input: String)
     case toolResult(toolCallId: String, isError: Bool, preview: String)
+    case attachment(id: String, name: String, kind: AttachmentKind)
 
     private enum CodingKeys: String, CodingKey {
-        case type, text, id, name, summary, input, toolCallId, isError, preview
+        case type, text, id, name, summary, input, toolCallId, isError, preview, kind
     }
 
     public init(from decoder: any Decoder) throws {
@@ -82,6 +83,11 @@ public enum Block: Codable, Sendable, Equatable {
                 toolCallId: try c.decode(String.self, forKey: .toolCallId),
                 isError: try c.decode(Bool.self, forKey: .isError),
                 preview: try c.decode(String.self, forKey: .preview))
+        case "attachment":
+            self = .attachment(
+                id: try c.decode(String.self, forKey: .id),
+                name: try c.decode(String.self, forKey: .name),
+                kind: try c.decode(AttachmentKind.self, forKey: .kind))
         case let other:
             throw DecodingError.dataCorruptedError(forKey: .type, in: c, debugDescription: "unknown block type \(other)")
         }
@@ -107,6 +113,11 @@ public enum Block: Codable, Sendable, Equatable {
             try c.encode(toolCallId, forKey: .toolCallId)
             try c.encode(isError, forKey: .isError)
             try c.encode(preview, forKey: .preview)
+        case .attachment(let id, let name, let kind):
+            try c.encode("attachment", forKey: .type)
+            try c.encode(id, forKey: .id)
+            try c.encode(name, forKey: .name)
+            try c.encode(kind, forKey: .kind)
         }
     }
 }
@@ -214,6 +225,11 @@ public enum Timestamps {
             return String(repeating: "0", count: max(0, w - s.count)) + s
         }
         return "\(p(c.year, 4))-\(p(c.month))-\(p(c.day))T\(p(c.hour)):\(p(c.minute)):\(p(c.second))+00:00"
+    }
+
+    public static func parse(_ s: String) -> Date? {
+        (try? Date(s, strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .omitted)))
+            ?? (try? Date(s, strategy: .iso8601))
     }
 
     /// Normalises transcript timestamps (`...Z`, fractional seconds, or epoch millis) to `format`.

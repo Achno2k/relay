@@ -12,6 +12,7 @@ public final class AgentService: Sendable {
     /// Values a control just confirmed on screen, held until the transcript catches up.
     private let confirmed = Mutex<[String: (state: ControlState, until: Date)]>([:])
     let settings: SettingsGuard
+    public let uploads: UploadStore
     /// Called after a control changed something, so the monitor can push `agent.updated` right away.
     let onChange: @Sendable () -> Void
 
@@ -22,7 +23,8 @@ public final class AgentService: Sendable {
         var used: Date
     }
 
-    public init(herdr: HerdrClient, locator: TranscriptLocator, settings: SettingsGuard = SettingsGuard(), onChange: @escaping @Sendable () -> Void = {}) {
+    public init(herdr: HerdrClient, locator: TranscriptLocator, settings: SettingsGuard = SettingsGuard(), uploads: UploadStore = UploadStore(), onChange: @escaping @Sendable () -> Void = {}) {
+        self.uploads = uploads
         self.herdr = herdr
         self.locator = locator
         self.settings = settings
@@ -231,7 +233,7 @@ public final class AgentService: Sendable {
             return hit
         }
         let data = try Data(contentsOf: ref.url)
-        let messages = TranscriptParser.parse(data, format: ref.format, cwd: ref.cwd)
+        let messages = TranscriptParser.parse(data, format: ref.format, cwd: ref.cwd, uploads: uploads)
         cache.withLock { c in
             c[ref.url] = CachedTranscript(size: size, mtime: mtime, messages: messages, used: Date())
             if c.count > 8, let oldest = c.min(by: { $0.value.used < $1.value.used })?.key {
@@ -279,10 +281,27 @@ public final class AgentService: Sendable {
 
     // MARK: Actions
 
-    /// Prompts always go into an empty input box.
-    public func prompt(id: String, text: String) async throws {
+    /// Prompts always go into an empty input box. Attachments become a final
+    /// `Attached files: <paths>` line that Claude reads from.
+    public func prompt(id: String, text: String, attachments: [String] = []) async throws {
+        guard attachments.count <= UploadStore.maxPerMessage else {
+            throw APIError.badRequest("at most \(UploadStore.maxPerMessage) attachments per message")
+        }
+        let paths = try attachments.map { att in
+            guard let url = uploads.find(att) else { throw APIError.badRequest("unknown attachment \(att)") }
+            return url
+        }
         try await clearInput(id, wait: .zero)
-        try await herdr.prompt(id, text: text)
+        if !paths.isEmpty {
+            let pane = try await herdr.agent(id).paneId
+            uploads.recordSent(pane: pane, text: text, files: paths)
+        }
+        try await herdr.prompt(id, text: UploadStore.prompt(text: text, paths: paths))
+    }
+
+    public func upload(id: String, data: Data, filename: String) async throws -> Attachment {
+        let a = try await herdr.agent(id)
+        return try uploads.save(paneId: a.paneId, data: data, filename: filename)
     }
 
     /// A stop (`["esc"]`) makes Claude put the interrupted prompt back in the input box; clear it.

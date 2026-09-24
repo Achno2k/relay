@@ -37,7 +37,7 @@ public struct HerdApp: Sendable {
         monitorRef.withLock { $0 = monitor }
         let router = HerdRoutes.router(service: service, hub: hub, token: token)
 
-        var services: [any Service] = [monitor]
+        var services: [any Service] = [monitor, UploadCleaner(store: service.uploads, logger: logger)]
         for host in hosts {
             let app = Application(
                 router: router,

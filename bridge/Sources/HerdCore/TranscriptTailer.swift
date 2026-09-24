@@ -14,9 +14,9 @@ public final class TranscriptTailer: @unchecked Sendable {
     private var handle: FileHandle?
     private var _dead = false
 
-    public init(url: URL, format: TranscriptFormat, cwd: String?, onMessage: @escaping @Sendable (Message) -> Void) {
+    public init(url: URL, format: TranscriptFormat, cwd: String?, uploads: UploadStore = UploadStore(), onMessage: @escaping @Sendable (Message) -> Void) {
         self.url = url
-        self.parser = TranscriptParser(format: format, cwd: cwd)
+        self.parser = TranscriptParser(format: format, cwd: cwd, uploads: uploads)
         self.onMessage = onMessage
         self.queue = DispatchQueue(label: "herd.tail.\(url.lastPathComponent)")
     }
@@ -75,7 +75,7 @@ public final class TranscriptTailer: @unchecked Sendable {
         let size = (try? handle.seekToEnd()) ?? 0
         if size < offset {
             // Truncated or replaced: start over.
-            parser = TranscriptParser(format: parser.format, cwd: parser.scrubber.cwd)
+            parser = TranscriptParser(format: parser.format, cwd: parser.scrubber.cwd, uploads: parser.uploads)
             offset = 0
             partial.removeAll()
         }

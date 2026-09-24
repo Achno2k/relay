@@ -1,5 +1,7 @@
 import Foundation
 import Hummingbird
+import NIOCore
+import NIOFoundationCompat
 import HummingbirdWebSocket
 
 public typealias HerdContext = BasicWebSocketRequestContext
@@ -60,7 +62,7 @@ struct ErrorMiddleware: RouterMiddleware {
 }
 
 public enum HerdRoutes {
-    struct PromptBody: Decodable { var text: String }
+    struct PromptBody: Decodable { var text: String?; var attachments: [String]? }
     struct KeysBody: Decodable { var keys: [String] }
     struct TextBody: Decodable { var text: String; var submit: Bool? }
     struct ControlBody: Decodable {
@@ -125,8 +127,10 @@ public enum HerdRoutes {
 
         router.post("/agents/:id/prompt") { request, context in
             let body = try await decode(PromptBody.self, request, context)
-            guard !body.text.isEmpty else { throw APIError.badRequest("text is required") }
-            try await service.prompt(id: try agentId(context), text: body.text)
+            let text = body.text ?? ""
+            let attachments = body.attachments ?? []
+            guard !text.isEmpty || !attachments.isEmpty else { throw APIError.badRequest("text or attachments is required") }
+            try await service.prompt(id: try agentId(context), text: text, attachments: attachments)
             return try JSONResponse.make(Empty(), status: .accepted)
         }
 
@@ -142,6 +146,33 @@ public enum HerdRoutes {
             guard !body.text.isEmpty else { throw APIError.badRequest("text is required") }
             try await service.text(id: try agentId(context), text: body.text, submit: body.submit ?? true)
             return try JSONResponse.make(Empty(), status: .accepted)
+        }
+
+        router.get("/machine") { _, _ in try JSONResponse.make(Machine.current()) }
+
+        router.post("/agents/:id/attachments") { request, context in
+            let raw = request.headers[.init("X-Filename")!] ?? "file"
+            let filename = raw.removingPercentEncoding ?? raw
+            let buffer: ByteBuffer
+            do {
+                buffer = try await request.body.collect(upTo: UploadStore.maxBytes)
+            } catch is NIOTooManyBytesError {
+                throw APIError(.contentTooLarge, "too_large", "files are limited to 20 MB")
+            }
+            guard buffer.readableBytes > 0 else { throw APIError.badRequest("empty file") }
+            let att = try await service.upload(id: try agentId(context), data: Data(buffer: buffer), filename: filename)
+            return try JSONResponse.make(att, status: .created)
+        }
+
+        router.get("/agents/:id/attachments/:attachmentId") { _, context in
+            _ = try agentId(context)
+            guard let id = context.parameters.get("attachmentId"), let url = service.uploads.find(id),
+                  let data = try? Data(contentsOf: url)
+            else { throw APIError.notFound("no attachment (uploads expire after 7 days)") }
+            return Response(
+                status: .ok,
+                headers: [.contentType: UploadStore.mimeType(for: url), .contentLength: String(data.count), .cacheControl: "private, max-age=604800"],
+                body: .init(byteBuffer: ByteBuffer(bytes: data)))
         }
 
         router.get("/controls") { _, _ in try JSONResponse.make(ClaudeControls.catalog) }

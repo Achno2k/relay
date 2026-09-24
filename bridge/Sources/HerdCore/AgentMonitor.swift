@@ -94,7 +94,7 @@ public actor AgentMonitor: Service {
         if let t = tailers[id], t.url == ref.url, !t.isDead { return }
         tailers.removeValue(forKey: id)?.stop()
         let hub = self.hub
-        let t = TranscriptTailer(url: ref.url, format: ref.format, cwd: ref.cwd) { message in
+        let t = TranscriptTailer(url: ref.url, format: ref.format, cwd: ref.cwd, uploads: service.uploads) { message in
             hub.broadcast(.messageUpserted(agentId: id, message: message))
         }
         t.start()

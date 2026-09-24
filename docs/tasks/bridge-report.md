@@ -92,3 +92,34 @@ All three items are fixed and checked live on port 7979. `swift test` passes 60 
   - Cause: the dialog check accepted any numbered list on screen whenever the input box was briefly missing during a redraw, so a list in the agent's output looked like a dialog.
   - Fix: a dialog now needs Claude's `❯` cursor on a numbered option in the last 8 non-empty lines, and only those lines are parsed.
   - Tests: a fixture of a numbered list on screen during a redraw. Live: stream a numbered list, stop, switch model, three times; all returned 202.
+
+## Round 2 (bridge: attachments and GET /machine)
+
+The contract went into api.md first (`6d6daa4`: Attachments and Machine sections, plus fixtures `attachment.json`, `machine.json` and `messages-attachments.json`). `swift test` passes 99 tests with 0 warnings.
+
+**What's built**
+- `POST /agents/:id/attachments`:
+  - Takes the raw body, `Content-Type`, and `X-Filename` percent-encoded. Names are sanitised.
+  - Files are stored as `~/.herd/uploads/<pane>/<id>-<name>` with mode 0600, and the call returns `201 Attachment`.
+  - Errors: `413 too_large` over 20 MB (Hummingbird's `collect(upTo:)` limit), `400` for an empty body, `404` for an unknown agent.
+- `GET /agents/:id/attachments/:attachmentId` looks the id up across all agents and serves the bytes with the MIME type from the extension. It returns `404` once the file has expired.
+- `POST /agents/:id/prompt` accepts `attachments` (at most 10; unknown ids give 400). `text` can be empty when there are attachments. The bridge adds `\n\nAttached files: <abs paths>` to the text Claude receives.
+- `UploadCleaner` deletes uploads older than 7 days at startup and then daily, along with their `sent.jsonl` entries.
+- `GET /machine` returns `{id, name, kind, model, os}`:
+  - `id` is the hardware UUID (`gethostuuid`), `name` is the computer name, `model` is `sysctl hw.model`.
+  - `kind` is laptop when there's an internal battery (IOKit power sources). This Mac reports `Mac17,2`, which has no "Book" in it, so the name-based rule in the brief would call it a desktop.
+
+**What Claude Code does with the marker** (seen live on w14:p2)
+- Images: Claude Code spots the image path in the pasted prompt and embeds the image inline as `[Image #N]`. So Claude sees the image without a file-read permission.
+- PDFs: the path stays in the text, and Claude opens it with its Read tool (auto mode, no prompt).
+- The stored user message doesn't keep our text as sent. It has `<pasted_content id=…>` tags, hard-wrapped lines, and an `Attached files:` line left empty or broken over two lines. The marker alone isn't enough, so the bridge logs each send in `sent.jsonl` and matches it back with a whitespace- and tag-insensitive fingerprint (within 10 minutes of the send). History then shows the attachment blocks and the original, unwrapped text.
+- `<pasted_content>` tags are now stripped from every user message. Before, multi-line prompts would have shown them in the app.
+
+**Live results** (isolated bridge on 7979 with the real `~/.herd`, agent w14:p2)
+- A 480×200 PNG with the word "HERD": the reply was `HERD`. History showed `[attachment herd.png, text]`, the file served back byte-identical as `image/png`, and no paths appeared anywhere in the JSON.
+- PDF ("The secret code word is PELICAN-42.") plus the PNG: the reply was `PELICAN-42 / HERD`. History showed `[attachment codeword.pdf, attachment herd.png, text]`.
+- The PDF alone with no text: the reply quoted the code word, and history showed `[attachment codeword.pdf]` with no text block.
+
+**Not covered**
+- In the default permission mode, Claude may ask before reading a PDF outside the project folder. That shows up as a normal approval.
+- An upload directory whose path has spaces would break the marker. `~/.herd/uploads` normally has none.

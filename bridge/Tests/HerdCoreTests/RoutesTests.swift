@@ -57,7 +57,8 @@ import Testing
         }
         defer { fake.stop() }
 
-        let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: projects))
+        let uploads = UploadStore(root: projects.appendingPathComponent("uploads"))
+        let service = AgentService(herdr: HerdrClient(socketPath: fake.socketPath), locator: TranscriptLocator(claudeProjects: projects), uploads: uploads)
         let hub = EventHub()
         let router = HerdRoutes.router(service: service, hub: hub, token: Self.token)
         let app = Application(router: router, server: .http1WebSocketUpgrade(webSocketRouter: router))
@@ -208,6 +209,82 @@ import Testing
             #expect(fake.params(of: "agent.send_keys") == #"{"keys":["enter"],"target":"w1:p2"}"#)
             try await client.execute(uri: "/agents/w1%3Ap2/text", method: .post, headers: Self.auth, body: ByteBuffer(string: #"{"text":""}"#)) { r throws in
                 #expect(r.status == .badRequest)
+            }
+        }
+    }
+
+    @Test func uploadServeAndPromptWithAttachments() async throws {
+        try await withApp { client, fake, _ in
+            var headers = Self.auth
+            headers[.contentType] = "image/png"
+            headers[.init("X-Filename")!] = "My%20Screen%20Shot%20%E2%9C%93.png"
+            let png = Data([0x89, 0x50, 0x4E, 0x47, 1, 2, 3])
+            var att: HerdCore.Attachment?
+            try await client.execute(uri: "/agents/w1%3Ap1/attachments", method: .post, headers: headers, body: ByteBuffer(bytes: png)) { r throws in
+                #expect(r.status == .created)
+                att = try JSONDecoder().decode(HerdCore.Attachment.self, from: Data(buffer: r.body))
+            }
+            let a = try #require(att)
+            #expect(a.name == "My-Screen-Shot.png")
+            #expect(a.kind == .image)
+            #expect(a.size == png.count)
+
+            try await client.execute(uri: "/agents/w1%3Ap1/attachments/\(a.id)", method: .get, headers: Self.auth) { r throws in
+                #expect(r.status == .ok)
+                #expect(r.headers[.contentType] == "image/png")
+                #expect(Data(buffer: r.body) == png)
+            }
+            try await client.execute(uri: "/agents/w1%3Ap1/attachments/0000000000000000", method: .get, headers: Self.auth) { r throws in
+                #expect(r.status == .notFound)
+            }
+
+            let body = #"{"text":"What does it say?","attachments":["\#(a.id)"]}"#
+            try await client.execute(uri: "/agents/w1%3Ap1/prompt", method: .post, headers: Self.auth, body: ByteBuffer(string: body)) { r throws in
+                #expect(r.status == .accepted)
+            }
+            let sent = try #require(fake.params(of: "agent.prompt"))
+            let text = try #require((try JSONSerialization.jsonObject(with: Data(sent.utf8)) as? [String: Any])?["text"] as? String)
+            #expect(text.hasPrefix("What does it say?\n\nAttached files: /"))
+            #expect(text.hasSuffix("/w1_p1/\(a.id)-My-Screen-Shot.png"))
+
+            // Attachments only, no text.
+            try await client.execute(uri: "/agents/w1%3Ap1/prompt", method: .post, headers: Self.auth, body: ByteBuffer(string: #"{"attachments":["\#(a.id)"]}"#)) { r throws in
+                #expect(r.status == .accepted)
+            }
+            try await client.execute(uri: "/agents/w1%3Ap1/prompt", method: .post, headers: Self.auth, body: ByteBuffer(string: #"{"text":"x","attachments":["ffffffffffffffff"]}"#)) { r throws in
+                #expect(r.status == .badRequest)
+            }
+        }
+    }
+
+    @Test func uploadLimits() async throws {
+        try await withApp { client, _, _ in
+            try await client.execute(uri: "/agents/w1%3Ap1/attachments", method: .post, headers: Self.auth, body: ByteBuffer()) { r throws in
+                #expect(r.status == .badRequest)
+            }
+            let big = ByteBuffer(repeating: 0, count: UploadStore.maxBytes + 1)
+            try await client.execute(uri: "/agents/w1%3Ap1/attachments", method: .post, headers: Self.auth, body: big) { r throws in
+                #expect(r.status == .contentTooLarge)
+                let err = try decode(ErrorBody.self, r)
+                #expect(err.error.code == "too_large")
+            }
+            try await client.execute(uri: "/agents/w9%3Ap9/attachments", method: .post, headers: Self.auth, body: ByteBuffer(string: "x")) { r throws in
+                #expect(r.status == .notFound)
+            }
+        }
+    }
+
+    @Test func machine() async throws {
+        try await withApp { client, _, _ in
+            try await client.execute(uri: "/machine", method: .get, headers: Self.auth) { r throws in
+                let m = try JSONDecoder().decode(Machine.self, from: Data(buffer: r.body))
+                #expect(!m.name.isEmpty)
+                #expect(["laptop", "desktop"].contains(m.kind))
+                #expect(m.os.hasPrefix("macOS "))
+                #expect(!m.id.isEmpty)
+            }
+            try await client.execute(uri: "/machine", method: .get) { r throws in
+                #expect(r.status == .unauthorized)
             }
         }
     }

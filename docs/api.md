@@ -125,7 +125,13 @@ Attachment {
 - Send: `POST /agents/:id/prompt` with `"attachments": [id, …]`, at most 10.
   - Unknown ids give `400 bad_request`.
   - The bridge appends one final line to the text Claude receives: `Attached files: <abs path> <abs path> …`, separated from the text by a blank line. Claude opens images and PDFs from those paths itself.
-- History: when the transcript shows a user message ending in that marker line with paths inside `~/.herd/uploads`, the bridge drops the line. It emits one `attachment` block per file (id, name, kind; never the path), then the remaining text as a `text` block if any is left. Tool calls that read these files show only the file name, as usual.
+- History:
+  - Claude Code rewrites the prompt before storing it. It embeds images inline and replaces their path with `[Image #N]`, wraps multi-line pastes in `<pasted_content>` tags, and hard-wraps long lines.
+  - So the bridge also logs what it sent (`~/.herd/uploads/sent.jsonl`: time, pane, original text, attachment ids; pruned with the uploads). It matches user messages against that log, ignoring whitespace, tags and placeholders.
+  - A matched message becomes one `attachment` block per file (id, name, kind; never the path), then the original text as a `text` block if there was any.
+  - Without a log entry, a marker line with intact paths is parsed the same way.
+  - Tool calls that read these files show only the file name, as usual.
+- Every user message has `<pasted_content>` tags removed.
 - `GET /agents/:id/attachments/:attachmentId` looks the id up across all agents' uploads, so history keeps working if the agent's pane id changes.
 
 ## Machine
@@ -134,7 +140,7 @@ Attachment {
 Machine {
   "id": "c0ffee00-…",            // stable per Mac (hardware UUID); lets the app list several machines later
   "name": "Dev's MacBook Pro",   // scutil --get ComputerName
-  "kind": "laptop",              // laptop | desktop (from sysctl hw.model: *Book* → laptop)
+  "kind": "laptop",              // laptop | desktop (laptop = has an internal battery; newer ids like Mac17,2 don't say "Book")
   "model": "Mac15,9",            // sysctl hw.model
   "os": "macOS 26.4"
 }
