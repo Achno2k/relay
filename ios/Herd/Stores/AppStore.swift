@@ -270,6 +270,7 @@ final class AppStore {
         let typed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         isApprovalSheetPresented = false
         self.approval = nil
+        recentlyAnswered[approval.agentId] = (Self.questionKey(approval), Date())
         Task {
             do {
                 try await backend.sendKeys(agentId: approval.agentId, keys: option.keys)
@@ -291,7 +292,7 @@ final class AppStore {
             try? await Task.sleep(for: .milliseconds(400))
             guard selectedAgentId == answered.agentId, approval == nil else { return }
             guard let next = try? await backend.approval(agentId: answered.agentId) else { return }
-            if next != answered {
+            if !isRecentlyAnswered(next) {
                 approval = next
                 isApprovalSheetPresented = true
                 return
@@ -374,14 +375,29 @@ final class AppStore {
             return
         }
         do {
-            let fetched = try await backend.approval(agentId: agent.id)
+            var fetched = try await backend.approval(agentId: agent.id)
             guard selectedAgentId == agent.id else { return }
-            let isNew = fetched != nil && fetched != approval
+            // The dialog we just answered can linger on screen for a moment; don't bring it back.
+            if let f = fetched, isRecentlyAnswered(f) { fetched = nil }
+            let isNew = fetched.map(Self.questionKey) != nil && fetched.map(Self.questionKey) != approval.map(Self.questionKey)
             approval = fetched
             if isNew && !LaunchOptions.current.isDemo("card") { isApprovalSheetPresented = true }
         } catch {
             report(error)
         }
+    }
+
+    /// The question last answered per agent. Keys can't identify a question: for codex and cursor menus
+    /// they're arrow moves relative to the cursor, so the same dialog re-read after a key press differs.
+    private var recentlyAnswered: [String: (key: String, at: Date)] = [:]
+
+    private static func questionKey(_ approval: Approval) -> String {
+        "\(approval.question)\u{1F}\(approval.step.map { "\($0.index)/\($0.count)" } ?? "")"
+    }
+
+    private func isRecentlyAnswered(_ approval: Approval) -> Bool {
+        guard let last = recentlyAnswered[approval.agentId] else { return false }
+        return last.key == Self.questionKey(approval) && Date().timeIntervalSince(last.at) < 15
     }
 
     // MARK: - Helpers

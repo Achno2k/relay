@@ -63,6 +63,7 @@ struct ApprovalSheet: View {
             ))
             .font(.title3.weight(.semibold))
             .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("approvalQuestion")
         }
     }
 

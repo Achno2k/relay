@@ -38,7 +38,10 @@ actor RecordingBackend: Backend {
     func machine() async throws -> Machine { try FixtureFiles.decode(Machine.self, "machine.json") }
     func sendKeys(agentId: String, keys: [String]) async throws { calls.append(.keys(keys)) }
     func sendText(agentId: String, text: String, submit: Bool) async throws { calls.append(.text(text, submit: submit)) }
-    func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : nil }
+    /// What `/approval` returns once something was answered (nil = 204).
+    var afterAnswer: Approval?
+    func setAfterAnswer(_ approval: Approval?) { afterAnswer = approval }
+    func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : afterAnswer }
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent { agent }
     func controls() async throws -> ControlsCatalog { try FixtureFiles.decode(ControlsCatalog.self, "controls.json") }
     /// nil = an older bridge without the per-agent route (404).
@@ -126,6 +129,31 @@ struct StoreTests {
         store.send("Carry on", to: agent.id)
         store.apply(.messageUpserted(agentId: agent.id, message: Message(id: "m2", role: .user, createdAt: .now, blocks: [.text("Carry on")])))
         #expect(store.pending[agent.id]?.map(\.plainText) == [marker])
+    }
+
+    /// Right after an answer the same dialog can still be on screen with the cursor moved, so the bridge
+    /// returns the same question with different keys. That must not bring the sheet back.
+    @Test func answeredQuestionDoesNotComeBack() async throws {
+        let agent = try blockedAgent()
+        let asked = approval(for: agent)
+        let backend = RecordingBackend(agent: agent, approval: asked)
+        let store = await loadedStore(backend, agent: agent)
+        #expect(store.isApprovalSheetPresented)
+        var lingering = asked
+        lingering.options = [ApprovalOption(label: "Shared", keys: ["up", "enter"]), ApprovalOption(label: "Type something.", keys: ["enter"], freeText: true)]
+        await backend.setAfterAnswer(lingering)
+
+        store.answer(try #require(store.approval?.options.first))
+        try await Task.sleep(for: .milliseconds(1500))
+        #expect(!store.isApprovalSheetPresented, "followUp re-showed the answered question")
+        await store.refreshApproval()
+        #expect(store.approval == nil && !store.isApprovalSheetPresented, "refresh re-showed it")
+
+        var next = asked
+        next.question = "And the second question?"
+        await backend.setAfterAnswer(next)
+        await store.refreshApproval()
+        #expect(store.isApprovalSheetPresented && store.approval?.question == "And the second question?")
     }
 
     private func waitFor(_ condition: @escaping () async -> Bool) async throws {
