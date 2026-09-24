@@ -5,7 +5,14 @@ public protocol Backend: Sendable {
     func workspaces() async throws -> [Workspace]
     func agents() async throws -> [Agent]
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage
-    func prompt(agentId: String, text: String) async throws
+    func prompt(agentId: String, text: String, attachments: [String]) async throws
+    /// Raw upload; `progress` reports 0...1 as the body is sent.
+    func uploadAttachment(
+        agentId: String, data: Data, filename: String, contentType: String,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> Attachment
+    func attachmentData(agentId: String, attachmentId: String) async throws -> Data
+    func machine() async throws -> Machine
     func sendKeys(agentId: String, keys: [String]) async throws
     /// Types `text` literally into the agent's current input (no clearing), then Enter if `submit`.
     func sendText(agentId: String, text: String, submit: Bool) async throws
@@ -34,7 +41,19 @@ public struct LiveBackend: Backend {
     public func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage {
         try await client.messages(agentId: agentId, before: before, limit: limit)
     }
-    public func prompt(agentId: String, text: String) async throws { try await client.prompt(agentId: agentId, text: text) }
+    public func prompt(agentId: String, text: String, attachments: [String]) async throws {
+        try await client.prompt(agentId: agentId, text: text, attachments: attachments)
+    }
+    public func uploadAttachment(
+        agentId: String, data: Data, filename: String, contentType: String,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> Attachment {
+        try await client.uploadAttachment(agentId: agentId, data: data, filename: filename, contentType: contentType, progress: progress)
+    }
+    public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
+        try await client.attachmentData(agentId: agentId, attachmentId: attachmentId)
+    }
+    public func machine() async throws -> Machine { try await client.machine() }
     public func sendKeys(agentId: String, keys: [String]) async throws { try await client.sendKeys(agentId: agentId, keys: keys) }
     public func sendText(agentId: String, text: String, submit: Bool) async throws {
         try await client.sendText(agentId: agentId, text: text, submit: submit)

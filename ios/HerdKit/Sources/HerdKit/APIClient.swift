@@ -46,9 +46,34 @@ public struct APIClient: Sendable {
         return try await send("GET", "/agents/\(Self.encode(agentId))/messages", query: query)
     }
 
-    public func prompt(agentId: String, text: String) async throws {
-        struct Body: Encodable { var text: String }
-        try await sendIgnoringBody("POST", "/agents/\(Self.encode(agentId))/prompt", body: Body(text: text))
+    public func prompt(agentId: String, text: String, attachments: [String] = []) async throws {
+        struct Body: Encodable { var text: String; var attachments: [String]? }
+        let body = Body(text: text, attachments: attachments.isEmpty ? nil : attachments)
+        try await sendIgnoringBody("POST", "/agents/\(Self.encode(agentId))/prompt", body: body)
+    }
+
+    public func machine() async throws -> Machine { try await send("GET", "/machine") }
+
+    public func uploadAttachment(
+        agentId: String, data: Data, filename: String, contentType: String,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> Attachment {
+        var request = URLRequest(url: url("/agents/\(Self.encode(agentId))/attachments"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue(
+            filename.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? "file",
+            forHTTPHeaderField: "X-Filename"
+        )
+        let (body, response) = try await session.upload(for: request, from: data, delegate: UploadProgress(progress))
+        return try HerdJSON.decoder().decode(Attachment.self, from: try check(body, response).0)
+    }
+
+    public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
+        let (data, _) = try await raw("GET", "/agents/\(Self.encode(agentId))/attachments/\(Self.encode(attachmentId))", timeout: 60)
+        return data
     }
 
     public func sendKeys(agentId: String, keys: [String]) async throws {
@@ -122,6 +147,10 @@ public struct APIClient: Sendable {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         let (data, response) = try await session.data(for: request)
+        return try check(data, response)
+    }
+
+    private func check(_ data: Data, _ response: URLResponse) throws -> (Data, Int) {
         guard let http = response as? HTTPURLResponse else { throw HerdError.badResponse }
         switch http.statusCode {
         case 200..<300:
@@ -132,5 +161,19 @@ public struct APIClient: Sendable {
             let detail = try? HerdJSON.decoder().decode(APIErrorBody.self, from: data)
             throw HerdError.http(status: http.statusCode, code: detail?.error.code, message: detail?.error.message)
         }
+    }
+}
+
+/// Reports upload progress for one task.
+private final class UploadProgress: NSObject, URLSessionTaskDelegate, Sendable {
+    let onProgress: @Sendable (Double) -> Void
+
+    init(_ onProgress: @escaping @Sendable (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        onProgress(Double(totalBytesSent) / Double(totalBytesExpectedToSend))
     }
 }

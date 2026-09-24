@@ -100,6 +100,10 @@ public struct Message: Codable, Hashable, Identifiable, Sendable {
     public var plainText: String {
         blocks.compactMap { if case .text(let t) = $0 { t } else { nil } }.joined(separator: "\n")
     }
+
+    public var attachments: [AttachmentRef] {
+        blocks.compactMap { if case .attachment(let a) = $0 { a } else { nil } }
+    }
 }
 
 public struct ToolCall: Codable, Hashable, Sendable {
@@ -134,6 +138,8 @@ public enum Block: Codable, Hashable, Sendable {
     case thinking(String)
     case toolCall(ToolCall)
     case toolResult(ToolResult)
+    /// A file sent with a user prompt; fetch it with `GET /agents/:id/attachments/:attachmentId`.
+    case attachment(AttachmentRef)
     case unknown(type: String)
 
     private enum CodingKeys: String, CodingKey {
@@ -148,6 +154,7 @@ public enum Block: Codable, Hashable, Sendable {
         case "thinking": self = .thinking(try c.decode(String.self, forKey: .text))
         case "toolCall": self = .toolCall(try ToolCall(from: decoder))
         case "toolResult": self = .toolResult(try ToolResult(from: decoder))
+        case "attachment": self = .attachment(try AttachmentRef(from: decoder))
         default: self = .unknown(type: type)
         }
     }
@@ -167,9 +174,75 @@ public enum Block: Codable, Hashable, Sendable {
         case .toolResult(let result):
             try c.encode("toolResult", forKey: .type)
             try result.encode(to: encoder)
+        case .attachment(let ref):
+            try c.encode("attachment", forKey: .type)
+            try ref.encode(to: encoder)
         case .unknown(let type):
             try c.encode(type, forKey: .type)
         }
+    }
+}
+
+public enum AttachmentKind: String, Codable, Hashable, Sendable {
+    case image, pdf, file
+
+    public init(from decoder: any Decoder) throws {
+        self = AttachmentKind(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .file
+    }
+}
+
+/// An attachment as it appears in history (no size, never a path).
+public struct AttachmentRef: Codable, Hashable, Identifiable, Sendable {
+    public var id: String
+    public var name: String
+    public var kind: AttachmentKind
+
+    public init(id: String, name: String, kind: AttachmentKind) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+    }
+}
+
+/// `201` from `POST /agents/:id/attachments`.
+public struct Attachment: Codable, Hashable, Identifiable, Sendable {
+    public var id: String
+    public var name: String
+    public var kind: AttachmentKind
+    public var size: Int
+
+    public init(id: String, name: String, kind: AttachmentKind, size: Int) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.size = size
+    }
+
+    public var ref: AttachmentRef { AttachmentRef(id: id, name: name, kind: kind) }
+}
+
+/// `GET /machine`: the Mac a bridge runs on.
+public struct Machine: Codable, Hashable, Identifiable, Sendable {
+    public enum Kind: String, Codable, Hashable, Sendable {
+        case laptop, desktop
+
+        public init(from decoder: any Decoder) throws {
+            self = Kind(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .desktop
+        }
+    }
+
+    public var id: String
+    public var name: String
+    public var kind: Kind
+    public var model: String?
+    public var os: String?
+
+    public init(id: String, name: String, kind: Kind, model: String? = nil, os: String? = nil) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.model = model
+        self.os = os
     }
 }
 
