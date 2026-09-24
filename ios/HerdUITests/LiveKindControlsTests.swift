@@ -20,6 +20,76 @@ final class LiveKindControlsTests: XCTestCase {
         try await run(kindKey: "HERD_E2E_CODEX_AGENT", effortInSubtitle: false)
     }
 
+    /// Codex in Ask mode asks before a network command: approve one run, cancel another.
+    /// Never taps "don't ask again" (it would save a rule in codex). Each run uses a fresh URL.
+    func testCodexApproval() async throws {
+        guard let link = env["HERD_E2E_LINK"], let agentId = env["HERD_E2E_CODEX_AGENT"] else {
+            throw XCTSkip("HERD_E2E_CODEX_AGENT not set")
+        }
+        let bridge = try Bridge(link: link, agentId: agentId)
+        let originalMode = try await bridge.agentMode()
+        addTeardownBlock {
+            if (try? await bridge.approvalStatus()) == 200 { try? await bridge.keys(["esc"]) }
+            if let mode = originalMode { try? await bridge.control(["permissionMode": mode]) }
+        }
+        try await bridge.control(["permissionMode": "ask"])
+
+        app = XCUIApplication()
+        app.launchArguments = ["-uitest", "-pair", link, "-agent", agentId]
+        app.launch()
+        let composer = app.descendants(matching: .any).matching(NSPredicate(format: "placeholderValue BEGINSWITH 'Message'")).firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 20))
+
+        // Approve
+        let approveURL = Self.freshURL()
+        send(Self.prompt(approveURL), via: composer)
+        let yes = app.buttons["Yes, proceed"]
+        XCTAssertTrue(yes.waitForExistence(timeout: 90), "codex never asked")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Would you like to run'")).firstMatch.exists)
+        shot("codex-approval-sheet")
+        yes.tap()
+        try await waitUntil(timeout: 90, "approval never cleared after Yes") { try await bridge.approvalStatus() == 204 }
+        try await waitUntil(timeout: 120, "codex didn't finish after approval") { try await bridge.agentStatus() != "working" }
+        let statusAfterYes = try await bridge.agentStatus()
+        XCTAssertNotEqual(statusAfterYes, "blocked")
+        shot("codex-approval-approved")
+
+        // Cancel
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 30))
+        send(Self.prompt(Self.freshURL()), via: composer)
+        let no = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'No'")).firstMatch
+        XCTAssertTrue(no.waitForExistence(timeout: 90), "codex never asked the second time")
+        no.tap()
+        try await waitUntil(timeout: 60, "approval never cleared after No") { try await bridge.approvalStatus() == 204 }
+        try await waitUntil(timeout: 60, "codex still blocked after No") { try await bridge.agentStatus() != "blocked" }
+        shot("codex-approval-cancelled")
+    }
+
+    private static func freshURL() -> String {
+        let tld = ["com", "org", "net"].randomElement()!
+        let tag = String((0..<6).map { _ in "abcdefghjkmnpqrstuvwxyz23456789".randomElement()! })
+        return "https://example.\(tld)/?herd=\(tag)"
+    }
+
+    private static func prompt(_ url: String) -> String {
+        "Run exactly this, requesting escalated permissions (network) so I can approve it: curl -sI \(url) | head -1"
+    }
+
+    private func send(_ text: String, via composer: XCUIElement) {
+        composer.tap()
+        composer.typeText(text)
+        app.buttons["Send"].tap()
+    }
+
+    private func waitUntil(timeout: TimeInterval, _ message: String, _ condition: () async throws -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if (try? await condition()) == true { return }
+            try await Task.sleep(for: .seconds(1))
+        }
+        XCTFail(message)
+    }
+
     private func run(kindKey: String, effortInSubtitle: Bool) async throws {
         guard let link = env["HERD_E2E_LINK"], let agentId = env[kindKey] else { throw XCTSkip("\(kindKey) not set") }
         let bridge = try Bridge(link: link, agentId: agentId)
@@ -116,7 +186,7 @@ final class LiveKindControlsTests: XCTestCase {
 private struct Bridge: Sendable {
     struct Option: Decodable { var id: String; var label: String }
     struct Controls: Decodable { var models: [Option]; var efforts: [Option] }
-    struct AgentFields: Decodable, Sendable { var model: String?; var effort: String? }
+    struct AgentFields: Decodable, Sendable { var model: String?; var effort: String?; var status: String?; var permissionMode: String? }
 
     let base: String
     let token: String
@@ -131,6 +201,21 @@ private struct Bridge: Sendable {
 
     func agent() async throws -> AgentFields { try await get(agentPath) }
     func controls() async throws -> Controls { try await get(agentPath + "/controls") }
+    func agentStatus() async throws -> String? { try await agent().status }
+    func agentMode() async throws -> String? { try await agent().permissionMode }
+
+    func approvalStatus() async throws -> Int {
+        let (_, response) = try await URLSession.shared.data(for: try request(agentPath + "/approval"))
+        return (response as? HTTPURLResponse)?.statusCode ?? 0
+    }
+
+    func keys(_ keys: [String]) async throws {
+        var request = try request(agentPath + "/keys")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["keys": keys])
+        _ = try await URLSession.shared.data(for: request)
+    }
 
     func control(_ body: [String: String]) async throws {
         var request = try request(agentPath + "/control")

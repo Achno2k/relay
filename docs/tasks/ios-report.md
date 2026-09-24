@@ -253,3 +253,16 @@
 - All earlier live tests (stop, controls, free text, multiple questions, image, PDF) and all mock UI tests passed in the same run.
 - **Physical device:** `build-for-testing` for the phone still fails with "No Accounts" / no profile for `dev.amansingh.herd.uitests.xctrunner`, so everything above is on the iPhone 17 Pro simulator, as the brief allows.
 - Screenshots: `round3-pi-model-menu`, `round3-pi-model-search`, `round3-codex-menu` (mock), plus live `round3-live-*`.
+
+### Live codex approval (bridge e46d897)
+- `LiveKindControlsTests.testCodexApproval` on `w14:p5` passes. Setup: Ask mode set over the API, and a unique URL each run (`example.{com,org,net}/?herd=<random>`) so earlier approvals can't pre-authorise it.
+  - **Approve:** codex asks within about 10 s. The sheet shows "Would you like to run the following command?" with the command as inline code, and "Yes, proceed" is the prominent option. Tapping it sends `["enter"]`. `/approval` returns to 204 and the turn ends.
+  - **Cancel:** a second prompt, then "No, and tell Codex what to do differently" (`["esc"]`). The block clears.
+  - The test never taps "don't ask again", because that saves a codex rule. Teardown presses Esc if a question is still open and restores the original mode.
+  - Screenshot: `round3-live-codex-approval.png`.
+- pi has no approval prompts, so there's nothing to test there.
+- **Gap (follow-up, not changed this round):** codex reports `hasTranscript: false`, so its chat is the bridge's screen-read snapshot.
+  - The snapshot lags the pane.
+  - Prompts sent from the phone stay as dimmed pending bubbles, because no transcript message ever echoes them.
+  - Suggestion: the bridge parses codex's rollout JSONL (`~/.codex/sessions/**`, `response_item` user/assistant/function_call lines) into Messages, as it does for Claude and pi.
+  - Stopgap if that's far off: the app drops pending bubbles for no-transcript agents when they go idle.
