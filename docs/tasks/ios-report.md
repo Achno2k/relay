@@ -280,3 +280,35 @@
   - All pass: 54 unit tests, 12 mock UI tests and 9 live UI tests (Claude: stop, controls, free text, multiple questions, image, PDF; pi: model and effort; codex: model and effort, approval with transcript checks).
   - All three panes were left as found: `w14:p2` Opus/auto, `w14:p4` gpt-5.6-sol/high, `w14:p5` gpt-5.6-terra/high/ask.
 - Screenshot: `round3-live-codex-transcript.png` (codex chat with confirmed bubbles and tool rows).
+
+## Feedback round (chip, folder icons, codex cancel)
+
+1. **Mode chip removed.** The composer has no accessory slot any more. The permission mode shows only in the title pill's second line and its Mode ▸ menu. `ModeChip`, `showsModeChip` and `modeTint` are gone.
+   - Tests now go through the title menu and assert there's no `modeChip`:
+     - `MockUITests.testControls`: Plan, a refused Bypass, then back to Default, all via the menu.
+     - `Round3UITests.testCodexModelEffortAndMode`: the codex mode goes back to Ask via the menu.
+     - `LiveE2ETests.testControls`: asserts no chip in Plan.
+   - Screenshots: `controls-plan-chip.png` and `controls-chip-menu.png` are replaced by `controls-plan.png` and `controls-mode-menu.png`. The other controls, round-3 and live-controls screenshots were retaken.
+2. **Lucide folder icons.** `folder-closed` (collapsed) and `folder-open` (expanded) from lucide-static v1.48.0 are in the asset catalog as template vectors (Preserves Vector Data, template rendering), tinted `.secondary`.
+   - `stroke="currentColor"` became black so actool reads it reliably.
+   - Stroke width is 1.75 instead of 2. At the 20 pt size of the SF Symbol they replace, that's about 1.46 pt, matching SF's regular weight at `.body`.
+   - Sized with `@ScaledMetric(relativeTo: .body)`, so they follow Dynamic Type.
+   - Attribution is in `ios/THIRD_PARTY.md` (ISC).
+   - Round-2 sidebar screenshots were retaken in dark and light.
+3. **Codex "approval never cleared after No".**
+   - **Keys:** the app sends the option's keys exactly (`["esc"]`), and the tap lands on the right sheet button. That's confirmed with a debug run.
+   - **Timing:** sending Esc the instant `/approval` turns 200 clears codex in about 2 s, 3/3 via curl. It isn't a key-timing race.
+   - **Cause:** a stale sheet.
+     - `followUp` and `refreshApproval` compared the whole `Approval`, and codex's option keys are arrow moves relative to the cursor. Right after "Yes", the same dialog can be re-read with the cursor moved, so the old question looked new and the sheet came back.
+     - The test then sent the second prompt and tapped "No" on the stale sheet. Esc landed while codex was working on the second prompt, and the real second question was never answered.
+   - **Fix:**
+     - A question counts as new only if its text or step differs.
+     - The question just answered is ignored for 15 s, both in `followUp` and in `refreshApproval`.
+     - A unit test (`answeredQuestionDoesNotComeBack`) returns the same question with cursor-moved keys after an answer and checks the sheet stays closed. A different question still shows.
+   - **Test hardening:**
+     - The cancel half waits for the first question to clear.
+     - It taps the exact "No, and tell Codex what to do differently" button.
+     - It asserts the sheet's question (`approvalQuestion`) contains the second run's URL before tapping, so a stale sheet fails loudly.
+   - `testCodexApproval` passed 3/3 in a row on `w14:p5` (gpt-6-luna, Ask mode, no open question afterwards).
+
+**Runs:** 55 unit tests and 12 mock UI tests pass. The live tests (codex approval ×3, Claude controls, pi and codex model/effort) all pass. Panes left as found: `w14:p2` Sonnet 5/Auto (how it started), `w14:p4` gpt-5.6-sol/high, `w14:p5` gpt-6-luna/high/Ask. All on the iPhone 17 Pro simulator, because Xcode is still signed out for the device.
