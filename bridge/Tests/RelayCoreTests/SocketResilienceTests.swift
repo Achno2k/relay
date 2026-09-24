@@ -26,9 +26,31 @@ private func nextEvent(_ stream: HerdrEventStream, timeout: Duration) async -> H
     }
 }
 
+/// Polls `condition` (which may itself have side effects, e.g. `monitor.trigger()`) until it's true
+/// or `timeout` elapses. A fresh `FakeHerdr`'s listener is bound synchronously before its initializer
+/// returns, but under this machine's load (several concurrent `swift test` runs) the very first probe
+/// right after a restart can still lose a scheduling race — this turns a single fragile check into a
+/// bounded-time wait, matching how a real client would behave (retry, not assert instantly).
+@discardableResult
+private func poll(timeout: Duration = .seconds(2), _ condition: () async -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    repeat {
+        if await condition() { return true }
+        try? await Task.sleep(for: .milliseconds(50))
+    } while ContinuousClock.now < deadline
+    return await condition()
+}
+
 /// Simulates herdr disappearing and coming back (README: "Kill and restart herdr's server during
 /// a test to prove it"). Uses `FakeHerdr` rather than the user's real herdr, as instructed.
-@Suite struct SocketResilienceTests {
+///
+/// `.serialized`: these tests open and close real raw sockets (`FakeHerdr`) alongside a real
+/// Hummingbird/NIO server (`restRouteAnswers503FastWhenHerdrDies`). Running them concurrently (the
+/// default) let one test's `close()`/`shutdown()` on a raw fd race another test's NIO event loop
+/// registering that same fd number, which crashed NIO's kqueue with "Bad file descriptor" in a 20-run
+/// loop — a real concurrency hazard, not a flaky assertion. `RoutesTests`, which does the same kind of
+/// thing, is already `.serialized` for the same reason.
+@Suite(.serialized) struct SocketResilienceTests {
     static func herdrHandler(_ method: String, _ params: [String: Any]) -> Any {
         switch method {
         case "agent.list": return ["type": "agent_list", "agents": []]
@@ -73,9 +95,14 @@ private func nextEvent(_ stream: HerdrEventStream, timeout: Duration) async -> H
             // herdr comes back on the same socket path: the next call succeeds again.
             let restarted = try FakeHerdr(reusing: path, handler: Self.herdrHandler)
             fake.withLock { $0 = restarted }
-            try await client.execute(uri: "/agents", method: .get, headers: [.authorization: "Bearer t"]) { r throws in
-                #expect(r.status == .ok)
+            let backUp = await poll {
+                var ok = false
+                try? await client.execute(uri: "/agents", method: .get, headers: [.authorization: "Bearer t"]) { r throws in
+                    ok = r.status == .ok
+                }
+                return ok
             }
+            #expect(backUp)
         }
         fake.withLock { $0.stop() }
     }
@@ -86,16 +113,16 @@ private func nextEvent(_ stream: HerdrEventStream, timeout: Duration) async -> H
         let service = AgentService(herdr: HerdrClient(socketPath: path), locator: TranscriptLocator(claudeProjects: URL(fileURLWithPath: "/nonexistent"), codex: CodexRollouts(root: URL(fileURLWithPath: "/nonexistent"))))
         let monitor = AgentMonitor(service: service, hub: EventHub(), stream: HerdrEventStream(socketPath: path), interval: .seconds(3600))
 
-        await monitor.trigger()
-        #expect(await monitor.isHerdrReachable)
+        let reachable = await poll { await monitor.trigger(); return await monitor.isHerdrReachable }
+        #expect(reachable)
 
         fake.stop()
-        await monitor.trigger()
-        #expect(await monitor.isHerdrReachable == false)
+        let unreachable = await poll { await monitor.trigger(); return await monitor.isHerdrReachable == false }
+        #expect(unreachable)
 
         fake = try FakeHerdr(reusing: path, handler: Self.herdrHandler)
-        await monitor.trigger()
-        #expect(await monitor.isHerdrReachable)
+        let reachableAgain = await poll { await monitor.trigger(); return await monitor.isHerdrReachable }
+        #expect(reachableAgain)
         fake.stop()
     }
 
