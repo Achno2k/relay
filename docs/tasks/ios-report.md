@@ -245,7 +245,11 @@
   - `testCodexModelEffortAndMode`: short list, efforts up to Ultra, mode chip and switching back to Ask.
 - Live UI (`LiveKindControlsTests`, targets read from the bridge, originals restored in teardown):
   - **codex `w14:p5`: passed.** Model then effort through the menu; `GET /agents/:id` confirms both; the pane was left on gpt-5.6-terra.
-  - **pi `w14:p4`: model passed; effort failed on the bridge.** The model switch through "All models…" and search worked. Setting effort to Off gave `504 "/thinking off sent, but no confirmation"`, the footer still said `high`, but `…/controls` lists `off` for that model. I reported it to herd-bridge and restored pi (gpt-5.6-sol, high). Rerun pending their fix.
+  - **pi `w14:p4`: passed (after bridge 9db8c75).**
+    - First run: the model switch through "All models…" and search worked. Effort Off gave `504 "/thinking off sent, but no confirmation"`, because `…/controls` listed `off` for a model that doesn't have it.
+    - herd-bridge made pi's efforts per model and fixed the `• thinking off` footer.
+    - Rerun: model and effort both passed through the UI and were confirmed by `GET /agents/:id`. The pane was restored to gpt-5.6-sol / high.
+    - The app needed no change: it already refetches the controls after a model switch.
 - All earlier live tests (stop, controls, free text, multiple questions, image, PDF) and all mock UI tests passed in the same run.
 - **Physical device:** `build-for-testing` for the phone still fails with "No Accounts" / no profile for `dev.amansingh.herd.uitests.xctrunner`, so everything above is on the iPhone 17 Pro simulator, as the brief allows.
 - Screenshots: `round3-pi-model-menu`, `round3-pi-model-search`, `round3-codex-menu` (mock), plus live `round3-live-*`.
