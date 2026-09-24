@@ -67,6 +67,25 @@ ApprovalStep {                    // present only for multi-question prompts (ta
   "title": "Focus"                // optional; the tab's label ("Submit" on the review screen)
 }
 
+UsageProvider {
+  "id": "claude",                 // claude | codex  ("codex" covers pi too; see Usage)
+  "label": "Claude",              // "Claude" | "Codex / pi"
+  "plan": "Max",                  // subscription tier, or null when unknown
+  "windows": [UsageWindow],
+  "updatedAt": "2026-09-23T13:04:01+00:00",  // when this snapshot was fetched, regardless of staleness
+  "source": "claude -p /usage",   // what the bridge asked, for debugging
+  "stale": false,                 // true if updatedAt is old or the last fetch failed
+  "unavailableReason": null       // human string when stale/empty, e.g. "codex app-server didn't respond"
+}
+
+UsageWindow {
+  "id": "session",                // source-defined key: session | weekly_all | primary | secondary
+  "label": "Session",             // "Session" | "This week" | "5-hour" | "Weekly" | …
+  "usedPercent": 11.0,            // 0-100, or null if this window has no data yet
+  "windowMinutes": null,          // the window's length, when the source reports one (codex does; Claude doesn't)
+  "resetsAt": "2026-09-24T23:00:00+00:00"  // or null
+}
+
 ApprovalOption {
   "label": "Type something.",
   "keys": ["3"],
@@ -126,6 +145,8 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
 | POST | /agents/:id/control | exactly one of `{"model":"sonnet"}`, `{"permissionMode":"plan"}`, `{"effort":"high"}`, `{"command":"compact"}`, `{"command":"clear"}` | `202 Agent` (fresh, with the new value) once the change shows on screen or in the transcript. Errors below. |
 | POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","model":"optional","effort":"optional"}` | `201 Agent`: a new tab in the workspace (cwd = the workspace's first pane's cwd), the agent started with that model and effort. See "Starting an agent". |
+| GET | /usage | – | `{"providers":[UsageProvider]}`. Always the cache; never triggers a live fetch. See Usage. |
+| POST | /usage/refresh | – | `202 {}`: asks the bridge to refresh now. `429 rate_limited` if called again within 15 s of the last refresh (manual or automatic). |
 
 `:id` is URL-encoded (`w13%3Ap1`).
 
@@ -265,6 +286,74 @@ Server → client only, one JSON object per frame:
 { "type": "agent.created", "agent": Agent }
 { "type": "agent.closed",  "agentId": "w13:p1" }
 { "type": "message.upserted", "agentId": "w13:p1", "message": Message }  // new or grown message (the last assistant message grows while working)
+{ "type": "reply.live", "agentId": "w13:p1", "text": "The answer starts here" | null, "seq": 4 }  // in-progress text preview; see Live reply
+{ "type": "usage.updated", "provider": UsageProvider }   // one provider's snapshot changed; see Usage
 ```
 - The client refetches `/agents` and the open chat's messages on (re)connect. The socket carries deltas only; nothing is replayed.
 - v1 tails every live agent that has a transcript (a handful of files, cheap).
+
+## Live reply
+
+Claude (and the other kinds) only write a text block to the transcript once it's complete, so the app
+would otherwise show nothing but the pulsing dot until a whole paragraph lands. While an agent is
+`working`, the bridge instead reads the pane's visible screen and streams the in-progress assistant
+text as a preview.
+
+- `reply.live`: `agentId`, `text` (the growing tail of the current assistant reply, markdown, or `null`),
+  `seq` (a per-agent counter that increases on every frame for that agent, including the `null` ones, so
+  the client can ignore a frame that arrives after a newer one already landed).
+- Sent only while at least one `/ws` client is connected, throttled to about 4 frames per second per
+  agent, and only when the text actually changed.
+- `text: null` is sent once the matching transcript message lands (`message.upserted` for that agent's
+  growing assistant message already contains what was shown) or the agent stops working, whichever
+  comes first. A client should treat it exactly like clearing a scratch buffer: stop showing the preview
+  and let the real message take over.
+- The preview is never persisted and never duplicates transcript text: the bridge suppresses it once the
+  transcript has caught up to (or passed) what's on screen.
+- The source per kind, read from the pane's visible screen (`agent.read source: visible` — herdr refuses
+  to scroll a working agent's alternate-screen history, so `recent_unwrapped` isn't an option while it's
+  actively working; ANSI, spinners, footers and box-drawing stripped; paths scrubbed the same way as
+  everywhere else):
+  - claude: the last `⏺` block, unless it's a tool call (its next line starts with `⎿`, or the whole
+    first line is a bare `Name(args)` call signature).
+  - codex: the last `• ` bullet, unless it's a tool call (`• Ran …` followed by a `└` result line) or the
+    `• Working (…)` placeholder codex shows while it has nothing to print yet — codex doesn't stream, so
+    its live text usually only appears once, right before the transcript message itself lands.
+  - pi: the last non-chrome paragraph above the footer, while pi's own `Working` spinner line isn't
+    present. Like codex, pi renders its reply in one piece rather than incrementally.
+- Wrapped lines are rejoined into one paragraph; a blank line in the block is kept as a paragraph break.
+- Only the visible viewport is read, so only the tail of a reply is guaranteed once it scrolls: if the
+  block's own start marker has scrolled off, the last paragraph still on screen is shown instead of nothing.
+
+## Usage
+
+Subscription usage limits for the three harnesses herdr drives. Works for any Relay user out of the
+box: no status-line setup, nothing to configure. There are two provider entries, not three, because pi
+authenticates through the same `openai-codex` OAuth account as codex, so one fetch covers both:
+
+- `claude`: spawns `claude -p "/usage" --output-format stream-json --verbose --no-session-persistence`
+  from a dedicated cwd (`~/.relay/usage-probe`), and parses the assistant message's structured
+  `usage_report.rate_limits.limits[]` (not the prose). `--no-session-persistence` and the dedicated cwd
+  keep this out of the user's normal Claude Code history; `windows` are built from the `session` and
+  `weekly_all` entries. `plan` comes from a second, much cheaper call, `claude auth status --json`
+  (`subscriptionType`).
+- `codex`: a one-shot JSON-RPC call to `codex app-server` (`account/rateLimits/read`), which uses
+  codex's own already-stored ChatGPT OAuth session — the bridge never touches `~/.codex/auth.json`.
+  `windows` are built from `rateLimits.primary`/`.secondary`. Labelled "Codex / pi".
+
+Both are read-only probes: nothing is typed into a herdr pane, and neither is a herdr agent kind.
+
+- The bridge polls both on a timer, but only while at least one `/ws` client is connected (a poll with
+  nobody watching burns a subscription's rate limit for no reason). `GET /usage` always serves the
+  cache; it never triggers a fetch itself, so it's cheap to call from the app on screen appear.
+- Backoff: each provider's own poll interval starts at 60 s and doubles (capped at 10 min) while its
+  `windows` don't change between polls, and resets to 60 s the moment they do.
+- `POST /usage/refresh` (pull-to-refresh) bypasses backoff and polls immediately, but is rate-limited to
+  once every 15 s across both providers (automatic or manual) — `429 rate_limited` otherwise.
+- `stale: true` means `updatedAt` is more than 15 minutes old (screen wasn't open, or the harness has
+  been unreachable), not that the numbers are wrong — the app should show them dimmed with "updated x
+  ago" rather than hide them. A provider that has never successfully returned data has `windows: []`,
+  `stale: true`, and `unavailableReason` set (e.g. the CLI isn't on `PATH`, or isn't logged in).
+- `usage.updated` is sent once per provider whose snapshot actually changed (compared field by field,
+  not just re-fetched) — same shape as `GET /usage`'s `providers[]`, one entry.
+- Fixtures: `docs/fixtures/usage.json`.
