@@ -3,7 +3,7 @@ import HerdKit
 import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
-/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`, `-pair <herd:// link>`.
+/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`, `-pair <herd:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
 struct LaunchOptions {
     var mock = false
     var demo: String?
@@ -11,6 +11,14 @@ struct LaunchOptions {
     var replay = true
     /// A `herd://pair` link handled at launch, same path as `onOpenURL`.
     var pairLink: URL?
+    /// `-uitestAttachments`: the `+` menu offers generated test files (UI tests can't drive the Photos picker).
+    var testAttachments = false
+    /// `-testWord X`: the word drawn into the generated test image and PDF, so a live test can't match old replies.
+    var testWord: String?
+    /// `-uitest`: keep all UI state in a separate defaults suite (see `AppDefaults`).
+    var isUITest = false
+    /// `-resetSidebar` (with `-uitest`): start from empty test state.
+    var resetTestState = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -25,6 +33,10 @@ struct LaunchOptions {
         agent = value("-agent")
         replay = value("-replay") != "off"
         pairLink = value("-pair").flatMap(URL.init(string:))
+        testAttachments = arguments.contains("-uitestAttachments")
+        testWord = value("-testWord")
+        isUITest = arguments.contains("-uitest")
+        resetTestState = arguments.contains("-resetSidebar")
         #endif
     }
 
@@ -40,6 +52,7 @@ final class AppModel {
     var isPairing = false
 
     init(options: LaunchOptions = .current) {
+        if options.resetTestState { AppDefaults.resetTestState() }
         #if DEBUG
         if options.mock {
             if !options.isDemo("pairing") {

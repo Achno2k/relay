@@ -12,7 +12,7 @@ struct ToolStep: Identifiable, Hashable {
 
 /// What the chat list renders. Consecutive tool calls/results collapse into one `.tools` row.
 enum ChatItem: Identifiable, Hashable {
-    case user(id: String, text: String, pending: Bool)
+    case user(id: String, text: String, pending: Bool, attachments: [AttachmentRef] = [])
     case text(id: String, markdown: String)
     case thinking(id: String, text: String)
     case tools(id: String, steps: [ToolStep], messageIds: [String])
@@ -21,7 +21,7 @@ enum ChatItem: Identifiable, Hashable {
 
     var id: String {
         switch self {
-        case .user(let id, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id): id
+        case .user(let id, _, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id): id
         }
     }
 
@@ -52,7 +52,10 @@ enum ChatItem: Identifiable, Hashable {
                     continue
                 }
                 let text = message.plainText
-                if !text.isEmpty { items.append(.user(id: message.id, text: text, pending: false)) }
+                let attachments = message.attachments
+                if !text.isEmpty || !attachments.isEmpty {
+                    items.append(.user(id: message.id, text: text, pending: false, attachments: attachments))
+                }
                 continue
             }
             for (i, block) in message.blocks.enumerated() {
@@ -76,7 +79,7 @@ enum ChatItem: Identifiable, Hashable {
                         steps[j].preview = result.preview
                         steps[j].finished = true
                     }
-                case .unknown:
+                case .attachment, .unknown:
                     continue
                 }
             }

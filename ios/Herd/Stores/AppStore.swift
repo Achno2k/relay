@@ -19,7 +19,7 @@ final class AppStore {
     /// False until the first `/agents` answer (or failure), so the UI doesn't flash "No agents".
     private(set) var hasLoadedAgents = false
     var selectedAgentId: String? {
-        didSet { UserDefaults.standard.set(selectedAgentId, forKey: "selectedAgentId") }
+        didSet { AppDefaults.standard.set(selectedAgentId, forKey: "selectedAgentId") }
     }
 
     /// Choices for the title menu; nil until fetched (or on a bridge without controls).
@@ -36,6 +36,15 @@ final class AppStore {
     /// First/last time this session saw each message grow over the socket; feeds "Worked for 42s".
     private(set) var liveSpans: [String: ClosedRange<Date>] = [:]
     private var seen: [String: Date]
+    /// Client-side archive (App Group defaults); it never closes the agent.
+    private(set) var archived: Set<String>
+    /// The Macs we know about. One bridge serves one machine; a list so more can plug in later.
+    private(set) var machines: [Machine] = []
+    var filter: SessionFilter {
+        didSet { AppDefaults.standard.set(filter.rawValue, forKey: "sessionFilter") }
+    }
+    /// Thumbnails and files already fetched, by attachment id.
+    private var attachmentCache: [String: Data] = [:]
     var errorMessage: String?
 
     private var eventsTask: Task<Void, Never>?
@@ -43,9 +52,31 @@ final class AppStore {
     init(backend: any Backend, hostLabel: String) {
         self.backend = backend
         self.hostLabel = hostLabel
-        self.selectedAgentId = UserDefaults.standard.string(forKey: "selectedAgentId")
-        let raw = UserDefaults.standard.dictionary(forKey: "seenAgents") as? [String: Double] ?? [:]
+        self.selectedAgentId = AppDefaults.standard.string(forKey: "selectedAgentId")
+        let raw = AppDefaults.standard.dictionary(forKey: "seenAgents") as? [String: Double] ?? [:]
         self.seen = raw.mapValues { Date(timeIntervalSince1970: $0) }
+        self.archived = Set(AppDefaults.shared.stringArray(forKey: "archivedAgents") ?? [])
+        self.filter = SessionFilter(rawValue: AppDefaults.standard.string(forKey: "sessionFilter") ?? "") ?? .all
+    }
+
+    var sidebar: SidebarModel {
+        SidebarModel(state: state, archived: archived, isUnseen: { [seen, selectedAgentId] agent in
+            agent.status == .done && agent.id != selectedAgentId && (seen[agent.id] ?? .distantPast) < agent.updatedAt
+        })
+    }
+
+    func isArchived(_ agentId: String) -> Bool { archived.contains(agentId) }
+
+    func setArchived(_ agentId: String, _ value: Bool) {
+        if value { archived.insert(agentId) } else { archived.remove(agentId) }
+        AppDefaults.shared.set(Array(archived).sorted(), forKey: "archivedAgents")
+    }
+
+    /// An archived chat that starts asking a question comes back, so it's never missed.
+    private func unarchiveIfBlocked(_ agents: [Agent]) {
+        for agent in agents where agent.status == .blocked && archived.contains(agent.id) {
+            setArchived(agent.id, false)
+        }
     }
 
     var selectedAgent: Agent? { state.agent(selectedAgentId) }
@@ -108,8 +139,11 @@ final class AppStore {
             pending[id] = nil
             if id == selectedAgentId { selectedAgentId = firstAgentId() }
         case .agentUpdated(let agent) where agent.id == selectedAgentId:
+            unarchiveIfBlocked([agent])
             markSeen(agent)
             reloadIfDropped(agent.id)
+        case .agentUpdated(let agent), .agentCreated(let agent):
+            unarchiveIfBlocked([agent])
         default:
             break
         }
@@ -126,6 +160,7 @@ final class AppStore {
             var s = state
             for agent in a { s.upsert(agent) }  // drops chats whose session changed
             s.agents = a
+            unarchiveIfBlocked(a)
             s.workspaces = w
             let live = Set(a.map(\.id))
             s.messages = s.messages.filter { live.contains($0.key) }
@@ -139,6 +174,9 @@ final class AppStore {
         }
         hasLoadedAgents = true
         if controls == nil { controls = try? await backend.controls() }
+        if let machine = try? await backend.machine() {
+            machines = [machine]
+        }
         if let id = selectedAgentId { await loadMessages(id) }
         await refreshApproval()
     }
@@ -180,19 +218,35 @@ final class AppStore {
         }
     }
 
-    func send(_ text: String, to agentId: String) {
+    func send(_ text: String, attachments: [Attachment] = [], to agentId: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let local = Message(id: "local-\(UUID().uuidString)", role: .user, createdAt: Date(), blocks: [.text(trimmed)])
+        guard !trimmed.isEmpty || !attachments.isEmpty else { return }
+        var blocks = attachments.map { Block.attachment($0.ref) }
+        if !trimmed.isEmpty { blocks.append(.text(trimmed)) }
+        let local = Message(id: "local-\(UUID().uuidString)", role: .user, createdAt: Date(), blocks: blocks)
         pending[agentId, default: []].append(local)
         Task {
             do {
-                try await backend.prompt(agentId: agentId, text: trimmed)
+                try await backend.prompt(agentId: agentId, text: trimmed, attachments: attachments.map(\.id))
             } catch {
                 pending[agentId]?.removeAll { $0.id == local.id }
                 report(error)
             }
         }
+    }
+
+    /// Attachment bytes for thumbnails, full-screen images and QuickLook; cached for the session.
+    func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
+        if let data = attachmentCache[attachmentId] { return data }
+        let data = try await backend.attachmentData(agentId: agentId, attachmentId: attachmentId)
+        if attachmentCache.count > 60 { attachmentCache.removeAll() }
+        attachmentCache[attachmentId] = data
+        return data
+    }
+
+    /// Uploaded bytes are known locally already; seeding the cache avoids a round trip for our own thumbnails.
+    func cacheAttachment(_ id: String, data: Data) {
+        attachmentCache[id] = data
     }
 
     func interrupt(_ agentId: String) {
@@ -299,14 +353,19 @@ final class AppStore {
     private func resolvePending(agentId: String, with messages: [Message]) {
         guard var list = pending[agentId], !list.isEmpty else { return }
         // Stop markers are Claude's, not the user's prompt; never let one resolve a pending prompt.
-        let texts = Set(messages.filter { $0.role == .user && !$0.isInterruptionMarker }.map { $0.plainText.trimmingCharacters(in: .whitespacesAndNewlines) })
-        list.removeAll { texts.contains($0.plainText) }
+        let keys = Set(messages.filter { $0.role == .user && !$0.isInterruptionMarker }.map(Self.pendingKey))
+        list.removeAll { keys.contains(Self.pendingKey($0)) }
         pending[agentId] = list.isEmpty ? nil : list
+    }
+
+    /// Same text and same attachment ids: the transcript copy of a prompt sent from the phone.
+    private static func pendingKey(_ message: Message) -> String {
+        message.plainText.trimmingCharacters(in: .whitespacesAndNewlines) + "\u{1F}" + message.attachments.map(\.id).sorted().joined(separator: ",")
     }
 
     private func markSeen(_ agent: Agent) {
         seen[agent.id] = agent.updatedAt
-        UserDefaults.standard.set(seen.mapValues(\.timeIntervalSince1970), forKey: "seenAgents")
+        AppDefaults.standard.set(seen.mapValues(\.timeIntervalSince1970), forKey: "seenAgents")
     }
 
     private func report(_ error: any Error, prefix: String? = nil) {

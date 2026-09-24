@@ -1,19 +1,30 @@
+import HerdKit
 import SwiftUI
 
 struct UserBubble: View {
     let text: String
     let pending: Bool
     let maxWidth: CGFloat
+    var attachments: [AttachmentRef] = []
+    var agentId: String = ""
+    var store: AppStore?
 
     var body: some View {
-        Text(MarkdownParser.inline(text))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 22))
-            .opacity(pending ? 0.6 : 1)
-            .textSelection(.enabled)
-            .frame(maxWidth: maxWidth, alignment: .trailing)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+        VStack(alignment: .trailing, spacing: 6) {
+            if !attachments.isEmpty, let store {
+                MessageAttachments(attachments: attachments, agentId: agentId, store: store)
+            }
+            if !text.isEmpty {
+                Text(MarkdownParser.inline(text))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 22))
+                    .textSelection(.enabled)
+            }
+        }
+        .opacity(pending ? 0.6 : 1)
+        .frame(maxWidth: maxWidth, alignment: .trailing)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 

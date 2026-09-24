@@ -23,13 +23,14 @@ struct MainView: View {
                         store.open(id)
                         setSidebar(false)
                     },
-                    onNewChat: { presentNewChat(store.selectedAgent?.workspaceId) },
+                    onNewChat: { presentNewChat($0) },
                     onUnpair: { model.unpair() }
                 )
                 .frame(width: width)
                 .offset(x: -width * 0.25 * (1 - progress))
                 .accessibilityHidden(progress == 0)
-                .simultaneousGesture(sidebarOpen ? drawerDrag(width: width) : nil)
+                // No drag-to-close on the sidebar itself: a left swipe there archives a chat.
+                // The dimmed chat on the right still closes the drawer on tap or drag.
 
                 ChatView(
                     store: store,

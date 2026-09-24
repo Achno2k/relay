@@ -52,53 +52,6 @@ struct PulsingDot: View {
     }
 }
 
-/// Sidebar status: pulse while working, "Needs you" when blocked, blue dot for unseen results.
-struct StatusIndicator: View {
-    let status: AgentStatus
-    let unseen: Bool
-
-    var body: some View {
-        switch status {
-        case .working:
-            WorkingPulse()
-        case .blocked:
-            Text("Needs you")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.orange, in: .capsule)
-        case .done where unseen:
-            Circle()
-                .fill(.blue)
-                .frame(width: 9, height: 9)
-                .accessibilityLabel("New result")
-        default:
-            EmptyView()
-        }
-    }
-}
-
-private struct WorkingPulse: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(.green.opacity(0.6), lineWidth: 1.5)
-                .frame(width: 9, height: 9)
-                .phaseAnimator([false, true]) { ring, out in
-                    ring.scaleEffect(out ? 2.2 : 1).opacity(out ? 0 : 1)
-                } animation: { out in
-                    out ? .easeOut(duration: 1.2) : .linear(duration: 0.01)
-                }
-            Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
-        }
-        .frame(width: 20, height: 20)
-        .accessibilityLabel("Working")
-    }
-}
-
 enum RelativeTime {
     /// "now", "4m", "2h", "Yesterday", "Mon", "12 Sep".
     static func short(_ date: Date, now: Date = Date()) -> String {
@@ -108,6 +61,16 @@ enum RelativeTime {
         if seconds < 86_400, Calendar.current.isDateInToday(date) { return "\(Int(seconds / 3600))h ago" }
         if Calendar.current.isDateInYesterday(date) { return "Yesterday" }
         if seconds < 6 * 86_400 { return date.formatted(.dateTime.weekday(.abbreviated)) }
+        return date.formatted(.dateTime.day().month(.abbreviated))
+    }
+
+    /// Sidebar style: "now", "10m", "2h", "3d", "12 Sep".
+    static func compact(_ date: Date, now: Date = Date()) -> String {
+        let seconds = max(0, now.timeIntervalSince(date))
+        if seconds < 60 { return "now" }
+        if seconds < 3600 { return "\(Int(seconds / 60))m" }
+        if seconds < 86_400 { return "\(Int(seconds / 3600))h" }
+        if seconds < 7 * 86_400 { return "\(Int(seconds / 86_400))d" }
         return date.formatted(.dateTime.day().month(.abbreviated))
     }
 

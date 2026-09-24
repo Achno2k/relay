@@ -1,189 +1,530 @@
 import HerdKit
 import SwiftUI
 
+/// Codex-style home in the drawer: filter and ⋯ buttons, a large title, device chips, then either the
+/// Projects tree (filter All) or a flat Sessions list. Search and New chat float at the bottom.
 struct SidebarView: View {
-    let store: AppStore
+    @Bindable var store: AppStore
     let onSelect: (String) -> Void
-    let onNewChat: () -> Void
+    let onNewChat: (_ workspaceId: String?) -> Void
     let onUnpair: () -> Void
 
+    @State private var expanded: Set<String> = Set(AppDefaults.standard.stringArray(forKey: "expandedProjects") ?? [])
     @State private var query = ""
-    @FocusState private var searching: Bool
+    @State private var searching = false
+    @FocusState private var searchFocused: Bool
+    @Namespace private var glass
 
     var body: some View {
-        let sections = store.state.sections(matching: query)
-        VStack(spacing: 0) {
-            searchField
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    SidebarButton(title: "New chat", systemImage: "square.and.pencil", action: onNewChat)
-                        .padding(.bottom, 6)
-
-                    ForEach(sections) { section in
-                        Text(section.name)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.top, 16)
-                            .padding(.bottom, 4)
-                        ForEach(section.agents) { agent in
-                            AgentRow(
-                                agent: agent,
-                                selected: agent.id == store.selectedAgentId,
-                                unseen: store.isUnseen(agent)
-                            ) {
-                                onSelect(agent.id)
-                            }
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    store.interrupt(agent.id)
-                                } label: {
-                                    Label("Stop", systemImage: "stop.circle")
-                                }
-                                .disabled(agent.status != .working)
-                                Button {} label: {
-                                    Label("Rename", systemImage: "pencil")
-                                }
-                                .disabled(true)
-                            } preview: {
-                                AgentPreview(agent: agent)
-                            }
-                        }
-                    }
-
-                    if sections.isEmpty {
-                        Text(query.isEmpty ? "No agents running" : "No matches")
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 40)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 20)
-                .animation(.smooth, value: sections)
+        let sidebar = store.sidebar
+        List {
+            header(sidebar)
+            if searching && !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                sessions(sidebar.sessions(.all, query: query), title: "Results", sidebar: sidebar)
+            } else if store.filter == .all {
+                projects(sidebar)
+            } else {
+                sessions(sidebar.sessions(store.filter), title: store.filter.title, sidebar: sidebar)
             }
-            .scrollDismissesKeyboard(.immediately)
-            .scrollEdgeEffectStyle(.soft, for: .vertical)
-
-            footer
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.immediately)
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .environment(\.defaultMinListRowHeight, 1)
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .background(Color(.systemBackground))
+        .animation(.smooth, value: store.filter)
+        .animation(.smooth, value: expanded)
     }
 
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search", text: $query)
-                .focused($searching)
-                .submitLabel(.search)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+    // MARK: - Header
+
+    @ViewBuilder
+    private func header(_ sidebar: SidebarModel) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                FilterButton(filter: $store.filter, needsInput: sidebar.needsInputCount > 0)
+                Spacer()
+                moreMenu
+            }
+            Text("Herd")
+                .font(.largeTitle.bold())
+                .padding(.top, 4)
+            DeviceChips(machines: store.machines, fallbackName: store.hostLabel, connected: store.connection == .connected)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+        .plainRow()
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Section {
+                if let machine = store.machines.first {
+                    Label(machine.name, systemImage: machine.kind == .laptop ? "laptopcomputer" : "desktopcomputer")
+                    if let os = machine.os { Label(os, systemImage: "apple.logo") }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
+                Label(store.hostLabel, systemImage: "network")
+                Label(store.connection == .connected ? "Connected" : "Reconnecting…",
+                      systemImage: store.connection == .connected ? "checkmark.circle" : "wifi.exclamationmark")
+            }
+            Section {
+                Button(role: .destructive, action: onUnpair) {
+                    Label("Unpair", systemImage: "link")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.body.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(.circle)
+        }
+        .tint(.primary)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("sidebarMore")
+    }
+
+    // MARK: - Projects tree
+
+    @ViewBuilder
+    private func projects(_ sidebar: SidebarModel) -> some View {
+        Section {
+            ForEach(sidebar.projects()) { project in
+                ProjectRow(
+                    project: project,
+                    expanded: expanded.contains(project.id),
+                    onToggle: { toggle(project.id) },
+                    onNewChat: { onNewChat(project.id) }
+                )
+                .plainRow()
+                if expanded.contains(project.id) {
+                    if project.agents.isEmpty {
+                        Text("No chats")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 58)
+                            .padding(.vertical, 6)
+                            .plainRow()
+                    }
+                    ForEach(project.agents) { agent in
+                        chatRow(agent, subtitleFolder: false, indent: true, sidebar: sidebar)
+                    }
+                }
+            }
+        } header: {
+            sectionHeader("Projects")
+        }
+    }
+
+    private func toggle(_ id: String) {
+        withAnimation(.smooth) {
+            if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
+        }
+        AppDefaults.standard.set(Array(expanded).sorted(), forKey: "expandedProjects")
+    }
+
+    // MARK: - Flat sessions
+
+    @ViewBuilder
+    private func sessions(_ agents: [Agent], title: String, sidebar: SidebarModel) -> some View {
+        Section {
+            if agents.isEmpty {
+                Text(emptyText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .plainRow()
+            }
+            ForEach(agents) { agent in
+                chatRow(agent, subtitleFolder: true, indent: false, sidebar: sidebar)
+            }
+        } header: {
+            sectionHeader(title)
+        }
+    }
+
+    private var emptyText: String {
+        if searching && !query.isEmpty { return "No chats match \u{201C}\(query)\u{201D}." }
+        switch store.filter {
+        case .needsInput: return "Nothing is waiting for you."
+        case .readyForReview: return "Nothing new to review."
+        case .working: return "No agent is working."
+        case .completed: return "No finished chats."
+        case .archived: return "Swipe a chat left to archive it."
+        case .all: return "No chats."
+        }
+    }
+
+    private func chatRow(_ agent: Agent, subtitleFolder: Bool, indent: Bool, sidebar: SidebarModel) -> some View {
+        let archived = store.isArchived(agent.id)
+        return ChatRow(
+            agent: agent,
+            unseen: sidebar.isUnseen(agent),
+            showsFolder: subtitleFolder,
+            selected: agent.id == store.selectedAgentId,
+            indent: indent
+        ) {
+            onSelect(agent.id)
+        }
+        .plainRow()
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button {
+                withAnimation(.smooth) { store.setArchived(agent.id, !archived) }
+            } label: {
+                Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
+            }
+            .tint(archived ? .blue : .indigo)
+        }
+        .contextMenu {
+            Button {
+                withAnimation(.smooth) { store.setArchived(agent.id, !archived) }
+            } label: {
+                Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
+            }
+            Button(role: .destructive) {
+                store.interrupt(agent.id)
+            } label: {
+                Label("Stop", systemImage: "stop.circle")
+            }
+            .disabled(agent.status != .working)
+        } preview: {
+            AgentPreview(agent: agent)
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets())
+            .background(Color(.systemBackground))
+    }
+
+    // MARK: - Bottom bar
+
+    /// Search is a glass circle bottom-left that grows into a field; New chat is the capsule on the right.
+    /// Both sit where a thumb reaches, and the list keeps its full height for chats.
+    private var bottomBar: some View {
+        GlassEffectContainer(spacing: 12) {
+            HStack(spacing: 12) {
+                if searching {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Search chats", text: $query)
+                            .focused($searchFocused)
+                            .submitLabel(.search)
+                            .accessibilityIdentifier("sidebarSearchField")
+                        Button {
+                            withAnimation(.smooth) {
+                                query = ""
+                                searching = false
+                                searchFocused = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close search")
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(height: 48)
+                    .glassEffect(.regular.interactive(), in: .capsule)
+                    .glassEffectID("search", in: glass)
+                } else {
+                    Button {
+                        withAnimation(.smooth) { searching = true }
+                        searchFocused = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 48, height: 48)
+                            .contentShape(.circle)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .glassEffectID("search", in: glass)
+                    .accessibilityLabel("Search")
+                    .accessibilityIdentifier("sidebarSearch")
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        onNewChat(store.selectedAgent?.workspaceId)
+                    } label: {
+                        Label("New chat", systemImage: "plus")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(Color(.systemBackground))
+                            .padding(.horizontal, 20)
+                            .frame(height: 48)
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.tint(.primary).interactive(), in: .capsule)
+                    .glassEffectID("new", in: glass)
+                    .accessibilityIdentifier("sidebarNewChat")
+                }
             }
         }
-        .padding(.horizontal, 14)
-        .frame(height: 44)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+}
+
+private extension View {
+    /// Custom list row: no separator, no background, no system insets.
+    func plainRow() -> some View {
+        listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+    }
+}
+
+// MARK: - Pieces
+
+private struct FilterButton: View {
+    @Binding var filter: SessionFilter
+    let needsInput: Bool
+
+    var body: some View {
+        Menu {
+            Picker("Filter", selection: $filter) {
+                ForEach(SessionFilter.allCases) { f in
+                    Label(f.title, systemImage: f.symbol).tag(f)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.body.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(.circle)
+                .overlay(alignment: .topTrailing) {
+                    if needsInput {
+                        Circle().fill(.orange).frame(width: 9, height: 9).offset(x: -8, y: 8)
+                    }
+                }
+        }
+        .tint(.primary)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .accessibilityLabel("Filter: \(filter.title)")
+        .accessibilityValue(needsInput ? "needs input" : "")
+        .accessibilityIdentifier("sidebarFilter")
+    }
+}
+
+private struct DeviceChips: View {
+    let machines: [Machine]
+    let fallbackName: String
+    let connected: Bool
+    @AppStorage("machineFilter", store: AppDefaults.standard) private var selected = "all"
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip(id: "all", selected: selected == "all") {
+                    Text("All")
+                }
+                .accessibilityLabel("All devices")
+                if machines.isEmpty {
+                    chip(id: "this-mac", selected: selected == "this-mac") {
+                        machineLabel(name: fallbackName, symbol: "desktopcomputer")
+                    }
+                }
+                ForEach(machines) { machine in
+                    chip(id: machine.id, selected: selected == machine.id) {
+                        machineLabel(name: machine.name, symbol: machine.kind == .laptop ? "laptopcomputer" : "desktopcomputer")
+                    }
+                }
+            }
+        }
+        .scrollClipDisabled()
     }
 
-    private var footer: some View {
+    private func machineLabel(name: String, symbol: String) -> some View {
+        HStack(spacing: 7) {
+            Circle().fill(connected ? .green : .gray).frame(width: 7, height: 7)
+            Image(systemName: symbol)
+            Text(name).lineLimit(1)
+        }
+    }
+
+    private func chip(id: String, selected: Bool, @ViewBuilder label: () -> some View) -> some View {
+        Button {
+            withAnimation(.smooth) { self.selected = id }
+        } label: {
+            label()
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(selected ? Color(.systemBackground) : .primary)
+                .padding(.horizontal, 14)
+                .frame(height: 38)
+                .background(selected ? Color.primary : Color(.secondarySystemFill), in: .capsule)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+private struct ProjectRow: View {
+    let project: SidebarModel.Project
+    let expanded: Bool
+    let onToggle: () -> Void
+    let onNewChat: () -> Void
+
+    var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "desktopcomputer")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
-                .background(.tint, in: .circle)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Herd").font(.subheadline.weight(.semibold))
-                Text(store.hostLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            Menu {
-                Button(role: .destructive, action: onUnpair) {
-                    Label("Unpair", systemImage: "link.badge.plus")
+            Button(action: onToggle) {
+                HStack(spacing: 12) {
+                    Image(systemName: expanded ? "folder.fill" : "folder")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 26)
+                        .contentTransition(.symbolEffect(.replace))
+                    Text(project.name)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                    if project.needsInput > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "hand.raised.fill")
+                            Text("\(project.needsInput)")
+                        }
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(.orange, in: .capsule)
+                        .accessibilityLabel("\(project.needsInput) need input")
+                    }
+                    Spacer(minLength: 8)
                 }
-            } label: {
-                Image(systemName: "ellipsis")
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(project.name)
+            .accessibilityValue(expanded ? "expanded" : "collapsed")
+            .accessibilityIdentifier("project-\(project.name)")
+
+            Button(action: onNewChat) {
+                Image(systemName: "square.and.pencil")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
                     .frame(width: 36, height: 36)
                     .contentShape(.rect)
             }
-            .tint(.secondary)
+            .buttonStyle(.plain)
+            .accessibilityLabel("New chat in \(project.name)")
+            .accessibilityIdentifier("newChat-\(project.name)")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.leading, 20)
+        .padding(.trailing, 12)
+        .padding(.vertical, 8)
+        .sensoryFeedback(.selection, trigger: expanded)
     }
 }
 
-private struct SidebarButton: View {
-    let title: String
-    let systemImage: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.body.weight(.medium))
-                .labelStyle(SidebarLabelStyle())
-                .padding(.horizontal, 12)
-                .padding(.vertical, 11)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct SidebarLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 12) {
-            configuration.icon.frame(width: 22)
-            configuration.title
-        }
-    }
-}
-
-private struct AgentRow: View {
+private struct ChatRow: View {
     let agent: Agent
-    let selected: Bool
     let unseen: Bool
+    let showsFolder: Bool
+    let selected: Bool
+    let indent: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                StatusGlyph(status: agent.status, unseen: unseen)
+                    .frame(width: 22)
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(agent.displayTitle)
-                        .font(.body.weight(unseen || agent.status == .blocked ? .semibold : .regular))
+                        .font(.body)
                         .lineLimit(1)
-                    Text("\(agent.kind) · \(RelativeTime.short(agent.updatedAt))")
+                    Text(subtitle)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                Spacer(minLength: 4)
-                StatusIndicator(status: agent.status, unseen: unseen)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
+            .padding(.leading, indent ? 34 : 20)
+            .padding(.trailing, 16)
             .padding(.vertical, 9)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selected ? Color(.secondarySystemFill) : .clear, in: .rect(cornerRadius: 14))
-            .contentShape(.rect(cornerRadius: 14))
+            .background {
+                if selected {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(.secondarySystemFill))
+                        .padding(.horizontal, 8)
+                }
+            }
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(agent.displayTitle)
+        .accessibilityValue(subtitle)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var subtitle: String {
+        var parts: [String] = []
+        switch agent.status {
+        case .blocked: parts.append("Waiting for you")
+        case .working: parts.append("Working")
+        case .done where unseen: parts.append("Ready for review")
+        default: break
+        }
+        if showsFolder { parts.append(agent.workspaceName) }
+        parts.append(RelativeTime.compact(agent.updatedAt))
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// Leading status glyph, as in the Codex session list.
+struct StatusGlyph: View {
+    let status: AgentStatus
+    let unseen: Bool
+
+    var body: some View {
+        Group {
+            switch status {
+            case .working:
+                ProgressView().controlSize(.small)
+            case .blocked:
+                Image(systemName: "hand.raised").foregroundStyle(.orange)
+            case .done where unseen:
+                Image(systemName: "eye").foregroundStyle(.blue)
+            case .done:
+                Image(systemName: "checkmark.circle").foregroundStyle(.secondary)
+            case .idle:
+                Image(systemName: "circle").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            case .unknown:
+                Image(systemName: "circle.dashed").foregroundStyle(.tertiary)
+            }
+        }
+        .font(.subheadline.weight(.medium))
+        .accessibilityLabel(label)
+    }
+
+    private var label: String {
+        switch status {
+        case .working: "Working"
+        case .blocked: "Needs input"
+        case .done: unseen ? "Ready for review" : "Completed"
+        case .idle: "Idle"
+        case .unknown: "Unknown"
+        }
     }
 }
 

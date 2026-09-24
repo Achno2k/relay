@@ -15,6 +15,7 @@ actor MockBackend: Backend {
     private let replayInterval: Duration?
     private var continuation: AsyncStream<ConnectionEvent>.Continuation?
     private var counter = 0
+    private var uploads: [String: (attachment: Attachment, data: Data)] = [:]
     private let latency: Duration = .milliseconds(UserDefaults.standard.integer(forKey: "latency").nonZero ?? 120)
 
     init(replayInterval: Duration? = .seconds(4)) {
@@ -45,8 +46,43 @@ actor MockBackend: Backend {
         return MessagePage(messages: Array(list.suffix(limit)), hasMore: list.count > limit)
     }
 
-    func prompt(agentId: String, text: String) async throws {
-        let user = Message(id: nextId(), role: .user, createdAt: Date(), blocks: [.text(text)])
+    func machine() async throws -> Machine {
+        Machine(id: "mock-mac", name: "Mock MacBook Pro", kind: .laptop, model: "Mac15,9", os: "macOS 26.4")
+    }
+
+    /// Stores the bytes and reports progress in a few steps, like a slow network.
+    func uploadAttachment(
+        agentId: String, data: Data, filename: String, contentType: String,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> Attachment {
+        guard !data.isEmpty else { throw HerdError.http(status: 400, code: "bad_request", message: "Empty body.") }
+        guard data.count <= 20 * 1024 * 1024 else { throw HerdError.http(status: 413, code: "too_large", message: "Over 20 MB.") }
+        for step in 1...4 {
+            try await Task.sleep(for: .milliseconds(150))
+            progress(Double(step) / 4)
+        }
+        counter += 1
+        let id = String(format: "%016x", counter)
+        let ext = (filename as NSString).pathExtension.lowercased()
+        let kind: AttachmentKind = ["jpg", "jpeg", "png", "heic", "gif", "webp"].contains(ext) ? .image : ext == "pdf" ? .pdf : .file
+        let attachment = Attachment(id: id, name: filename, kind: kind, size: data.count)
+        uploads[id] = (attachment, data)
+        return attachment
+    }
+
+    func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
+        guard let upload = uploads[attachmentId] else { throw HerdError.http(status: 404, code: "not_found", message: "Expired.") }
+        return upload.data
+    }
+
+    func prompt(agentId: String, text: String, attachments: [String]) async throws {
+        let refs = try attachments.map { id in
+            guard let upload = uploads[id] else { throw HerdError.http(status: 400, code: "bad_request", message: "Unknown attachment \(id).") }
+            return upload.attachment.ref
+        }
+        var blocks = refs.map { Block.attachment($0) }
+        if !text.isEmpty { blocks.append(.text(text)) }
+        let user = Message(id: nextId(), role: .user, createdAt: Date(), blocks: blocks)
         push(user, to: agentId)
         setStatus(.working, for: agentId)
         let replyId = nextId()
@@ -57,7 +93,8 @@ actor MockBackend: Backend {
             push(reply, to: agentId)
             try? await Task.sleep(for: .seconds(1.5))
             reply.blocks.append(.toolResult(ToolResult(toolCallId: call.id, isError: false, preview: "# Project")))
-            reply.blocks.append(.text("This is the mock backend. On a real bridge, **\(agentId)** would answer here."))
+            let seen = attachments.isEmpty ? "" : " I got \(attachments.count) attachment\(attachments.count == 1 ? "" : "s")."
+            reply.blocks.append(.text("This is the mock backend.\(seen) On a real bridge, **\(agentId)** would answer here."))
             push(reply, to: agentId)
             setStatus(.idle, for: agentId)
         }
@@ -154,7 +191,7 @@ actor MockBackend: Backend {
         chats[agent.id] = []
         continuation?.yield(.event(.agentCreated(agent)))
         if let prompt = request.prompt {
-            Task { try? await self.prompt(agentId: agent.id, text: prompt) }
+            Task { try? await self.prompt(agentId: agent.id, text: prompt, attachments: []) }
         }
         return agent
     }

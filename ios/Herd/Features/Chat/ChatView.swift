@@ -24,6 +24,12 @@ struct ChatView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: onOpenSidebar) {
                         Image(systemName: "line.3.horizontal")
+                            .overlay(alignment: .topTrailing) {
+                                // Something needs input somewhere (never counting the chat you're in).
+                                if store.sidebar.sessions(.needsInput).contains(where: { $0.id != store.selectedAgentId }) {
+                                    Circle().fill(.orange).frame(width: 8, height: 8).offset(x: 5, y: -4)
+                                }
+                            }
                     }
                     .accessibilityLabel("Open sidebar")
                 }
@@ -143,12 +149,22 @@ private struct ChatTranscript: View {
     let onNewChat: (_ workspaceId: String?) -> Void
 
     @State private var draft = ""
-    @State private var position = ScrollPosition(edge: .bottom)
+    @State private var attachments: ComposerAttachments
     /// True until the user scrolls away from the latest message; drives autoscroll and the ↓ button.
     @State private var followsBottom = true
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var width: CGFloat = 390
     @State private var loadingEarlier = false
+
+    /// Last view in the transcript, after the working indicator: "the bottom" for every programmatic scroll.
+    private static let bottomID = "transcript-bottom"
+
+    init(store: AppStore, agent: Agent, onNewChat: @escaping (_ workspaceId: String?) -> Void) {
+        self.store = store
+        self.agent = agent
+        self.onNewChat = onNewChat
+        _attachments = State(initialValue: ComposerAttachments(agentId: agent.id, store: store))
+    }
 
     private var messages: [Message] { store.messages(for: agent.id) }
     private var controls: AgentControls {
@@ -160,8 +176,8 @@ private struct ChatTranscript: View {
     private var items: [ChatItem] {
         var items = ChatItem.build(from: messages)
         items = items.map { item in
-            if case .user(let id, let text, _) = item, id.hasPrefix("local-") {
-                return .user(id: id, text: text, pending: true)
+            if case .user(let id, let text, _, let attachments) = item, id.hasPrefix("local-") {
+                return .user(id: id, text: text, pending: true, attachments: attachments)
             }
             return item
         }
@@ -171,64 +187,75 @@ private struct ChatTranscript: View {
     var body: some View {
         let items = items
         let working = agent.status == .working
-        Group {
-            if store.isLoaded(agent.id) {
-                transcript(items, working: working)
-            } else {
-                // The list appears only once there's content, so its first layout already starts at the bottom.
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 10) {
-                if agent.status == .blocked, let approval = store.approval, approval.agentId == agent.id {
-                    ApprovalCard(question: approval.question) { store.isApprovalSheetPresented = true }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                ComposerView(
-                    text: $draft,
-                    placeholder: "Message \(agent.displayName)",
-                    workspaceName: agent.workspaceName,
-                    isWorking: working,
-                    onSend: { store.send($0, to: agent.id) },
-                    onStop: { store.interrupt(agent.id) },
-                    onNewChat: { onNewChat(agent.workspaceId) },
-                    showsAccessory: showsModeChip
-                ) {
-                    if showsModeChip {
-                        ModeChip(store: store, controls: controls)
-                            .transition(.scale.combined(with: .opacity))
-                    }
+        // ScrollViewReader, not ScrollPosition: re-assigning the same edge to a ScrollPosition after the
+        // user has scrolled can be a no-op, which left the ↓ button doing nothing.
+        ScrollViewReader { proxy in
+            Group {
+                if store.isLoaded(agent.id) {
+                    transcript(items, working: working, proxy: proxy)
+                } else {
+                    // The list appears only once there's content, so its first layout already starts at the bottom.
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 8)
-            .overlay(alignment: .top) {
+            // Inside the composer's safe-area inset, so it floats just above it with no offset tricks
+            // (an offset moved the button outside its hit area).
+            .overlay(alignment: .bottom) {
                 if !followsBottom {
                     Button {
                         followsBottom = true
-                        withAnimation(.smooth) { position.scrollTo(edge: .bottom) }
+                        withAnimation(.smooth) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
                     } label: {
                         Image(systemName: "arrow.down")
                             .font(.body.weight(.semibold))
                             .frame(width: 40, height: 40)
+                            .contentShape(.circle)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: .circle)
-                    .offset(y: -52)
+                    .padding(.bottom, 10)
                     .transition(.scale.combined(with: .opacity))
                     .accessibilityLabel("Scroll to bottom")
                 }
             }
             .animation(.smooth, value: followsBottom)
-            .animation(.smooth, value: store.approval)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 10) {
+                    if agent.status == .blocked, let approval = store.approval, approval.agentId == agent.id {
+                        ApprovalCard(question: approval.question) { store.isApprovalSheetPresented = true }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    ComposerView(
+                        text: $draft,
+                        placeholder: "Message \(agent.displayName)",
+                        workspaceName: agent.workspaceName,
+                        isWorking: working,
+                        attachments: attachments,
+                        onSend: { text, files in
+                            followsBottom = true
+                            store.send(text, attachments: files, to: agent.id)
+                        },
+                        onStop: { store.interrupt(agent.id) },
+                        onNewChat: { onNewChat(agent.workspaceId) },
+                        showsAccessory: showsModeChip
+                    ) {
+                        if showsModeChip {
+                            ModeChip(store: store, controls: controls)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+                .animation(.smooth, value: store.approval)
+            }
         }
     }
 
     /// A plain `VStack`, not a lazy one: lazy rows are measured with estimates, so on a long, real transcript
     /// the initial bottom offset landed short of the end. Real chats are one page (50 messages) at a time.
-    private func transcript(_ items: [ChatItem], working: Bool) -> some View {
+    private func transcript(_ items: [ChatItem], working: Bool, proxy: ScrollViewProxy) -> some View {
         let lastId = items.last?.id
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -236,7 +263,7 @@ private struct ChatTranscript: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .onScrollVisibilityChange(threshold: 0.5) { visible in
-                            if visible { loadEarlier(anchor: items.first?.id) }
+                            if visible { loadEarlier(anchor: items.first?.id, proxy: proxy) }
                         }
                 }
                 if !agent.hasTranscript {
@@ -247,19 +274,23 @@ private struct ChatTranscript: View {
                 }
                 ForEach(items) { item in
                     row(item, isLast: item.id == lastId, working: working)
+                        .id(item.id)
                 }
                 if working, !(items.last?.isAssistantText ?? false), !lastIsLiveTools(items, working: working) {
                     PulsingDot()
                         .padding(.leading, 2)
                         .transition(.opacity)
                 }
+                Color.clear
+                    .frame(height: 1)
+                    .id(Self.bottomID)
+                    .accessibilityHidden(true)
             }
-            .scrollTargetLayout()
             .padding(.horizontal, 20)
             .padding(.top, 12)
             .padding(.bottom, 12)
         }
-        .scrollPosition($position)
+        .accessibilityIdentifier("transcript")
         .defaultScrollAnchor(LaunchOptions.current.isDemo("top") ? .top : .bottom, for: .initialOffset)
         .defaultScrollAnchor(.top, for: .alignment)
         .scrollDismissesKeyboard(.interactively)
@@ -278,18 +309,18 @@ private struct ChatTranscript: View {
             // New content, the approval card or the keyboard moved the end of the chat: stay on it.
             let endMoved = new.maxOffset != old.maxOffset || new.insetBottom != old.insetBottom
             if followsBottom, endMoved, !new.isAtBottom {
-                withAnimation(.smooth(duration: 0.25)) { position.scrollTo(edge: .bottom) }
+                withAnimation(.smooth(duration: 0.25)) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
             }
         }
     }
 
     /// Prepending a page would otherwise leave the offset where it was and jump to older content.
-    private func loadEarlier(anchor: String?) {
+    private func loadEarlier(anchor: String?, proxy: ScrollViewProxy) {
         guard !loadingEarlier else { return }
         loadingEarlier = true
         Task {
             await store.loadEarlier(agent.id)
-            if let anchor { position.scrollTo(id: anchor, anchor: .top) }
+            if let anchor { proxy.scrollTo(anchor, anchor: .top) }
             loadingEarlier = false
         }
     }
@@ -297,8 +328,8 @@ private struct ChatTranscript: View {
     @ViewBuilder
     private func row(_ item: ChatItem, isLast: Bool, working: Bool) -> some View {
         switch item {
-        case .user(_, let text, let pending):
-            UserBubble(text: text, pending: pending, maxWidth: width * 0.8)
+        case .user(_, let text, let pending, let attachments):
+            UserBubble(text: text, pending: pending, maxWidth: width * 0.8, attachments: attachments, agentId: agent.id, store: store)
         case .text(_, let markdown):
             MarkdownView(markdown)
                 .textSelection(.enabled)
