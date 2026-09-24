@@ -59,16 +59,21 @@ private struct TitleMenu: View {
     let store: AppStore
     let agent: Agent
     @State private var confirmClear = false
+    @State private var showAllModels = false
 
     private var controls: AgentControls {
-        AgentControls(agent: agent, catalog: store.controls, pending: store.pendingControls[agent.id])
+        store.controlsState(for: agent)
     }
 
     var body: some View {
         let controls = controls
         Menu {
             if controls.isAvailable {
-                ControlMenuItems(store: store, controls: controls, onClear: { confirmClear = true })
+                ControlMenuItems(
+                    store: store, controls: controls,
+                    onClear: { confirmClear = true },
+                    onAllModels: { showAllModels = true }
+                )
             }
             Section {
                 Label(agent.workspaceName, systemImage: "folder")
@@ -115,6 +120,11 @@ private struct TitleMenu: View {
         }
         .accessibilityIdentifier("titleMenu")
         .accessibilityValue(controls.pending == nil ? "idle" : "applying")
+        .sheet(isPresented: $showAllModels) {
+            ModelSearchSheet(models: controls.info?.models ?? [], currentId: controls.modelId) {
+                store.control(.model($0), for: agent.id)
+            }
+        }
         .confirmationDialog("Clear this conversation?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Clear conversation", role: .destructive) { store.control(.command(.clear), for: agent.id) }
         } message: {
@@ -168,10 +178,10 @@ private struct ChatTranscript: View {
 
     private var messages: [Message] { store.messages(for: agent.id) }
     private var controls: AgentControls {
-        AgentControls(agent: agent, catalog: store.controls, pending: store.pendingControls[agent.id])
+        store.controlsState(for: agent)
     }
     private var showsModeChip: Bool {
-        controls.isAvailable && controls.mode != nil && controls.mode != "default"
+        controls.supports.mode && controls.mode != nil && controls.mode != "default"
     }
     private var items: [ChatItem] {
         var items = ChatItem.build(from: messages)

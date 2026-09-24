@@ -3,10 +3,13 @@ import SwiftUI
 
 /// Labels and symbols for model / mode / effort, taking in-flight changes into account.
 enum ControlDisplay {
-    /// Alias in `catalog.models` that `agent.model` (a full id like "claude-sonnet-5") belongs to.
-    static func modelAlias(_ agent: Agent, catalog: ControlsCatalog?) -> String? {
-        guard let model = agent.model?.lowercased() else { return nil }
-        return catalog?.models.first { model.contains($0.id.lowercased()) }?.id
+    /// The option in `models` that `agent.model` is. pi and codex report the exact id; Claude reports a
+    /// full id ("claude-sonnet-5") that contains its alias ("sonnet").
+    static func modelId(_ agent: Agent, models: [ControlOption]) -> String? {
+        guard let model = agent.model else { return nil }
+        if let exact = models.first(where: { $0.id == model }) { return exact.id }
+        let lower = model.lowercased()
+        return models.first { lower.contains($0.id.lowercased()) }?.id
     }
 
     static func label(_ id: String, in options: [ControlOption]?) -> String {
@@ -28,34 +31,40 @@ enum ControlDisplay {
     }
 
     /// "Couldn't switch to Sonnet 5" etc., in front of the bridge's error message.
-    static func failurePrefix(_ request: ControlRequest, catalog: ControlsCatalog?) -> String {
+    static func failurePrefix(_ request: ControlRequest, info: AgentControlsInfo?) -> String {
         switch request {
-        case .model(let id): "Couldn't switch to \(label(id, in: catalog?.models))"
-        case .permissionMode(let id): "Couldn't switch to \(label(id, in: catalog?.modes))"
-        case .effort(let id): "Couldn't set effort to \(label(id, in: catalog?.efforts))"
+        case .model(let id): "Couldn't switch to \(label(id, in: info?.models))"
+        case .permissionMode(let id): "Couldn't switch to \(label(id, in: info?.modes))"
+        case .effort(let id): "Couldn't set effort to \(label(id, in: info?.efforts))"
         case .command(.compact): "Couldn't compact"
         case .command(.clear): "Couldn't clear"
         }
     }
 }
 
-/// What the chat header and menus show for one agent: server values overlaid with a pending change.
+/// What the chat header and menus show for one agent: server values overlaid with a pending change,
+/// limited to what this agent's kind supports.
 struct AgentControls {
     let agent: Agent
-    let catalog: ControlsCatalog?
+    /// From `GET /agents/:id/controls`; nil until loaded (or when the bridge offers nothing).
+    let info: AgentControlsInfo?
     let pending: ControlRequest?
 
-    var isAvailable: Bool { agent.kind == "claude" && catalog != nil }
+    var supports: AgentControlsInfo.Supports {
+        info?.supports ?? .init(model: false, effort: false, mode: false, compact: false, clear: false)
+    }
+
+    var isAvailable: Bool { supports.any }
     var isBusy: Bool { agent.status == .working || agent.status == .blocked }
 
-    var modelAlias: String? {
+    var modelId: String? {
         if case .model(let id) = pending { return id }
-        return ControlDisplay.modelAlias(agent, catalog: catalog)
+        return ControlDisplay.modelId(agent, models: info?.models ?? [])
     }
 
     var modelLabel: String? {
-        if case .model(let id) = pending { return ControlDisplay.label(id, in: catalog?.models) }
-        return agent.modelLabel ?? modelAlias.map { ControlDisplay.label($0, in: catalog?.models) }
+        if case .model(let id) = pending { return ControlDisplay.label(id, in: info?.models) }
+        return agent.modelLabel ?? modelId.map { ControlDisplay.label($0, in: info?.models) } ?? agent.model
     }
 
     var mode: String? {
@@ -63,18 +72,19 @@ struct AgentControls {
         return agent.permissionMode
     }
 
-    var modeLabel: String? { mode.map { ControlDisplay.label($0, in: catalog?.modes) } }
+    var modeLabel: String? { mode.map { ControlDisplay.label($0, in: info?.modes) } }
 
     var effort: String? {
         if case .effort(let id) = pending { return id }
         return agent.effort
     }
 
-    var effortLabel: String? { effort.map { ControlDisplay.label($0, in: catalog?.efforts) } }
+    var effortLabel: String? { effort.map { ControlDisplay.label($0, in: info?.efforts) } }
 
-    /// "Opus 5.5 · Auto" under the title.
+    /// "Opus 5.5 · Auto" under the title; kinds without modes show effort instead ("gpt-5-codex · High").
     var subtitle: String? {
-        let parts = [modelLabel, modeLabel].compactMap { $0 }
+        let second = supports.mode || mode != nil ? modeLabel : effortLabel
+        let parts = [modelLabel, second].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 

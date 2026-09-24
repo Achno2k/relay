@@ -10,6 +10,7 @@ enum MockChats {
             "w1:p2": flakyTests,
             "w2:p1": longHistory + landing,
             "w2:p3": codex,
+            "w2:p4": pi,
         ]
     }
 
@@ -74,6 +75,15 @@ enum MockChats {
             </Button>
             ```
             """),
+        ]),
+    ]
+
+    static let pi: [Message] = [
+        Message(id: "p1", role: .user, createdAt: at(26), blocks: [.text("Remove the stale pages under docs/legacy.")]),
+        Message(id: "p2", role: .assistant, createdAt: at(25), blocks: [
+            .toolCall(ToolCall(id: "p-t1", name: "bash", summary: "Ran git rm -r docs/legacy")),
+            .toolResult(ToolResult(toolCallId: "p-t1", isError: false, preview: "rm 'docs/legacy/intro.md'")),
+            .text("Removed 6 pages from `docs/legacy` and fixed the two links that pointed at them."),
         ]),
     ]
 

@@ -22,8 +22,11 @@ final class AppStore {
         didSet { AppDefaults.standard.set(selectedAgentId, forKey: "selectedAgentId") }
     }
 
-    /// Choices for the title menu; nil until fetched (or on a bridge without controls).
+    /// Claude's global list from `GET /controls`; only used when the bridge has no per-agent route.
     private(set) var controls: ControlsCatalog?
+    /// `GET /agents/:id/controls` per agent, with the kind and session it was fetched for.
+    private(set) var agentControls: [String: AgentControlsInfo] = [:]
+    private var agentControlsKey: [String: String] = [:]
     /// Control changes in flight per agent. The UI shows the requested value until the bridge answers.
     private(set) var pendingControls: [String: ControlRequest] = [:]
 
@@ -142,6 +145,7 @@ final class AppStore {
             unarchiveIfBlocked([agent])
             markSeen(agent)
             reloadIfDropped(agent.id)
+            Task { await loadAgentControls(agent.id) }
         case .agentUpdated(let agent), .agentCreated(let agent):
             unarchiveIfBlocked([agent])
         default:
@@ -174,6 +178,7 @@ final class AppStore {
         }
         hasLoadedAgents = true
         if controls == nil { controls = try? await backend.controls() }
+        if let id = selectedAgentId { await loadAgentControls(id) }
         if let machine = try? await backend.machine() {
             machines = [machine]
         }
@@ -195,6 +200,7 @@ final class AppStore {
         Task {
             await loadMessages(agentId)
             await refreshApproval()
+            await loadAgentControls(agentId)
         }
     }
 
@@ -306,6 +312,30 @@ final class AppStore {
 
     // MARK: - Controls
 
+    /// Title-menu state for one agent: its own lists and supports plus any pending change.
+    func controlsState(for agent: Agent) -> AgentControls {
+        AgentControls(agent: agent, info: agentControls[agent.id], pending: pendingControls[agent.id])
+    }
+
+    /// Fetches the agent's controls unless we already have them for its current kind and session.
+    /// Bridges without the per-agent route (404) fall back to Claude's global list for Claude agents.
+    func loadAgentControls(_ agentId: String, force: Bool = false) async {
+        guard let agent = state.agent(agentId) else { return }
+        let key = "\(agent.kind)|\(agent.sessionId ?? "")"
+        guard force || agentControlsKey[agentId] != key || agentControls[agentId] == nil else { return }
+        do {
+            agentControls[agentId] = try await backend.agentControls(agentId: agentId)
+            agentControlsKey[agentId] = key
+        } catch HerdError.http(status: 404, _, _) {
+            if agent.kind == "claude", let catalog = controls {
+                agentControls[agentId] = AgentControlsInfo(claudeCatalog: catalog)
+                agentControlsKey[agentId] = key
+            }
+        } catch {
+            // No controls for now; the pill still shows the model from the agent.
+        }
+    }
+
     /// Model, mode, effort, /compact or /clear. One change per agent at a time.
     func control(_ request: ControlRequest, for agentId: String) {
         guard pendingControls[agentId] == nil else { return }
@@ -317,7 +347,7 @@ final class AppStore {
                 reloadIfDropped(agent.id)
                 if case .command(.compact) = request { await loadMessages(agentId) }
             } catch {
-                report(error, prefix: ControlDisplay.failurePrefix(request, catalog: controls))
+                report(error, prefix: ControlDisplay.failurePrefix(request, info: agentControls[agentId]))
             }
             pendingControls[agentId] = nil
         }

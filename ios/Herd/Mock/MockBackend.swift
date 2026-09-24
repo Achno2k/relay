@@ -20,7 +20,7 @@ actor MockBackend: Backend {
 
     init(replayInterval: Duration? = .seconds(4)) {
         let fixtures = Fixtures()
-        agentList = fixtures.agents
+        agentList = MockControls.extraAgents(fixtures.agents)
         workspaceList = fixtures.workspaces
         approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
         replay = fixtures.events
@@ -138,6 +138,13 @@ actor MockBackend: Backend {
 
     func controls() async throws -> ControlsCatalog { catalog }
 
+    func agentControls(agentId: String) async throws -> AgentControlsInfo {
+        guard let agent = agentList.first(where: { $0.id == agentId }) else {
+            throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
+        }
+        return MockControls.info(for: agent.kind, claude: catalog)
+    }
+
     /// Mirrors the bridge: 409 while busy, 400 for non-Claude agents and for bypass (not in this cycle),
     /// then a short "confirm on screen" delay before the updated agent comes back.
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
@@ -145,7 +152,17 @@ actor MockBackend: Backend {
             throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
         }
         let agent = agentList[i]
-        if agent.kind != "claude" { throw HerdError.http(status: 400, code: "unsupported", message: "Only Claude agents have controls.") }
+        let info = MockControls.info(for: agent.kind, claude: catalog)
+        let supported: Bool = switch request {
+        case .model(let id): info.supports.model && info.models.contains { $0.id == id }
+        case .effort(let id): info.supports.effort && info.efforts.contains { $0.id == id }
+        case .permissionMode: info.supports.mode
+        case .command(.compact): info.supports.compact
+        case .command(.clear): info.supports.clear
+        }
+        if !supported {
+            throw HerdError.http(status: 400, code: "unsupported", message: "\(agent.kind) can't do that here.")
+        }
         if agent.status == .working { throw HerdError.http(status: 409, code: "agent_busy", message: "The agent is working.") }
         if agent.status == .blocked { throw HerdError.http(status: 409, code: "agent_blocked", message: "The agent is waiting at a dialog.") }
         if request == .permissionMode("bypassPermissions") {
@@ -154,10 +171,10 @@ actor MockBackend: Backend {
         try await Task.sleep(for: request == .command(.compact) ? .seconds(2.5) : .seconds(1.2))
         var updated = agentList[i]
         switch request {
-        case .model(let alias):
-            let option = catalog.models.first { $0.id == alias }
-            updated.model = "claude-\(alias)-mock"
-            updated.modelLabel = option?.label ?? alias
+        case .model(let id):
+            let option = info.models.first { $0.id == id }
+            updated.model = agent.kind == "claude" ? "claude-\(id)-mock" : id
+            updated.modelLabel = option?.label ?? id
         case .permissionMode(let mode):
             updated.permissionMode = mode
         case .effort(let effort):
