@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "herd",
+    name: "relay",
     platforms: [.macOS(.v15)],
     products: [
-        .executable(name: "herd", targets: ["herd"]),
-        .library(name: "HerdCore", targets: ["HerdCore"]),
+        .executable(name: "relay", targets: ["relay"]),
+        .library(name: "RelayCore", targets: ["RelayCore"]),
     ],
     dependencies: [
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.5.0"),
@@ -16,7 +16,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "HerdCore",
+            name: "RelayCore",
             dependencies: [
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "HummingbirdWebSocket", package: "hummingbird-websocket"),
@@ -24,16 +24,16 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "herd",
+            name: "relay",
             dependencies: [
-                "HerdCore",
+                "RelayCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
         .testTarget(
-            name: "HerdCoreTests",
+            name: "RelayCoreTests",
             dependencies: [
-                "HerdCore",
+                "RelayCore",
                 .product(name: "HummingbirdTesting", package: "hummingbird"),
                 .product(name: "HummingbirdWSTesting", package: "hummingbird-websocket"),
             ],

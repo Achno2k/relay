@@ -1,4 +1,4 @@
-# Herd bridge API (v1 contract)
+# Relay bridge API (v1 contract)
 
 The contract between `bridge/` (a Swift daemon on the Mac) and `ios/` (the SwiftUI app).
 Both sides build against `docs/fixtures/*.json`. Change this file first, then the code.
@@ -7,12 +7,12 @@ Both sides build against `docs/fixtures/*.json`. Change this file first, then th
 - Base URL: `http://<tailscale-ip>:7878`. The bridge binds to the Tailscale IP and 127.0.0.1 only.
 - Auth: `Authorization: Bearer <token>` on every route except `GET /health`.
   - `/ws` takes the token as `?token=` because iOS `URLSessionWebSocketTask` can't set headers reliably.
-- Token lives in `~/.herd/token` (0600) and is created on first run.
+- Token lives in `~/.relay/token` (0600) and is created on first run. A bridge that finds only the pre-rename `~/.herd` moves it to `~/.relay` first, so the token (and pairing) survives the rename.
 - Timestamps are ISO 8601 with an offset. JSON keys are camelCase.
 - Errors: `{"error": {"code": "not_found", "message": "..."}}` with the matching HTTP status.
 
 ## Pairing
-- `herd pair` prints a QR code for `herd://pair?url=<base>&token=<token>` and prints the same string as text.
+- `relay pair` prints a QR code for `relay://pair?url=<base>&token=<token>` and prints the same string as text. The app also accepts the old `herd://pair?…` links.
 
 ## Models
 
@@ -101,7 +101,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 ## REST
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| GET | /health | – | `{"ok":true,"version":"0.1.0"}` |
+| GET | /health | – | `{"ok":true,"name":"relay","version":"0.1.0"}` |
 | GET | /workspaces | – | `[Workspace]` |
 | GET | /agents | – | `[Agent]` (all live agents; the app groups them by workspace) |
 | GET | /agents/:id | – | `Agent` |
@@ -136,13 +136,13 @@ Attachment {
   - The app converts and downscales images itself (JPEG, ≤2048 px). The bridge stores bytes as they are.
 - Name sanitising: characters outside `A-Z a-z 0-9 . _ -` become `-`, runs of `-` collapse, and the stem is cut to 80 characters (extension kept). An empty result becomes `file`.
 - `kind` comes from the extension: image types → `image`, `.pdf` → `pdf`, anything else → `file`.
-- Storage (the Mac only): `~/.herd/uploads/<paneId with non-alphanumerics as _>/<id>-<name>`, mode 0600. Deleted after 7 days; the bridge checks at startup and daily. After that, `GET …/attachments/:id` returns `404 not_found`, and history shows the block without its file.
+- Storage (the Mac only): `~/.relay/uploads/<paneId with non-alphanumerics as _>/<id>-<name>`, mode 0600. Deleted after 7 days; the bridge checks at startup and daily. After that, `GET …/attachments/:id` returns `404 not_found`, and history shows the block without its file.
 - Send: `POST /agents/:id/prompt` with `"attachments": [id, …]`, at most 10.
   - Unknown ids give `400 bad_request`.
   - The bridge appends one final line to the text Claude receives: `Attached files: <abs path> <abs path> …`, separated from the text by a blank line. Claude opens images and PDFs from those paths itself.
 - History:
   - Claude Code rewrites the prompt before storing it. It embeds images inline and replaces their path with `[Image #N]`, wraps multi-line pastes in `<pasted_content>` tags, and hard-wraps long lines.
-  - So the bridge also logs what it sent (`~/.herd/uploads/sent.jsonl`: time, pane, original text, attachment ids; pruned with the uploads). It matches user messages against that log, ignoring whitespace, tags and placeholders.
+  - So the bridge also logs what it sent (`~/.relay/uploads/sent.jsonl`: time, pane, original text, attachment ids; pruned with the uploads). It matches user messages against that log, ignoring whitespace, tags and placeholders.
   - A matched message becomes one `attachment` block per file (id, name, kind; never the path), then the original text as a `text` block if there was any.
   - Without a log entry, a marker line with intact paths is parsed the same way.
   - Tool calls that read these files show only the file name, as usual.
