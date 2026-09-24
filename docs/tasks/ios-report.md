@@ -102,3 +102,52 @@
   - the live `testPromptApproveAndStop` now asserts the marker appears after a stop and no `[Request interrupted…` text is shown
   - all 6 UI tests pass (3 live on `w14:p2`, 3 mock)
 - Screenshot: `chat-stopped.png`.
+
+## Controls (controls.md, iOS section)
+
+### What's there
+- **Title pill:** the agent title with a chevron, and a secondary line under it with the model and mode (e.g. "Opus 5.5 · Auto"). A small spinner shows while a change is in flight.
+- **Pill menu:**
+  - Model ▸, Mode ▸ and Effort ▸ submenus, each showing the current value, with a checkmark in the submenu. Options come from `GET /controls`.
+  - Then **Compact context** and **Clear conversation** (destructive, with a confirmation dialog).
+  - Then workspace, kind and status, plus Stop while working.
+- **While working or blocked:** a section caption says "Agent is working" (working) or "Answer the agent's question first" (blocked), and the rows are disabled. SwiftUI's `.disabled` greys a menu's buttons but not its pickers, so busy agents get read-only rows instead of pickers.
+- **Mode chip:** when the mode isn't `default`, a blue chip ("Plan", "Auto") sits inside the composer on the leading side, orange for bypass. Tapping it lists the modes inline.
+- **Optimistic updates:**
+  - `AppStore.pendingControls` overlays the requested value on the pill and menus until `POST /control` answers.
+  - On success, the returned `Agent` replaces the local one.
+  - On failure, the overlay goes away (so the pill reverts) and a toast reads "Couldn't switch to Plan: <bridge message>".
+  - One change per agent at a time.
+- **`/clear`:** a changed `sessionId` (from the control response, `agent.updated` or a refresh) drops the cached chat, and the open chat refetches. `/compact` refetches the open chat when it's done.
+- **Timeouts:** `/compact` gets a 120 s request timeout; other controls get 20 s.
+- **Non-Claude agents** (or a bridge without `/controls`) show no controls, only the old info section.
+- **Mock:** serves `controls.json` and mirrors the bridge's errors (409 busy/blocked, 400 for non-Claude and for `bypassPermissions`), with a short confirm delay.
+
+### Deviations
+- "Compact conversation" wraps with a hyphen at the system menu width, so the row reads **Compact context**.
+- The blocked caption differs from the brief's "Agent is working", because "working" would be wrong there.
+
+### Tests
+- Unit tests, 35 total. New ones cover:
+  - decoding the new `Agent` fields and `controls.json`
+  - one-key `ControlRequest` bodies
+  - pill labels with and without a pending change, including matching a full model id to its alias
+  - a new session dropping the cached chat, while the same or an unknown session keeps it
+  - the store: success applies the server agent; failure reverts and explains; `/clear` refetches
+- Mock UI tests, all pass:
+  - `testControls`: Sonnet → Plan (chip appears) → Bypass refused (toast, pill reverts) → Default (chip gone) → Clear with confirmation (chat empties)
+  - `testControlsDisabledWhileWorking`
+- Screenshots: `controls-menu`, `-model`, `-plan-chip`, `-chip-menu`, `-error`, `-clear-confirm`, `-busy`.
+
+### Live (bridge fef4d32 on 7878, agent `w14:p2`)
+- `testControls` passes: Sonnet 5 → Plan (chip appears) → Auto, with the pill label following each confirmed change. It restores the original model afterwards, and `w14:p2` ended on Opus 5.5 · Auto. Screenshot: `controls-live-sonnet-plan.png`.
+- The whole suite is green: 35 unit tests, 5 mock UI tests, 4 live UI tests.
+- Two bridge issues showed up along the way, both reported to herd-bridge and fixed there:
+  - `/model` on a long conversation opens a "Switch model?" dialog, which caused a 504 (10d4a1b).
+  - A stale "Interrupted" line plus a numbered list was read as a dialog, which caused a false refusal (fef4d32).
+  - Both times the app reverted the pill and showed the bridge's message, as intended.
+- The bridge added `409 control_refused` ("Kept model as …"). No app change was needed; the toast shows the message.
+- Live stop test fix:
+  - The test used to stop 3 s after sending an essay prompt. Claude writes nothing to the transcript when stopped before its first block, so the marker check was timing-dependent.
+  - It now stops during a long Bash call and waits for "Running Bash…" first.
+  - It uses `ping -c 45`, because Claude Code blocks a foreground `sleep`.
