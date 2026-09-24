@@ -91,13 +91,27 @@ I reproduced both, twice each, in isolation on the shared simulator:
 
 Read as machine load causing watchdog kills, not an app bug — reported back to `qa` via herdr with this
 reasoning and a suggestion to re-run both serialized/on a quieter machine before treating either as a
-real defect.
+real defect. QA agreed, downgraded QA-1 to P3/unconfirmed with this finding, and moved off the shared
+simulator onto the physical device.
+
+## AX3 spot-check (once the simulator was free)
+
+Once `qa` moved to the physical device, I set the simulator to `accessibility-extra-large` (AX3,
+`xcrun simctl ui <device> content_size accessibility-extra-large`) and screenshotted the screens my
+fixes touched: sidebar (project rows + New chat/search buttons), the chat title pill and composer, and
+the approval sheet. No clipping: `TitleMenu`'s title/subtitle still truncate cleanly at `maxWidth: 240`,
+project rows truncate to their folder icon + ellipsis, the approval sheet's option buttons wrap to two
+lines and ellipsize past that, and every enlarged tap target (New chat pencil, search-close, the
+composer's circular buttons) still renders at its intended visual size, not stretched. I couldn't get a
+clean look at the tool-row/code-block screen at AX3 — the `-demo tools` and `-demo sidebar` mock fixtures
+both auto-select a blocked agent, and the app auto-presents its approval sheet over everything, which I
+have no way to dismiss without a UI-automation tool. Reset the simulator back to `large`/dark before
+finishing. This covers the screens I touched, not the full sweep described below.
 
 ## Left open (not done this round)
 
-- Full AX3 Dynamic Type clipping sweep across every screen (sidebar, chat, approval sheet, controls
-  menus, new chat sheet, pairing) — needs Settings → Accessibility → Larger Text on-device or in
-  Simulator, then a visual pass per screen.
+- Full AX3 Dynamic Type clipping sweep across every screen (controls menus, new chat sheet, pairing,
+  image viewer, attachment tray) — I only covered the screens my fixes touched (see above).
 - A device or Accessibility Inspector VoiceOver walkthrough to confirm reading order and labels on
   every screen (I could only audit accessibility modifiers by reading code).
 - Contrast measurement of the status glyph colors (`.orange`, `.blue`) against `secondarySystemFill`/
