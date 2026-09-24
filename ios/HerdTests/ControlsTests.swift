@@ -31,6 +31,7 @@ struct ControlsTests {
         #expect(try json(.effort("high")) == #"{"effort":"high"}"#)
         #expect(try json(.command(.clear)) == #"{"command":"clear"}"#)
         #expect(ControlRequest.command(.compact).timeout > 90)
+        #expect(ControlRequest.command(.clear).timeout > 30)
     }
 
     @Test func pillLabelsFollowPendingChanges() throws {

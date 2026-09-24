@@ -255,9 +255,13 @@ public struct ControlsCatalog: Codable, Hashable, Sendable {
 
 /// Body of `POST /agents/:id/control`; exactly one key per call.
 public enum ControlRequest: Hashable, Sendable, Encodable {
-    /// `/compact` can take about 90 s on the bridge; everything else confirms within ~10 s.
+    /// The bridge confirms model/mode/effort within ~10 s, `/clear` within ~30 s and `/compact` within ~90 s.
     public var timeout: TimeInterval {
-        self == .command(.compact) ? 120 : 20
+        switch self {
+        case .command(.compact): 120
+        case .command(.clear): 60
+        default: 20
+        }
     }
 
     case model(String)

@@ -62,10 +62,14 @@ final class LiveE2ETests: XCTestCase {
         shot("3-approved-done")
 
         // Stop mid-turn.
-        send("Write a 1500 word essay about the history of terminals. Do not use any tools.", via: composer)
+        // A long tool call, not an essay: Claude writes a text block to the transcript only once it's complete,
+        // but the tool_use line lands before the command runs. That gives a reliable moment to stop.
+        send("Run this exact Bash command and nothing else: sleep 45 && echo slept. Then reply with the single word: done.", via: composer)
         let stop = app.buttons["Stop"].firstMatch
         XCTAssertTrue(stop.waitForExistence(timeout: 30), "stop button never appeared")
-        sleep(3)
+        let running = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Running Bash'")).firstMatch
+        XCTAssertTrue(running.waitForExistence(timeout: 60), "the Bash call never showed up")
+        sleep(2)
         shot("4-working")
         stop.tap()
         XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 30), "stop didn't end the turn")
@@ -171,8 +175,8 @@ final class LiveE2ETests: XCTestCase {
         item.tap()
         let idle = expectation(for: NSPredicate(format: "value == 'idle'"), evaluatedWith: app.buttons["titleMenu"])
         wait(for: [idle], timeout: 30)
-        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"Couldn't\"")).firstMatch.exists,
-                       "bridge refused \(choice)")
+        let toast = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"Couldn't\"")).firstMatch
+        XCTAssertFalse(toast.exists, "bridge refused \(choice): \(toast.exists ? toast.label : "")")
     }
 
     private func assertKeyboardHidden() {
