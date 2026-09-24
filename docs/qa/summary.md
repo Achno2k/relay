@@ -2,8 +2,17 @@
 
 ## Covered
 
+**Live reply** (landed after the rest of this pass; verified separately)
+- `swift test`: 205/205 pass, 29 suites (up from 140/17 — includes live-typing's parser/tracker/monitor tests plus bridge-harden's hardening tests).
+- iOS unit: 90/90 pass (up from 64 — includes `LiveReplyTests` and ios-harden/ios-polish additions).
+- `RelayUITests/MockUITests`: 5/5 pass, no regression from the `ChatView` → `LiveReplyView` hook.
+- Live verification against a dedicated throwaway agent (`w14:pJ`, a fresh claude agent started and closed just for this, to avoid the contention lesson learned earlier in this pass):
+  - `RelayUITests/LiveReplyUITests/testGrowingTextBeforeTranscriptMessageLands`: pass on the simulator, paired over Tailscale to the real bridge.
+  - A raw WebSocket probe (`/ws`) alongside a `POST /prompt` for a 300-word no-tool reply: 18 `reply.live` frames, `seq` 1→18 with no gaps, `text: null` arriving once `message.upserted` had already landed for that message (matches the documented "clear once transcript catches up" rule). Text length grew 101→1339 chars over most of the frames, then dropped to 283/123/294 before the final `null` — this is the documented "only the tail is guaranteed once it scrolls" behavior (the visible window no longer shows the full block once it's long enough to scroll), not a bug, but worth flagging as a UX note: a person watching closely could see the live preview visibly *shrink* mid-reply before the real message replaces it. Not filed — it's explicitly called out as a known tradeoff in both `docs/api.md` and `docs/tasks/round-5/live-typing-report.md`.
+  - live-typing's own report (`docs/tasks/round-5/live-typing-report.md`) documents two more bugs it found and fixed itself before landing (a herdr `recent_unwrapped`-on-a-working-agent rejection, and a claude-parser scrolled-off-marker fallback) plus one known-open item (the "Update available!" banner can bleed into content on rare ANSI overlap — best-effort mitigation only, not re-verified independently here beyond the WS probe above showing clean text).
+
 **Bridge (`bridge/`)**
-- `swift test`: 140/140 pass, 17 suites.
+- `swift test`: 140/140 pass, 17 suites (pre-live-typing baseline; see "Live reply" above for the post-merge count).
 - Live API probing against the running bridge (7878) and the real e2e agents (`w14:p2` claude, `w14:p4` pi, `w14:p5` codex):
   - Auth: `401` with no/bad token on protected routes, `GET /health` needs none.
   - `/agents/:id/control`: bad model value, two-keys-at-once, zero-keys, pi mode-unsupported all 400 with the documented codes; `409 agent_busy`/`agent_blocked` verified live.
@@ -39,7 +48,6 @@ No P0/P1s found.
 
 ## Not covered, and why
 
-- **Live typing**: not covered — `live-typing` had not landed at the time this pass ended. Should be re-tested once it merges.
 - **Background/foreground**: not exercised. This session had no interactive simulator/device UI-automation tool beyond XCUITest (no `ios-simulator` MCP or equivalent was available), and backgrounding/foregrounding isn't covered by the existing XCUITest suite, so it went untested. Recommend a manual pass (Home button, then reopen) checking the socket reconnects and messages don't duplicate.
 - **Airplane mode**: not exercised, same tooling gap — flipping the device's actual radio isn't reachable from this session's tools. Recommend a manual pass: pull the phone off Tailscale/Wi-Fi mid-chat, confirm the app shows a disconnected state and recovers without duplicating messages once back online.
 - **10-file attachment UI flow** (as opposed to the API-level 10/11 check above) and the **20 MB file through the app's own picker** (as opposed to a raw upload): only checked at the bridge API layer, not by driving the app's attachment picker with real large files. The existing `LiveE2ETests` image/PDF attachment tests exercise small generated files only.
@@ -47,8 +55,6 @@ No P0/P1s found.
 
 ## Go/no-go
 
-**Go for daily use**, with two follow-ups before calling round 5 fully done:
-1. Re-test once live-typing lands (not yet covered at all).
-2. QA-2 (filename sanitizing doc/behavior mismatch) — low priority, no security impact, fine to fix or just re-document.
+**Go for daily use.** One open follow-up: QA-2 (filename sanitizing doc/behavior mismatch) — low priority, no security impact, fine to fix or just re-document.
 
-Everything else exercised this session — bridge contract, controls for all three agent kinds, approvals (numbered + free-text + multi-turn), attachments including both documented limits, stop mid-tool, pairing (new and old link format), archive/filters, new chat sheet, and the real device against real agents — came back clean.
+Everything else exercised this session — bridge contract, controls for all three agent kinds, approvals (numbered + free-text + multi-turn), attachments including both documented limits, stop mid-tool, pairing (new and old link format), archive/filters, new chat sheet, live typing, and the real device against real agents — came back clean.
