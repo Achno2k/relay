@@ -69,3 +69,12 @@ Target structure: `codex-home.png`, restyled in our Liquid Glass look, dark and 
 - Screenshots go to `docs/screenshots/round2-*.png`, dark and light for the sidebar.
 - Tests: unit + mock UI + live UI (w14:p2).
 - Commit only your own paths. Reports: add a "Round 2" section.
+
+## Testing on the physical device (from the next change onward)
+The user wants UI tests run on their iPhone, not the simulator.
+- Destination: `-destination 'id=00008110-000414D91422801E'` (Aman's iPhone 13, iOS 26.5). Signing: `DEVELOPMENT_TEAM=TC56945264 CODE_SIGN_ENTITLEMENTS=Herd/Herd-FreeTeam.entitlements -allowProvisioningUpdates`. That's a free team, so no App Groups and a limited number of new App IDs per week. Don't create new bundle ids beyond the existing app and UI test runner.
+- The phone can't reach 127.0.0.1 on the Mac. Live tests must pair with the Tailscale URL: `herd://pair?url=http%3A%2F%2F100.101.102.103%3A7878&token=<token>`. That's the same bridge the user already pairs with, so their pairing stays valid.
+- **The phone holds the user's real app state.** Tests must not wipe it. `-resetSidebar` and any other test-only state must write to a separate defaults domain or keys when running under UI tests, or snapshot and restore the user's values. Never touch their archived list, filter, expanded projects or seen state. Leave the app paired to the Tailscale bridge afterwards.
+- The phone must be unlocked and awake. If `xcodebuild` reports the device as locked or unavailable, stop and ask herd's lead (the user) rather than retrying in a loop.
+- Keep the simulator for fast iteration if useful, but the final verification run for each change is on the device, and the report says so.
+- After testing, reinstall the normal app build: `TEAM=TC56945264 scripts/install-device.sh`.
