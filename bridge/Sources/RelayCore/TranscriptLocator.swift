@@ -26,12 +26,13 @@ public final class TranscriptLocator: Sendable {
         })
     }
 
-    public func locate(_ a: HerdrAgent) -> TranscriptRef? {
+    /// `notBefore`: for codex's cwd fallback, ignore rollouts created before this (when the agent appeared).
+    public func locate(_ a: HerdrAgent, notBefore: Date? = nil) -> TranscriptRef? {
         let cwd = a.cwd ?? a.foregroundCwd
         if (a.agent ?? a.agentSession?.agent)?.lowercased() == "codex" {
             // herdr's session id, else the newest rollout started in this folder (herdr has no id
             // until codex's first message).
-            let url = a.agentSession.flatMap { codex.find(sessionId: $0.value) } ?? cwd.flatMap(codex.newest(cwd:))
+            let url = a.agentSession.flatMap { codex.find(sessionId: $0.value) } ?? cwd.flatMap { codex.newest(cwd: $0, notBefore: notBefore) }
             return url.map { TranscriptRef(url: $0, format: .codex, cwd: cwd) }
         }
         guard let session = a.agentSession else { return nil }

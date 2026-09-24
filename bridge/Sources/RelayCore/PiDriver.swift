@@ -86,6 +86,26 @@ struct PiDriver: ControlDriver {
             supports: .init(model: !models.isEmpty || current.model != nil, effort: levels.count > 1, mode: false, compact: true, clear: true))
     }
 
+    func kindControls(service: AgentService) -> AgentControls {
+        let models = service.catalogs.pi()
+        let settings = service.catalogs.piSettings()
+        func levels(_ id: String) -> [String] {
+            service.catalogs.piLevels(id) ?? ((models.first { $0.full == id }?.thinking ?? true) ? Self.efforts : ["off"])
+        }
+        let ordered = Self.ordered(models, settings: settings, current: nil)
+        let byModel = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, Effort.choices(levels($0.id))) })
+        let def = settings.defaultModel
+        return AgentControls(
+            models: ordered, efforts: Effort.choices(def.map(levels) ?? Self.efforts), modes: [],
+            supports: .init(model: !models.isEmpty, effort: true, mode: false, compact: true, clear: true),
+            defaultModel: def, defaultEffort: settings.defaultThinking, effortsByModel: byModel)
+    }
+
+    func launchArgs(model: String?, effort: String?) -> [String] {
+        if let model { return ["--model", effort.map { "\(model):\($0)" } ?? model] }
+        return effort.map { ["--thinking", $0] } ?? []
+    }
+
     func apply(_ request: ControlRequest, to a: HerdrAgent, current: ControlState, service: AgentService) async throws {
         switch request {
         case .model(let id):

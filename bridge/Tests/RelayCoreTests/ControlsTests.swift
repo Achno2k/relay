@@ -267,6 +267,13 @@ import Testing
                 try await client.execute(uri: "/controls", method: .get, headers: auth) { r throws in
                     #expect(try JSONDecoder().decode(ControlsCatalog.self, from: Data(buffer: r.body)) == ClaudeControls.catalog)
                 }
+                try await client.execute(uri: "/controls?kind=claude", method: .get, headers: auth) { r throws in
+                    let c = try JSONDecoder().decode(AgentControls.self, from: Data(buffer: r.body))
+                    #expect(c.models.map(\.id) == ["opus", "sonnet", "haiku", "fable"])
+                }
+                try await client.execute(uri: "/controls?kind=gemini", method: .get, headers: auth) { r throws in
+                    #expect(r.status == .badRequest)
+                }
                 for bad in [#"{}"#, #"{"model":"opus","effort":"high"}"#, #"{"command":"nuke"}"#, #"{"model":"gpt"}"#] {
                     try await client.execute(uri: "/agents/w14%3Ap2/control", method: .post, headers: auth, body: ByteBuffer(string: bad)) { r throws in
                         #expect(r.status == .badRequest, "\(bad)")

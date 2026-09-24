@@ -145,6 +145,11 @@ extension AgentService {
     /// `/model x` and `/effort x`: confirmed by Claude's `Set … to <value>` output, then the saved
     /// default is restored.
     func slashSetting(_ a: HerdrAgent, command: String, confirm: String) async throws {
+        // One at a time: overlapping calls would snapshot each other's changes and restore them.
+        try await settingsLock.run { try await self.slashSettingLocked(a, command: command, confirm: confirm) }
+    }
+
+    private func slashSettingLocked(_ a: HerdrAgent, command: String, confirm: String) async throws {
         let ref = locator.locate(a)
         let start = ref.map { fileSize($0.url) }
         let saved = settings.snapshot()

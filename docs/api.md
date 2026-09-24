@@ -94,7 +94,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 - User string content that starts with `<command-`, `<local-command`, or `<system-reminder` is dropped. So are `isMeta: true` and `isCompactSummary: true` (the summary `/compact` injects).
 - Absolute paths in `summary`, `input`, and `preview` are made cwd-relative. Anything else absolute keeps only its last component.
 - pi: `agent_session.kind == "path"`. Parse that JSONL with the same Message model (best effort).
-- codex: the rollout `~/.codex/sessions/YYYY/MM/DD/rollout-*-<sessionId>.jsonl`. The session id comes from herdr's `agent_session`; before herdr has one, the bridge uses the newest rollout (last 2 days) whose `session_meta.cwd` is the agent's cwd. `hasTranscript` is true once a rollout is found.
+- codex: the rollout `~/.codex/sessions/YYYY/MM/DD/rollout-*-<sessionId>.jsonl`. The session id comes from herdr's `agent_session`; before herdr has one, the bridge uses the newest rollout (last 2 days) whose `session_meta.cwd` is the agent's cwd and that was created after the bridge first saw the agent, so a new codex agent never borrows another codex agent's rollout in the same folder (it stays `pending` until its first message). `hasTranscript` is true once a rollout is found.
   - Only `event_msg` → `item_completed` items are read; that's what codex's own UI shows. The raw `response_item`s repeat them with injected context and are ignored.
   - `UserMessage` → user message (the attachment rules apply). `AgentMessage` → `text`, `Reasoning` summary → `thinking`.
   - Consecutive assistant items merge into one assistant Message, which grows while codex works (`message.upserted`).

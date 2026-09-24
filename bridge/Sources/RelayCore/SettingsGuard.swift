@@ -4,6 +4,24 @@ import Foundation
 /// (`~/.claude/settings.json`). A switch from the phone is meant for one agent, so the bridge
 /// snapshots the file before the command and puts the exact bytes back afterwards.
 /// The running session keeps its new model/effort; only the saved default is restored.
+/// Runs async work one call at a time (FIFO).
+actor SerialLock {
+    private var busy = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func run<T: Sendable>(_ work: @Sendable () async throws -> T) async throws -> T {
+        if busy {
+            await withCheckedContinuation { waiters.append($0) }
+        } else {
+            busy = true
+        }
+        defer {
+            if waiters.isEmpty { busy = false } else { waiters.removeFirst().resume() }
+        }
+        return try await work()
+    }
+}
+
 public struct SettingsGuard: Sendable {
     public let url: URL?
 

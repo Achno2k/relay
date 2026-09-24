@@ -14,6 +14,11 @@ public struct AgentControls: Codable, Sendable, Equatable {
     public var efforts: [ControlChoice]
     public var modes: [ControlChoice]
     public var supports: ControlSupport
+    /// The agent's saved defaults (always set by `GET /controls?kind=`).
+    public var defaultModel: String? = nil
+    public var defaultEffort: String? = nil
+    /// pi and codex: efforts per model id (claude: every model shares `efforts`).
+    public var effortsByModel: [String: [ControlChoice]]? = nil
 }
 
 public extension ControlChoice {
@@ -30,6 +35,16 @@ protocol ControlDriver: Sendable {
     func capabilities(_ a: HerdrAgent, current: ControlState, service: AgentService) async -> AgentControls
     /// Applies an already-validated request and returns once it's confirmed.
     func apply(_ request: ControlRequest, to a: HerdrAgent, current: ControlState, service: AgentService) async throws
+    /// Choices for a kind with no agent yet (the New chat sheet), with saved defaults.
+    func kindControls(service: AgentService) -> AgentControls
+    /// The agent's own launch flags for a model/effort (already validated).
+    func launchArgs(model: String?, effort: String?) -> [String]
+    /// What `Agent.model` will read for a chosen model id (claude: alias → full id).
+    func agentModel(for id: String) -> String
+}
+
+extension ControlDriver {
+    func agentModel(for id: String) -> String { id }
 }
 
 enum Effort {
@@ -65,6 +80,23 @@ struct ClaudeDriver: ControlDriver {
 
     func apply(_ request: ControlRequest, to a: HerdrAgent, current: ControlState, service: AgentService) async throws {
         try await service.applyClaude(request, to: a)
+    }
+
+    func kindControls(service: AgentService) -> AgentControls {
+        let c = ClaudeControls.catalog
+        let saved = service.catalogs.claudeDefaults()
+        let model = saved.model.flatMap { m in c.models.first { m.lowercased().contains($0.id) }?.id }
+        return AgentControls(models: c.models, efforts: c.efforts, modes: c.modes,
+                             supports: .init(model: true, effort: true, mode: true, compact: true, clear: true),
+                             defaultModel: model, defaultEffort: saved.effort)
+    }
+
+    func launchArgs(model: String?, effort: String?) -> [String] {
+        (model.map { ["--model", $0] } ?? []) + (effort.map { ["--effort", $0] } ?? [])
+    }
+
+    func agentModel(for id: String) -> String {
+        ClaudeControls.catalog.models.first { $0.id == id }.flatMap { ClaudeControls.id(forLabel: $0.label) } ?? id
     }
 }
 

@@ -147,9 +147,10 @@ public actor HerdrClient {
         return try await call("tab.create", params, as: R.self).rootPane
     }
 
-    public func startAgent(name: String, kind: String, paneId: String, timeoutMs: Int = 30000) async throws -> HerdrAgent {
+    public func startAgent(name: String, kind: String, paneId: String, args: [String] = [], timeoutMs: Int = 30000) async throws -> HerdrAgent {
         struct R: Decodable { var agent: HerdrAgent }
-        let params: [String: Any] = ["name": name, "kind": kind, "pane_id": paneId, "timeout_ms": timeoutMs]
+        var params: [String: Any] = ["name": name, "kind": kind, "pane_id": paneId, "timeout_ms": timeoutMs]
+        if !args.isEmpty { params["args"] = args }
         return try await call("agent.start", params, as: R.self, timeout: Double(timeoutMs) / 1000 + 10).agent
     }
 

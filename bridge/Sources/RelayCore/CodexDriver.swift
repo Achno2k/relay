@@ -76,6 +76,24 @@ struct CodexDriver: ControlDriver {
                              supports: .init(model: catalog.contains(where: \.visible), effort: !efforts.isEmpty, mode: true, compact: true, clear: true))
     }
 
+    func kindControls(service: AgentService) -> AgentControls {
+        let catalog = service.catalogs.codex()
+        let saved = service.catalogs.codexDefaults()
+        var models = catalog.filter(\.visible).map { ControlChoice($0.slug, $0.displayName) }
+        if let d = saved.model, !models.contains(where: { $0.id == d }) {
+            models.insert(ControlChoice(d, catalog.first { $0.slug == d }?.displayName ?? d), at: 0)
+        }
+        let byModel = Dictionary(uniqueKeysWithValues: catalog.filter(\.visible).map { ($0.slug, Effort.choices($0.efforts)) })
+        return AgentControls(
+            models: models, efforts: saved.model.flatMap { byModel[$0] } ?? [], modes: Self.modes,
+            supports: .init(model: !models.isEmpty, effort: true, mode: true, compact: true, clear: true),
+            defaultModel: saved.model, defaultEffort: saved.effort, effortsByModel: byModel)
+    }
+
+    func launchArgs(model: String?, effort: String?) -> [String] {
+        (model.map { ["-m", $0] } ?? []) + (effort.map { ["-c", "model_reasoning_effort=\"\($0)\""] } ?? [])
+    }
+
     func apply(_ request: ControlRequest, to a: HerdrAgent, current: ControlState, service: AgentService) async throws {
         let catalog = service.catalogs.codex()
         switch request {

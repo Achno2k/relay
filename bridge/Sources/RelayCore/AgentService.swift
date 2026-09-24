@@ -15,6 +15,7 @@ public final class AgentService: Sendable {
     let settings: SettingsGuard
     public let uploads: UploadStore
     public let catalogs: ModelCatalogs
+    let settingsLock = SerialLock()
     /// Called after a control changed something, so the monitor can push `agent.updated` right away.
     let onChange: @Sendable () -> Void
 
@@ -75,7 +76,7 @@ public final class AgentService: Sendable {
     }
 
     func snapshot(_ a: HerdrAgent, workspaceName: String?) async -> Snapshot {
-        let ref = locator.locate(a)
+        let ref = locator.locate(a, notBefore: firstSeen(a).addingTimeInterval(-5))
         let mtime = ref.flatMap { try? $0.url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
         let controls = await controls(a, ref: ref)
         var agent = Agent(
@@ -188,6 +189,16 @@ public final class AgentService: Sendable {
             if let t = t?.trimmingCharacters(in: .whitespaces), !t.isEmpty { return scrub.scrub(t) }
         }
         return a.name ?? a.agent ?? a.paneId
+    }
+
+    /// When the bridge first saw this pane's agent (bridge start for agents that were already running).
+    func firstSeen(_ a: HerdrAgent) -> Date {
+        seen.withLock { seen in
+            if let s = seen[a.paneId] { return s.first }
+            let now = Date()
+            seen[a.paneId] = (a.stateChangeSeq ?? 0, nil, now)
+            return now
+        }
     }
 
     /// herdr gives a state sequence number, not a time. Use the transcript's mtime, or the time we
@@ -382,10 +393,51 @@ public final class AgentService: Sendable {
     }
 
     /// New tab in the workspace (cwd = its first pane's cwd), `agent.start`, then the optional prompt.
-    public func create(workspaceId: String, kind: String, name: String?, prompt: String?) async throws -> Agent {
+    /// `GET /controls?kind=`: choices and saved defaults for a kind with no agent yet.
+    public func kindControls(_ kind: String) throws -> AgentControls {
+        guard let d = driver(kind: kind) else { throw APIError(.badRequest, "unsupported", "no controls for \(kind) agents") }
+        return d.kindControls(service: self)
+    }
+
+    func driver(kind: String) -> (any ControlDriver)? {
+        switch kind {
+        case "claude": ClaudeDriver()
+        case "pi": PiDriver()
+        case "codex": CodexDriver()
+        default: nil
+        }
+    }
+
+    public func create(workspaceId: String, kind: String, name: String?, prompt: String?,
+                       model: String? = nil, effort: String? = nil, cwdFromPane: String? = nil) async throws -> Agent {
+        // Validate model/effort against the kind's own lists before opening anything.
+        var args: [String] = []
+        let driver = driver(kind: kind)
+        if model != nil || effort != nil {
+            guard let driver else { throw APIError(.badRequest, "unsupported", "\(kind) agents don't take a model or effort") }
+            let caps = driver.kindControls(service: self)
+            if let model, !caps.models.contains(where: { $0.id == model }) {
+                throw APIError.badRequest("\(model) isn't one of \(kind)'s models (GET /controls?kind=\(kind))")
+            }
+            if let effort {
+                let target = model ?? caps.defaultModel
+                let allowed = target.flatMap { caps.effortsByModel?[$0] } ?? caps.efforts
+                guard allowed.contains(where: { $0.id == effort }) else {
+                    throw APIError.badRequest("\(effort) isn't an effort \(target ?? kind) supports (\(allowed.map(\.id).joined(separator: ", ")))")
+                }
+            }
+            args = driver.launchArgs(model: model, effort: effort)
+        }
+
         let panes = try await herdr.panes(workspaceId: workspaceId)
         guard let first = panes.first else { throw APIError.notFound("no workspace \(workspaceId)") }
-        let cwd = first.cwd ?? first.foregroundCwd
+        var cwd = first.cwd ?? first.foregroundCwd
+        if let cwdFromPane {
+            guard let p = try await herdr.panes(workspaceId: nil).first(where: { $0.paneId == cwdFromPane }) else {
+                throw APIError.notFound("no pane \(cwdFromPane)")
+            }
+            cwd = p.cwd ?? p.foregroundCwd
+        }
         let agentName = name ?? "\(kind.lowercased().filter { $0.isLetter || $0.isNumber })-\(String(UUID().uuidString.lowercased().prefix(4)))"
         let pane = try await herdr.createTab(workspaceId: workspaceId, cwd: cwd, label: name)
 
@@ -394,7 +446,7 @@ public final class AgentService: Sendable {
         var lastError: Error?
         for attempt in 0..<6 {
             do {
-                started = try await herdr.startAgent(name: agentName, kind: kind, paneId: pane.paneId)
+                started = try await herdr.startAgent(name: agentName, kind: kind, paneId: pane.paneId, args: args)
                 break
             } catch HerdrError.remote(let code, let message) where code == "agent_not_ready" {
                 // Blocked during startup (e.g. a trust dialog): the agent exists, just skip the prompt.
@@ -414,11 +466,20 @@ public final class AgentService: Sendable {
         } else if let prompt, !prompt.isEmpty {
             try await herdr.prompt(pane.paneId, text: prompt)
         }
+        // The footer/banner can lag the launch; report what the flags asked for until it shows.
+        if let driver, model != nil || effort != nil {
+            holdConfirmed(pane.paneId, ControlState(model: model.map(driver.agentModel(for:)), effort: effort))
+        }
         var created = try await agent(id: pane.paneId)
         // herdr may not have classified the new agent yet.
         if created.kind == "unknown" {
             created.kind = kind
             created.transcriptState = .of(kind: kind, hasTranscript: created.hasTranscript)
+            if let driver, model != nil || effort != nil {
+                created.model = model.map(driver.agentModel(for:)) ?? created.model
+                created.modelLabel = created.model.flatMap { driver.label(forModel: $0, service: self) }
+                created.effort = effort ?? created.effort
+            }
         }
         return created
     }

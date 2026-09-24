@@ -38,14 +38,19 @@ public final class CodexRollouts: Sendable {
         return nil
     }
 
-    /// When herdr has no session id yet: the newest rollout (last 2 days) started in `cwd`.
-    public func newest(cwd: String) -> URL? {
+    /// When herdr has no session id yet: the newest rollout (last 2 days) started in `cwd`, created
+    /// no earlier than `notBefore`, so a new agent doesn't borrow another agent's rollout in the same folder.
+    public func newest(cwd: String, notBefore: Date? = nil) -> URL? {
         let fm = FileManager.default
         var best: (URL, Date)?
         for d in days(limit: 2) {
             for f in (try? fm.contentsOfDirectory(atPath: d.path)) ?? [] where f.hasPrefix("rollout-") && f.hasSuffix(".jsonl") {
                 let url = d.appendingPathComponent(f)
                 guard Self.sessionCwd(url) == cwd else { continue }
+                if let notBefore {
+                    let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+                    guard created >= notBefore else { continue }
+                }
                 let m = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 if best == nil || m > best!.1 { best = (url, m) }
             }

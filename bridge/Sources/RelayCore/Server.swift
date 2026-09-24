@@ -89,6 +89,9 @@ public enum RelayRoutes {
         var kind: String
         var name: String?
         var prompt: String?
+        var model: String?
+        var effort: String?
+        var cwdFromPane: String?
     }
     struct Health: Encodable { var ok = true; var name = "relay"; var version = Relay.version }
     struct Empty: Encodable {}
@@ -110,7 +113,8 @@ public enum RelayRoutes {
             if let n = body.name, !AgentService.isValidName(n) {
                 throw APIError.badRequest("name must match [a-z][a-z0-9_-]{0,31}")
             }
-            let agent = try await service.create(workspaceId: body.workspaceId, kind: body.kind, name: body.name, prompt: body.prompt)
+            let agent = try await service.create(workspaceId: body.workspaceId, kind: body.kind, name: body.name, prompt: body.prompt,
+                                                 model: body.model, effort: body.effort, cwdFromPane: body.cwdFromPane)
             return try JSONResponse.make(agent, status: .created)
         }
 
@@ -175,7 +179,12 @@ public enum RelayRoutes {
                 body: .init(byteBuffer: ByteBuffer(bytes: data)))
         }
 
-        router.get("/controls") { _, _ in try JSONResponse.make(ClaudeControls.catalog) }
+        router.get("/controls") { request, _ in
+            if let kind = request.uri.queryParameters.get("kind") {
+                return try JSONResponse.make(try service.kindControls(kind))
+            }
+            return try JSONResponse.make(ClaudeControls.catalog)
+        }
 
         router.get("/agents/:id/controls") { _, context in
             try JSONResponse.make(try await service.controls(id: try agentId(context)))

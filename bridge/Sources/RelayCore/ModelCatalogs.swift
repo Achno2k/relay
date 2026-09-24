@@ -31,6 +31,8 @@ public final class ModelCatalogs: Sendable {
     let run: Runner
     let piSettingsURL: URL
     let piModelsStoreURL: URL
+    let claudeSettingsURL: URL
+    let codexConfigURL: URL
     let codexSessions: URL
     /// Levels pi reported itself ("Available levels: …"), per provider/id; wins over the store.
     private let learnedPiLevels = Mutex<[String: [String]]>([:])
@@ -40,7 +42,11 @@ public final class ModelCatalogs: Sendable {
     public init(run: @escaping Runner = ModelCatalogs.process,
                 piSettingsURL: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".pi/agent/settings.json"),
                 piModelsStoreURL: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".pi/agent/models-store.json"),
-                codexSessions: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions")) {
+                codexSessions: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions"),
+                claudeSettingsURL: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/settings.json"),
+                codexConfigURL: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/config.toml")) {
+        self.claudeSettingsURL = claudeSettingsURL
+        self.codexConfigURL = codexConfigURL
         self.run = run
         self.piSettingsURL = piSettingsURL
         self.piModelsStoreURL = piModelsStoreURL
@@ -115,6 +121,33 @@ public final class ModelCatalogs: Sendable {
 
     public func learnPiLevels(_ model: String, _ levels: [String]) {
         learnedPiLevels.withLock { $0[model] = levels }
+    }
+
+    /// Claude's saved default model and effort (`~/.claude/settings.json`).
+    public func claudeDefaults() -> (model: String?, effort: String?) {
+        guard let data = try? Data(contentsOf: claudeSettingsURL),
+              let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return (nil, nil) }
+        return (o["model"] as? String, o["effortLevel"] as? String)
+    }
+
+    /// codex's saved default model and effort: top-level `model` / `model_reasoning_effort` in config.toml.
+    public func codexDefaults() -> (model: String?, effort: String?) {
+        guard let text = try? String(contentsOf: codexConfigURL, encoding: .utf8) else { return (nil, nil) }
+        return Self.parseCodexConfig(text)
+    }
+
+    static func parseCodexConfig(_ text: String) -> (model: String?, effort: String?) {
+        var model: String?, effort: String?
+        for raw in text.components(separatedBy: "\n") {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("[") { break }  // only top-level keys
+            let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.count == 2 else { continue }
+            let value = parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            if parts[0] == "model" { model = value }
+            if parts[0] == "model_reasoning_effort" { effort = value }
+        }
+        return (model, effort)
     }
 
     public func piSettings() -> PiSettings {
