@@ -266,3 +266,17 @@
   - Prompts sent from the phone stay as dimmed pending bubbles, because no transcript message ever echoes them.
   - Suggestion: the bridge parses codex's rollout JSONL (`~/.codex/sessions/**`, `response_item` user/assistant/function_call lines) into Messages, as it does for Claude and pi.
   - Stopgap if that's far off: the app drops pending bubbles for no-transcript agents when they go idle.
+
+### Codex transcripts and the pending-bubble stopgap (bridge de15276)
+- **Stopgap (kept as a safety net):** when an agent with `hasTranscript: false` goes from working to idle/done, its pending bubbles are dropped, because nothing will ever echo them back. Agents with a transcript still wait for the echo. There's a unit test for both cases.
+- **Codex now has real transcripts** (`hasTranscript: true` on `w14:p5`). The live codex approval test got these checks, which run only while the bridge reports a transcript:
+  - the prompt appears as a user message
+  - the curl call is a `Shell` tool call with the run's unique tag
+  - its result holds an HTTP status line, so the approved command reached the network
+  - in the app, the prompt's bubble turns from `pending` to `sent` (bubbles expose this to accessibility), no pending bubbles remain, and a tool row ("Used 1 tool" / "Worked for 8s") shows
+- **Test bug found on the way:** my unique URL used `?herd=…`. zsh globbed the `?`, so the approved command failed with "no matches found" before curl ran. The approval flow was still covered, but the network never was. The test now uses a path (`example.net/herd-<tag>`), and the transcript shows `Ran curl -sI https://example.net/herd-26we3c | head -1` → `HTTP/2 404`.
+- Codex tool icons: `Shell` gets the terminal icon and `ViewImage` a photo; `WebSearch` already had the globe.
+- **Final run: simulator.** Xcode is still signed out ("No Accounts"), so the device can't build the UI test runner.
+  - All pass: 54 unit tests, 12 mock UI tests and 9 live UI tests (Claude: stop, controls, free text, multiple questions, image, PDF; pi: model and effort; codex: model and effort, approval with transcript checks).
+  - All three panes were left as found: `w14:p2` Opus/auto, `w14:p4` gpt-5.6-sol/high, `w14:p5` gpt-5.6-terra/high/ask.
+- Screenshot: `round3-live-codex-transcript.png` (codex chat with confirmed bubbles and tool rows).

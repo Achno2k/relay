@@ -21,7 +21,8 @@ final class LiveKindControlsTests: XCTestCase {
     }
 
     /// Codex in Ask mode asks before a network command: approve one run, cancel another.
-    /// Never taps "don't ask again" (it would save a rule in codex). Each run uses a fresh URL.
+    /// Never taps "don't ask again" (it would save a rule in codex). Each run uses a fresh URL, and the
+    /// approved run must actually reach the network (an HTTP status line in the tool result).
     func testCodexApproval() async throws {
         guard let link = env["HERD_E2E_LINK"], let agentId = env["HERD_E2E_CODEX_AGENT"] else {
             throw XCTSkip("HERD_E2E_CODEX_AGENT not set")
@@ -73,10 +74,11 @@ final class LiveKindControlsTests: XCTestCase {
             XCTContext.runActivity(named: "codex has no transcript yet: skipped the message checks") { _ in }
             return
         }
-        let tag = String(url.split(separator: "=").last ?? "")
+        let tag = String(url.split(separator: "/").last ?? "")
         let messages = try await bridge.messages()
         XCTAssertTrue(messages.contains { $0.role == "user" && $0.text.contains(tag) }, "prompt not in the transcript")
         XCTAssertTrue(messages.contains { $0.toolSummaries.contains { $0.contains(tag) } }, "curl call isn't a tool call")
+        XCTAssertTrue(messages.contains { $0.toolPreviews.contains { $0.contains("HTTP/") } }, "the approved curl never reached the network")
 
         let bubble = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == 'userBubble' AND label CONTAINS %@", tag)).firstMatch
@@ -92,7 +94,8 @@ final class LiveKindControlsTests: XCTestCase {
     private static func freshURL() -> String {
         let tld = ["com", "org", "net"].randomElement()!
         let tag = String((0..<6).map { _ in "abcdefghjkmnpqrstuvwxyz23456789".randomElement()! })
-        return "https://example.\(tld)/?herd=\(tag)"
+        // A path, not a query: zsh treats `?` as a glob and the command would fail before curl ran.
+        return "https://example.\(tld)/herd-\(tag)"
     }
 
     private static func prompt(_ url: String) -> String {
@@ -213,12 +216,13 @@ private struct Bridge: Sendable {
     struct AgentFields: Decodable, Sendable {
         var model: String?; var effort: String?; var status: String?; var permissionMode: String?; var hasTranscript: Bool?
     }
-    struct Block: Decodable, Sendable { var type: String; var text: String?; var summary: String? }
+    struct Block: Decodable, Sendable { var type: String; var text: String?; var summary: String?; var preview: String? }
     struct MessageFields: Decodable, Sendable {
         var role: String
         var blocks: [Block]
         var text: String { blocks.compactMap(\.text).joined(separator: "\n") }
         var toolSummaries: [String] { blocks.filter { $0.type == "toolCall" }.compactMap(\.summary) }
+        var toolPreviews: [String] { blocks.filter { $0.type == "toolResult" }.compactMap(\.preview) }
     }
     struct Page: Decodable, Sendable { var messages: [MessageFields] }
 
