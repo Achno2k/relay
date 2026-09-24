@@ -223,3 +223,29 @@
   - `No profiles for 'dev.amansingh.herd.uitests.xctrunner' were found`
 - The only local profile for team TC56945264 is `dev.amansingh.herd`. The UI test runner needs its own profile, and command-line provisioning can't create one without an Apple ID signed into Xcode.
 - Every result above is from the iPhone 17 Pro simulator. The live tests on the simulator used the real bridge on 7878 via 127.0.0.1.
+
+## Round 3 (round-3-controls-per-agent.md, iOS)
+
+### What changed
+- **Per-agent controls:** the title menu reads `GET /agents/:id/controls` for the open agent.
+  - It's cached per agent under a key of kind, `sessionId` and `model`, so a model change refetches: effort levels depend on the model.
+  - After every control call the app takes the `Agent` from the `202` (pi resets effort on a model switch) and refetches the lists.
+  - On an older bridge (404) Claude agents fall back to `GET /controls`, and other kinds show no controls.
+- **Only supported sections appear:** Model, Mode, Effort, Compact, Clear, each gated by `supports`, with that agent's own lists and labels. pi has no Mode. Codex's modes are Ask for approval / Approve for me / Full Access.
+- **Long model lists (pi offers 57 here):** the Model submenu shows the current model (checked), then the next ten (the bridge floats scoped models to the top), then "All models (N)…". That opens a searchable sheet with the label, the id in mono underneath, and a checkmark on the current model.
+- **Model matching:** exact id first (pi's `provider/id`, codex's slug), then substring for Claude's aliases. A plain substring match would pick `gpt-5.1` for `gpt-5.1-mini`.
+- **Pill line:** model plus mode ("GPT-5.6-Terra · Approve for me"). Kinds without modes show effort instead ("gpt-5.6-sol · High").
+- **Mode chip:** shows whenever the mode isn't the kind's first one (Claude `default`, codex `ask`). Full Access / Bypass are orange.
+- **Mock:** Claude and codex use `docs/fixtures/agent-controls-*.json`. pi keeps a synthetic 23-model list so the search sheet gets exercised (the pi fixture has 6). The codex agent from `agents.json` gets the `agents-multi.json` fields, a pi agent is added, and the mock's `control` enforces each kind's `supports` and lists.
+
+### Tests (simulator; the device is still signed out, see below)
+- 53 unit tests. New ones cover: all four contract fixtures, lists missing for a kind, exact-before-alias matching, codex and pi pill lines and mode-chip rules, the per-agent cache (refetch on session or model change), and the 404 fallback.
+- Mock UI:
+  - `Round3UITests.testPiModelSearchAndEffort`: long list, search sheet, "grok" filter, pi effort levels, no Mode.
+  - `testCodexModelEffortAndMode`: short list, efforts up to Ultra, mode chip and switching back to Ask.
+- Live UI (`LiveKindControlsTests`, targets read from the bridge, originals restored in teardown):
+  - **codex `w14:p5`: passed.** Model then effort through the menu; `GET /agents/:id` confirms both; the pane was left on gpt-5.6-terra.
+  - **pi `w14:p4`: model passed; effort failed on the bridge.** The model switch through "All models…" and search worked. Setting effort to Off gave `504 "/thinking off sent, but no confirmation"`, the footer still said `high`, but `…/controls` lists `off` for that model. I reported it to herd-bridge and restored pi (gpt-5.6-sol, high). Rerun pending their fix.
+- All earlier live tests (stop, controls, free text, multiple questions, image, PDF) and all mock UI tests passed in the same run.
+- **Physical device:** `build-for-testing` for the phone still fails with "No Accounts" / no profile for `dev.amansingh.herd.uitests.xctrunner`, so everything above is on the iPhone 17 Pro simulator, as the brief allows.
+- Screenshots: `round3-pi-model-menu`, `round3-pi-model-search`, `round3-codex-menu` (mock), plus live `round3-live-*`.
