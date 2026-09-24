@@ -52,6 +52,7 @@ final class LiveKindControlsTests: XCTestCase {
         try await waitUntil(timeout: 120, "codex didn't finish after approval") { try await bridge.agentStatus() != "working" }
         let statusAfterYes = try await bridge.agentStatus()
         XCTAssertNotEqual(statusAfterYes, "blocked")
+        try await checkTranscript(bridge: bridge, tag: approveURL)
         shot("codex-approval-approved")
 
         // Cancel
@@ -63,6 +64,29 @@ final class LiveKindControlsTests: XCTestCase {
         try await waitUntil(timeout: 60, "approval never cleared after No") { try await bridge.approvalStatus() == 204 }
         try await waitUntil(timeout: 60, "codex still blocked after No") { try await bridge.agentStatus() != "blocked" }
         shot("codex-approval-cancelled")
+    }
+
+    /// Once codex has real transcripts: the prompt confirms (no pending bubble) and the curl call is a tool row.
+    /// Without a transcript (screen-read fallback) there's nothing to check yet.
+    private func checkTranscript(bridge: Bridge, tag url: String) async throws {
+        guard try await bridge.hasTranscript() else {
+            XCTContext.runActivity(named: "codex has no transcript yet: skipped the message checks") { _ in }
+            return
+        }
+        let tag = String(url.split(separator: "=").last ?? "")
+        let messages = try await bridge.messages()
+        XCTAssertTrue(messages.contains { $0.role == "user" && $0.text.contains(tag) }, "prompt not in the transcript")
+        XCTAssertTrue(messages.contains { $0.toolSummaries.contains { $0.contains(tag) } }, "curl call isn't a tool call")
+
+        let bubble = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == 'userBubble' AND label CONTAINS %@", tag)).firstMatch
+        XCTAssertTrue(bubble.waitForExistence(timeout: 20), "no bubble for the prompt")
+        let confirmed = expectation(for: NSPredicate(format: "value == 'sent'"), evaluatedWith: bubble)
+        await fulfillment(of: [confirmed], timeout: 30)
+        let pending = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == 'userBubble' AND value == 'pending'"))
+        XCTAssertEqual(pending.count, 0, "a sent message never confirmed")
+        let toolRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Used' OR label BEGINSWITH 'Worked for'")).firstMatch
+        XCTAssertTrue(toolRow.waitForExistence(timeout: 10), "no tool row in the chat")
     }
 
     private static func freshURL() -> String {
@@ -186,7 +210,17 @@ final class LiveKindControlsTests: XCTestCase {
 private struct Bridge: Sendable {
     struct Option: Decodable { var id: String; var label: String }
     struct Controls: Decodable { var models: [Option]; var efforts: [Option] }
-    struct AgentFields: Decodable, Sendable { var model: String?; var effort: String?; var status: String?; var permissionMode: String? }
+    struct AgentFields: Decodable, Sendable {
+        var model: String?; var effort: String?; var status: String?; var permissionMode: String?; var hasTranscript: Bool?
+    }
+    struct Block: Decodable, Sendable { var type: String; var text: String?; var summary: String? }
+    struct MessageFields: Decodable, Sendable {
+        var role: String
+        var blocks: [Block]
+        var text: String { blocks.compactMap(\.text).joined(separator: "\n") }
+        var toolSummaries: [String] { blocks.filter { $0.type == "toolCall" }.compactMap(\.summary) }
+    }
+    struct Page: Decodable, Sendable { var messages: [MessageFields] }
 
     let base: String
     let token: String
@@ -202,6 +236,8 @@ private struct Bridge: Sendable {
     func agent() async throws -> AgentFields { try await get(agentPath) }
     func controls() async throws -> Controls { try await get(agentPath + "/controls") }
     func agentStatus() async throws -> String? { try await agent().status }
+    func hasTranscript() async throws -> Bool { try await agent().hasTranscript ?? false }
+    func messages() async throws -> [MessageFields] { try await (get(agentPath + "/messages?limit=50") as Page).messages }
     func agentMode() async throws -> String? { try await agent().permissionMode }
 
     func approvalStatus() async throws -> Int {

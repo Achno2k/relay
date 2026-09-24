@@ -131,6 +131,9 @@ final class AppStore {
 
     func apply(_ event: ServerEvent) {
         let before = selectedAgent?.status
+        if case .agentUpdated(let updated) = event {
+            dropPendingIfFinished(updated, previous: state.agent(updated.id)?.status)
+        }
         state.apply(event)
         switch event {
         case .messageUpserted(let agentId, let message):
@@ -389,6 +392,16 @@ final class AppStore {
         let keys = Set(messages.filter { $0.role == .user && !$0.isInterruptionMarker }.map(Self.pendingKey))
         list.removeAll { keys.contains(Self.pendingKey($0)) }
         pending[agentId] = list.isEmpty ? nil : list
+    }
+
+    /// Stopgap for agents without a transcript (screen-read fallback): nothing will ever echo a prompt
+    /// back, so its pending bubble would stay forever. Drop it once the agent finishes the turn.
+    private func dropPendingIfFinished(_ agent: Agent, previous: AgentStatus?) {
+        guard !agent.hasTranscript, previous == .working,
+              agent.status == .idle || agent.status == .done,
+              pending[agent.id] != nil
+        else { return }
+        pending[agent.id] = nil
     }
 
     /// Same text and same attachment ids: the transcript copy of a prompt sent from the phone.

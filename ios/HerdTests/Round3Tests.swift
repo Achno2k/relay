@@ -107,6 +107,35 @@ struct StoreRound3Tests {
         #expect(await backend.agentControlsFetches > fetches, "a new session refetches")
     }
 
+    /// Stopgap: without a transcript nothing echoes a prompt, so the bubble goes when the turn ends.
+    @Test func pendingDropsForNoTranscriptAgentWhenItFinishes() async throws {
+        let (store, _, agent) = try await store(nil)
+        var screenOnly = agent
+        screenOnly.hasTranscript = false
+        screenOnly.status = .idle
+        store.apply(.agentUpdated(screenOnly))
+        store.send("hello", to: agent.id)
+        #expect(store.pending[agent.id]?.count == 1)
+
+        screenOnly.status = .working
+        store.apply(.agentUpdated(screenOnly))
+        #expect(store.pending[agent.id]?.count == 1, "still running: keep it")
+        screenOnly.status = .idle
+        store.apply(.agentUpdated(screenOnly))
+        #expect(store.pending[agent.id] == nil, "turn over: drop it")
+
+        // With a transcript the bubble waits for the echo instead.
+        var transcribed = screenOnly
+        transcribed.hasTranscript = true
+        store.apply(.agentUpdated(transcribed))
+        store.send("again", to: agent.id)
+        transcribed.status = .working
+        store.apply(.agentUpdated(transcribed))
+        transcribed.status = .done
+        store.apply(.agentUpdated(transcribed))
+        #expect(store.pending[agent.id]?.count == 1)
+    }
+
     @Test func olderBridgeFallsBackToClaudeList() async throws {
         let (store, _, agent) = try await store(nil)
         let info = try #require(store.agentControls[agent.id])

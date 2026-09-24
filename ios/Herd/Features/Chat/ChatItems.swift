@@ -104,7 +104,8 @@ enum ToolIcon {
         switch name {
         case "Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch": "pencil"
         case "Grep", "Glob", "search": "magnifyingglass"
-        case "Bash", "shell", "exec", "BashOutput": "terminal"
+        case "Bash", "shell", "Shell", "exec", "BashOutput": "terminal"
+        case "ViewImage": "photo"
         case "Read", "read", "LS": "doc.text"
         case "WebFetch", "WebSearch": "globe"
         case "Task", "Agent": "person.2"

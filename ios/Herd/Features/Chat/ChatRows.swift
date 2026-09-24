@@ -23,6 +23,9 @@ struct UserBubble: View {
             }
         }
         .opacity(pending ? 0.6 : 1)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("userBubble")
+        .accessibilityValue(pending ? "pending" : "sent")
         .frame(maxWidth: maxWidth, alignment: .trailing)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
