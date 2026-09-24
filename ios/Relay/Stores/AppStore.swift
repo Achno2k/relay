@@ -24,6 +24,9 @@ final class AppStore {
 
     /// Claude's global list from `GET /controls`; only used when the bridge has no per-agent route.
     private(set) var controls: ControlsCatalog?
+    private var kindControlsCache: [String: AgentControlsInfo] = [:]
+    /// A just-created agent whose composer should take focus when its chat opens.
+    var focusComposerFor: String?
     /// `GET /agents/:id/controls` per agent, with the kind and session it was fetched for.
     private(set) var agentControls: [String: AgentControlsInfo] = [:]
     private var agentControlsKey: [String: String] = [:]
@@ -300,18 +303,28 @@ final class AppStore {
         }
     }
 
-    func createAgent(workspaceId: String, kind: String, prompt: String?) async -> Bool {
-        let text = prompt?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let request = CreateAgentRequest(workspaceId: workspaceId, kind: kind, prompt: text?.isEmpty == false ? text : nil)
+    /// Starts an agent with the model/effort picked in New chat (nil = its saved default) and opens its
+    /// empty chat with the composer focused.
+    func createAgent(workspaceId: String, kind: String, model: String?, effort: String?) async -> Bool {
+        let request = CreateAgentRequest(workspaceId: workspaceId, kind: kind, model: model, effort: effort)
         do {
             let agent = try await backend.createAgent(request)
             state.upsert(agent)
+            focusComposerFor = agent.id
             open(agent.id)
             return true
         } catch {
             report(error)
             return false
         }
+    }
+
+    /// `GET /controls?kind=` for the New chat sheet, cached per kind for the session.
+    func kindControls(_ kind: String) async -> AgentControlsInfo? {
+        if let cached = kindControlsCache[kind] { return cached }
+        guard let info = try? await backend.kindControls(kind: kind) else { return nil }
+        kindControlsCache[kind] = info
+        return info
     }
 
     // MARK: - Controls

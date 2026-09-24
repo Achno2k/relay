@@ -372,12 +372,29 @@ public struct AgentControlsInfo: Codable, Hashable, Sendable {
     public var efforts: [ControlOption]
     public var modes: [ControlOption]
     public var supports: Supports
+    /// From `GET /controls?kind=`: what a new agent starts with if nothing is picked.
+    public var defaultModel: String?
+    public var defaultEffort: String?
+    /// pi and codex: efforts differ per model. Claude's models all share `efforts`.
+    public var effortsByModel: [String: [ControlOption]]?
 
-    public init(models: [ControlOption], efforts: [ControlOption], modes: [ControlOption], supports: Supports) {
+    public init(
+        models: [ControlOption], efforts: [ControlOption], modes: [ControlOption], supports: Supports,
+        defaultModel: String? = nil, defaultEffort: String? = nil, effortsByModel: [String: [ControlOption]]? = nil
+    ) {
         self.models = models
         self.efforts = efforts
         self.modes = modes
         self.supports = supports
+        self.defaultModel = defaultModel
+        self.defaultEffort = defaultEffort
+        self.effortsByModel = effortsByModel
+    }
+
+    /// Effort choices for a model: its own list when the kind has per-model efforts, else the shared one.
+    public func efforts(for model: String?) -> [ControlOption] {
+        if let model, let list = effortsByModel?[model] { return list }
+        return efforts
     }
 
     /// What an older bridge (no per-agent route) offers: Claude's global list, everything supported.
@@ -388,7 +405,9 @@ public struct AgentControlsInfo: Codable, Hashable, Sendable {
         )
     }
 
-    private enum CodingKeys: String, CodingKey { case models, efforts, modes, supports }
+    private enum CodingKeys: String, CodingKey {
+        case models, efforts, modes, supports, defaultModel, defaultEffort, effortsByModel
+    }
 
     /// Lists a kind doesn't have may be missing or null.
     public init(from decoder: any Decoder) throws {
@@ -397,6 +416,9 @@ public struct AgentControlsInfo: Codable, Hashable, Sendable {
         efforts = try c.decodeIfPresent([ControlOption].self, forKey: .efforts) ?? []
         modes = try c.decodeIfPresent([ControlOption].self, forKey: .modes) ?? []
         supports = try c.decode(Supports.self, forKey: .supports)
+        defaultModel = try c.decodeIfPresent(String.self, forKey: .defaultModel)
+        defaultEffort = try c.decodeIfPresent(String.self, forKey: .defaultEffort)
+        effortsByModel = try c.decodeIfPresent([String: [ControlOption]].self, forKey: .effortsByModel)
     }
 }
 
@@ -439,12 +461,21 @@ public struct CreateAgentRequest: Codable, Hashable, Sendable {
     public var workspaceId: String
     public var kind: String
     public var name: String?
+    /// Ids from `GET /controls?kind=`; nil means the agent's saved default.
+    public var model: String?
+    public var effort: String?
+    /// Still accepted by the bridge; the app sends the first message with `POST /prompt` instead.
     public var prompt: String?
 
-    public init(workspaceId: String, kind: String, name: String? = nil, prompt: String? = nil) {
+    public init(
+        workspaceId: String, kind: String, name: String? = nil,
+        model: String? = nil, effort: String? = nil, prompt: String? = nil
+    ) {
         self.workspaceId = workspaceId
         self.kind = kind
         self.name = name
+        self.model = model
+        self.effort = effort
         self.prompt = prompt
     }
 }

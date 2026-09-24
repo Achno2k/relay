@@ -42,12 +42,28 @@ actor RecordingBackend: Backend {
     var afterAnswer: Approval?
     func setAfterAnswer(_ approval: Approval?) { afterAnswer = approval }
     func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : afterAnswer }
-    func createAgent(_ request: CreateAgentRequest) async throws -> Agent { agent }
+    func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
+        created.append(request)
+        return agent
+    }
     func controls() async throws -> ControlsCatalog { try FixtureFiles.decode(ControlsCatalog.self, "controls.json") }
     /// nil = an older bridge without the per-agent route (404).
     var perAgentControls: AgentControlsInfo?
     private(set) var agentControlsFetches = 0
     func setPerAgentControls(_ info: AgentControlsInfo?) { perAgentControls = info }
+    func kindControls(kind: String) async throws -> AgentControlsInfo {
+        kindControlsFetches += 1
+        return AgentControlsInfo(
+            models: [ControlOption(id: "m1", label: "M1"), ControlOption(id: "m2", label: "M2")],
+            efforts: [ControlOption(id: "low", label: "Low")], modes: [],
+            supports: .init(model: true, effort: true, mode: false, compact: false, clear: false),
+            defaultModel: "m1", defaultEffort: "low",
+            effortsByModel: ["m2": [ControlOption(id: "max", label: "Max")]]
+        )
+    }
+    private(set) var kindControlsFetches = 0
+    private(set) var created: [CreateAgentRequest] = []
+
     func agentControls(agentId: String) async throws -> AgentControlsInfo {
         agentControlsFetches += 1
         guard let perAgentControls else { throw RelayError.http(status: 404, code: "not_found", message: "Not Found") }

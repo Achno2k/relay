@@ -94,6 +94,10 @@ public struct APIClient: Sendable {
 
     public func controls() async throws -> ControlsCatalog { try await send("GET", "/controls") }
 
+    public func kindControls(kind: String) async throws -> AgentControlsInfo {
+        try await send("GET", "/controls", query: [URLQueryItem(name: "kind", value: kind)])
+    }
+
     public func agentControls(agentId: String) async throws -> AgentControlsInfo {
         try await send("GET", "/agents/\(Self.encode(agentId))/controls")
     }

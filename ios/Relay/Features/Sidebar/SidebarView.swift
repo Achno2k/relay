@@ -105,12 +105,12 @@ struct SidebarView: View {
                         Text("No chats")
                             .font(.subheadline)
                             .foregroundStyle(.tertiary)
-                            .padding(.leading, 58)
+                            .padding(.leading, 54)
                             .padding(.vertical, 6)
                             .plainRow()
                     }
                     ForEach(project.agents) { agent in
-                        chatRow(agent, subtitleFolder: false, indent: true, sidebar: sidebar)
+                        chatRow(agent, subtitleFolder: false, sidebar: sidebar)
                     }
                 }
             }
@@ -140,7 +140,7 @@ struct SidebarView: View {
                     .plainRow()
             }
             ForEach(agents) { agent in
-                chatRow(agent, subtitleFolder: true, indent: false, sidebar: sidebar)
+                chatRow(agent, subtitleFolder: true, sidebar: sidebar)
             }
         } header: {
             sectionHeader(title)
@@ -159,14 +159,13 @@ struct SidebarView: View {
         }
     }
 
-    private func chatRow(_ agent: Agent, subtitleFolder: Bool, indent: Bool, sidebar: SidebarModel) -> some View {
+    private func chatRow(_ agent: Agent, subtitleFolder: Bool, sidebar: SidebarModel) -> some View {
         let archived = store.isArchived(agent.id)
         return ChatRow(
             agent: agent,
             unseen: sidebar.isUnseen(agent),
             showsFolder: subtitleFolder,
-            selected: agent.id == store.selectedAgentId,
-            indent: indent
+            selected: agent.id == store.selectedAgentId
         ) {
             onSelect(agent.id)
         }
@@ -445,7 +444,6 @@ private struct ChatRow: View {
     let unseen: Bool
     let showsFolder: Bool
     let selected: Bool
-    let indent: Bool
     let action: () -> Void
 
     var body: some View {
@@ -465,7 +463,8 @@ private struct ChatRow: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.leading, indent ? 34 : 20)
+            // Same content edge as the project row above it: no extra indent under an expanded folder.
+            .padding(.leading, 20)
             .padding(.trailing, 16)
             .padding(.vertical, 9)
             .background {

@@ -24,6 +24,35 @@ enum MockControls {
         }
     }
 
+    /// `GET /controls?kind=`: the same lists plus defaults and, for pi and codex, efforts per model.
+    static func kindInfo(for kind: String, fixtures: Fixtures) -> AgentControlsInfo {
+        var info = info(for: kind, fixtures: fixtures)
+        switch kind {
+        case "claude":
+            info.defaultModel = "opus"
+            info.defaultEffort = "medium"
+        case "codex":
+            info.defaultModel = "gpt-5.6-terra"
+            info.defaultEffort = "high"
+            let upTo = { (n: Int) in Array(info.efforts.prefix(n)) }
+            info.effortsByModel = [
+                "gpt-6-luna": upTo(4), "gpt-5.6-terra": info.efforts, "gpt-5.6-luna": upTo(3), "gpt-5.5": upTo(3),
+            ]
+        case "pi":
+            info.defaultModel = piModels.first?.id
+            info.defaultEffort = "medium"
+            let all = info.efforts
+            info.effortsByModel = Dictionary(uniqueKeysWithValues: piModels.map { model in
+                if model.id.contains("haiku") { return (model.id, all.filter { ["off", "minimal", "low", "medium", "high"].contains($0.id) }) }
+                if model.id.hasPrefix("anthropic/") { return (model.id, all.filter { $0.id != "off" }) }
+                return (model.id, all)
+            })
+        default:
+            break
+        }
+        return info
+    }
+
     private static let none = AgentControlsInfo(
         models: [], efforts: [], modes: [], supports: .init(model: false, effort: false, mode: false, compact: false, clear: false)
     )

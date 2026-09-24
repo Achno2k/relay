@@ -165,6 +165,7 @@ private struct ChatTranscript: View {
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var width: CGFloat = 390
     @State private var loadingEarlier = false
+    @State private var focusComposer = false
 
     /// Last view in the transcript, after the working indicator: "the bottom" for every programmatic scroll.
     private static let bottomID = "transcript-bottom"
@@ -224,6 +225,13 @@ private struct ChatTranscript: View {
                 }
             }
             .animation(.smooth, value: followsBottom)
+            .task {
+                // A chat just created from New chat opens ready to type.
+                if store.focusComposerFor == agent.id {
+                    store.focusComposerFor = nil
+                    focusComposer = true
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 10) {
                     if agent.status == .blocked, let approval = store.approval, approval.agentId == agent.id {
@@ -241,7 +249,8 @@ private struct ChatTranscript: View {
                             store.send(text, attachments: files, to: agent.id)
                         },
                         onStop: { store.interrupt(agent.id) },
-                        onNewChat: { onNewChat(agent.workspaceId) }
+                        onNewChat: { onNewChat(agent.workspaceId) },
+                        focusRequest: $focusComposer
                     )
                 }
                 .padding(.horizontal, 12)

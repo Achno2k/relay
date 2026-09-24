@@ -21,6 +21,8 @@ public protocol Backend: Sendable {
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent
     /// `GET /controls` (Claude's list; kept for older bridges).
     func controls() async throws -> ControlsCatalog
+    /// `GET /controls?kind=`: choices and defaults for a new agent of that kind (the New chat sheet).
+    func kindControls(kind: String) async throws -> AgentControlsInfo
     /// `GET /agents/:id/controls`: this agent's own choices and supported controls.
     func agentControls(agentId: String) async throws -> AgentControlsInfo
     /// `POST /agents/:id/control`. Returns the updated agent once the bridge has confirmed the change.
@@ -64,6 +66,7 @@ public struct LiveBackend: Backend {
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent { try await client.createAgent(request) }
     public func controls() async throws -> ControlsCatalog { try await client.controls() }
     public func agentControls(agentId: String) async throws -> AgentControlsInfo { try await client.agentControls(agentId: agentId) }
+    public func kindControls(kind: String) async throws -> AgentControlsInfo { try await client.kindControls(kind: kind) }
     public func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
         try await client.control(agentId: agentId, request)
     }

@@ -148,6 +148,13 @@ actor MockBackend: Backend {
 
     func controls() async throws -> ControlsCatalog { catalog }
 
+    func kindControls(kind: String) async throws -> AgentControlsInfo {
+        guard ["claude", "codex", "pi"].contains(kind) else {
+            throw RelayError.http(status: 400, code: "unsupported", message: "No controls for \(kind).")
+        }
+        return MockControls.kindInfo(for: kind, fixtures: fixtures)
+    }
+
     func agentControls(agentId: String) async throws -> AgentControlsInfo {
         guard let agent = agentList.first(where: { $0.id == agentId }) else {
             throw RelayError.http(status: 404, code: "not_found", message: "No such agent.")
@@ -204,16 +211,25 @@ actor MockBackend: Backend {
     }
 
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
+        // Like the bridge: model/effort must come from the kind's lists; left out means the saved default.
+        let kindInfo = MockControls.kindInfo(for: request.kind, fixtures: fixtures)
+        let model = request.model ?? kindInfo.defaultModel
+        if let m = request.model, !kindInfo.models.contains(where: { $0.id == m }) {
+            throw RelayError.http(status: 400, code: "bad_request", message: "Unknown model \(m).")
+        }
+        if let e = request.effort, !kindInfo.efforts(for: model).contains(where: { $0.id == e }) {
+            throw RelayError.http(status: 400, code: "bad_request", message: "\(e) isn't an effort for \(model ?? "the default model").")
+        }
         let workspace = workspaceList.first { $0.id == request.workspaceId }
         let pane = agentList.filter { $0.workspaceId == request.workspaceId }.count + 1
         let agent = Agent(
             id: "\(request.workspaceId):p\(pane + 10)", name: request.name, kind: request.kind, title: request.kind,
             workspaceId: request.workspaceId, workspaceName: workspace?.name ?? request.workspaceId,
             cwdName: workspace?.name ?? request.workspaceId, status: .idle, hasTranscript: false, updatedAt: Date(),
-            model: request.kind == "claude" ? "claude-opus-5-5" : nil,
-            modelLabel: request.kind == "claude" ? "Opus 5.5" : nil,
-            permissionMode: request.kind == "claude" ? "default" : nil,
-            effort: request.kind == "claude" ? "medium" : nil,
+            model: model.map { request.kind == "claude" ? "claude-\($0)-mock" : $0 },
+            modelLabel: model.flatMap { m in kindInfo.models.first { $0.id == m }?.label } ?? model,
+            permissionMode: request.kind == "claude" ? "default" : request.kind == "codex" ? "ask" : nil,
+            effort: request.effort ?? kindInfo.defaultEffort,
             sessionId: UUID().uuidString,
             transcriptState: .pending
         )

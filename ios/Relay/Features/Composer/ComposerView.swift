@@ -15,6 +15,8 @@ struct ComposerView: View {
     let onSend: (String, [Attachment]) -> Void
     let onStop: () -> Void
     let onNewChat: () -> Void
+    /// Set to true to focus the field (a just-created chat, "ready to type"); reset once focused.
+    var focusRequest: Binding<Bool> = .constant(false)
 
     @FocusState private var focused: Bool
     @Namespace private var glass
@@ -59,6 +61,13 @@ struct ComposerView: View {
         .animation(.smooth(duration: 0.35), value: showsStop)
         .animation(.smooth, value: attachments?.items.count)
         .sensoryFeedback(.impact(weight: .medium), trigger: sends)
+        .task(id: focusRequest.wrappedValue) {
+            guard focusRequest.wrappedValue else { return }
+            // After the New chat sheet has gone, or the keyboard can't come up.
+            try? await Task.sleep(for: .milliseconds(450))
+            focused = true
+            focusRequest.wrappedValue = false
+        }
         .photosPicker(
             isPresented: $showPhotos, selection: $photoItems,
             maxSelectionCount: max(1, attachments?.remainingSlots ?? 1), matching: .images
