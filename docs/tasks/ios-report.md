@@ -151,3 +151,75 @@
   - The test used to stop 3 s after sending an essay prompt. Claude writes nothing to the transcript when stopped before its first block, so the marker check was timing-dependent.
   - It now stops during a long Bash call and waits for "Running Bash…" first.
   - It uses `ping -c 45`, because Claude Code blocks a foreground `sleep`.
+
+## Round 2 (round-2.md, all iOS parts)
+
+### 1. Scroll-to-bottom button
+- **Cause:** there were two.
+  - The button was pushed out of its container with `.offset(y: -52)`, so taps could land outside its hit area.
+  - It scrolled by assigning `ScrollPosition(edge: .bottom)`, which is a no-op when the value doesn't change.
+- **Fix:**
+  - The button is now an overlay on the chat area, inside the composer's safe-area inset, so no offset is needed.
+  - Every programmatic scroll (the button, following new content, the approval card or keyboard, prepending a page) goes through `ScrollViewReader.scrollTo` to a bottom sentinel placed after the working indicator.
+- **Test:** `Round2UITests.testScrollButtonReturnsToBottom` swipes up until ↓ shows, taps it, then asserts the button is gone and the last code block is hittable.
+
+### 2. Attachments
+- **`+` menu:** Photos (multi-select, up to the remaining slots), Camera (disabled without a camera), Files (`fileImporter`: images, PDF, text, source, JSON, any data), then "New chat in <folder>".
+- **Preparing:** images go through ImageIO (HEIC and PNG included), are downscaled to at most 2048 px (never upscaled) and re-encoded as JPEG at 0.85. Other files go as they are, with a MIME type from their UTType. Limits: 20 MB per file and 10 per message, with a toast when either is hit.
+- **Tray:** each file uploads as soon as it's picked, and progress shows on its tray item (a ring on thumbnails, a bar on file chips). The tray sits inside the glass field above the text, and each item has a remove button. Send is enabled once every upload has finished and there's text or at least one file. Text may be empty.
+- **Bubbles:**
+  - Image thumbnails (116 pt, tap for full screen with pinch and double-tap zoom) and file chips (tap for QuickLook) sit above the text. Messages with only attachments render too.
+  - Files are fetched from `GET …/attachments/:id` and cached for the session. Our own uploads are pre-seeded in the cache, so there's no refetch.
+  - An expired file (404) shows "Expired".
+- **Optimistic bubble:** it includes the attachments, and resolves when the transcript shows the same text *and* the same attachment ids.
+- **Live on `w14:p2`:** both tests generate their file in the app (DEBUG `-uitestAttachments` adds "Test image" / "Test PDF" to `+`, because UI tests can't drive the Photos picker). Each run draws a fresh random word, so replies from earlier runs can't match.
+  - `testImageAttachment`: a PNG with the word; the reply contains it.
+  - `testPDFAttachment`: a PDF with the word as its code word; the reply contains it.
+
+### 3. Sidebar rework
+- **Layout (Codex home):**
+  - A glass filter button (orange dot when anything needs input) and a glass `⋯` menu with machine name, OS, bridge host, connection state and Unpair.
+  - A large "Herd" title.
+  - Device chips: All, plus one chip per machine from `GET /machine` (green dot when connected, laptop/desktop symbol, name). It's a list, so more bridges can plug in later.
+- **Projects:** one row per herdr workspace, empty ones included, so you can start a chat in any folder. Each row has a folder icon, the name, a rotating chevron, an orange hand badge with a count when chats need input, and a compose button that opens New chat for that folder.
+  - Folders start collapsed. Expansion is remembered per folder.
+  - Expanded chats are indented, blocked first, then newest.
+- **Rows:**
+  - Status glyph: spinner (working), orange hand (needs input), blue eye (ready for review), check (completed), hollow circle (idle).
+  - Subtitle: "Waiting for you · 10m" / "Working · 2m", with the folder name added in flat lists.
+- **Search:** a glass circle bottom-left that grows into a field (glass morph). The "New chat" capsule sits bottom-right, as in `filter-menu.png`. Reasons:
+  - The top stays clean for the title and chips, and both actions are in thumb reach on a 6.1" phone.
+  - The list keeps its full height.
+  - Results are a flat list with folder names.
+- **Drawer change:** the sidebar no longer has its own drag-to-close, because a left swipe there now archives. The dimmed chat still closes the drawer on tap or drag.
+- The chat's top-left button also gets an orange dot when a *different* chat needs input.
+
+### 4. Filter menu and archive
+- The filter button opens a glass menu: All / Needs input / Ready for review / Working / Completed / Archived, each with its icon, and a checkmark on the current one. Any filter other than All replaces Projects with a flat Sessions list (newest first, folder in the subtitle).
+- Completed means done and seen, or idle. Ready for review means done and not yet opened.
+- The filter is remembered across launches.
+- **Archive:** swipe left (full swipe allowed) or the context menu, with Unarchive under Archived.
+  - It's client-side, stored in the App Group defaults, and never closes the agent.
+  - Archived chats are hidden everywhere except Archived. A blocked agent un-archives itself, whether it arrives by `agent.updated`, `agent.created` or a refresh.
+
+### Test isolation on the user's phone
+- All app UI state goes through `AppDefaults`: selected chat, seen times, filter, expanded folders, device chip and archive.
+- Under `-uitest` (every UI test passes it), or when XCTest hosts the app, it uses the separate suite `dev.amansingh.herd.uitest`. `-resetSidebar` clears only that suite and does nothing without `-uitest`.
+- A unit test checks that archiving and filtering in tests leave the user's real keys alone.
+- Live tests pair with the Tailscale link and the user's own token, so the app stays paired as before.
+
+### Tests
+- 46 unit tests, including: attachment and machine decoding, attachment-only messages, JPEG downscaling, file pass-through and the 20 MB limit, every filter predicate, archive hiding, projects with badges, search, auto-unarchive, pending prompts matched by attachment ids, and defaults isolation.
+- Mock UI:
+  - `Round2UITests` (5): scroll button, projects tree plus new chat in a folder, filter menu plus persistence, archive and unarchive, attachments.
+  - `MockUITests` (5, updated for collapsed folders).
+- Live UI (6): stop, controls, free text, multiple questions, image, PDF.
+- Screenshots: `docs/screenshots/round2-*-{dark,light}.png` (home, expanded tree, filter menu, needs-input sessions, archived, composer tray, bubble, image viewer).
+
+### Device run: blocked on signing (needs the user)
+- Ran `xcodebuild test -destination 'id=00008110-000414D91422801E' … DEVELOPMENT_TEAM=TC56945264 CODE_SIGN_ENTITLEMENTS=Herd/Herd-FreeTeam.entitlements -allowProvisioningUpdates -only-testing:HerdUITests`, with the Tailscale pair link.
+- It failed before any test ran, and nothing was installed on the phone:
+  - `No Accounts: Add a new account in Accounts settings`
+  - `No profiles for 'dev.amansingh.herd.uitests.xctrunner' were found`
+- The only local profile for team TC56945264 is `dev.amansingh.herd`. The UI test runner needs its own profile, and command-line provisioning can't create one without an Apple ID signed into Xcode.
+- Every result above is from the iPhone 17 Pro simulator. The live tests on the simulator used the real bridge on 7878 via 127.0.0.1.
