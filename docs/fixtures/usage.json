@@ -11,11 +11,12 @@
       "updatedAt": "2026-09-25T20:47:26+00:00",
       "source": "claude -p /usage",
       "stale": false,
-      "unavailableReason": null
+      "unavailableReason": null,
+      "usedBy": ["claude"]
     },
     {
       "id": "codex",
-      "label": "Codex / pi",
+      "label": "ChatGPT",
       "plan": "Plus",
       "windows": [
         { "id": "primary", "label": "5-hour", "usedPercent": 39.0, "windowMinutes": 300, "resetsAt": "2026-09-26T04:00:00+00:00" },
@@ -24,7 +25,19 @@
       "updatedAt": "2026-09-25T20:47:30+00:00",
       "source": "codex app-server",
       "stale": false,
-      "unavailableReason": null
+      "unavailableReason": null,
+      "usedBy": ["codex", "pi"]
+    },
+    {
+      "id": "opencode-go",
+      "label": "OpenCode Go",
+      "plan": "OpenCode Go",
+      "windows": [],
+      "updatedAt": "2026-09-25T20:47:30+00:00",
+      "source": "pi auth check",
+      "stale": false,
+      "unavailableReason": "Usage not available from OpenCode",
+      "usedBy": ["pi"]
     }
   ]
 }

@@ -49,10 +49,10 @@ private actor UsageBackend: Backend {
 @MainActor
 @Suite("UsageStore")
 struct UsageStoreTests {
-    private func provider(id: String = "claude", percent: Double = 10) -> UsageProvider {
+    private func provider(id: String = "claude", percent: Double = 10, usedBy: [String] = ["claude"]) -> UsageProvider {
         UsageProvider(id: id, label: id.capitalized, plan: "Max",
                       windows: [UsageWindow(id: "session", label: "Session", usedPercent: percent)],
-                      updatedAt: .now, source: "test", stale: false)
+                      updatedAt: .now, source: "test", stale: false, usedBy: usedBy)
     }
 
     @Test func loadPopulatesFromTheBackend() async throws {
@@ -124,8 +124,25 @@ struct UsageStoreTests {
 
     @Test func decodesTheContractFixture() throws {
         let snapshot = try FixtureFiles.decode(UsageSnapshot.self, "usage.json")
-        #expect(snapshot.providers.map(\.id) == ["claude", "codex"])
+        #expect(snapshot.providers.map(\.id) == ["claude", "codex", "opencode-go"])
         #expect(snapshot.providers[0].windows.count == 2)
+        #expect(snapshot.providers[0].usedBy == ["claude"])
+        #expect(snapshot.providers[1].usedBy == ["codex", "pi"])
+        let openCodeGo = snapshot.providers[2]
+        #expect(openCodeGo.label == "OpenCode Go")
+        #expect(openCodeGo.windows.isEmpty)
+        #expect(openCodeGo.stale == false)
+        #expect(openCodeGo.unavailableReason == "Usage not available from OpenCode")
+        #expect(openCodeGo.usedBy == ["pi"])
+    }
+
+    @Test func usedByDefaultsToEmptyWhenAbsentFromJSON() throws {
+        // A bridge that predates `usedBy` still decodes.
+        let json = """
+        {"id":"claude","label":"Claude","windows":[],"updatedAt":"2026-01-01T00:00:00Z","source":"test","stale":false}
+        """
+        let decoded = try RelayJSON.decoder().decode(UsageProvider.self, from: Data(json.utf8))
+        #expect(decoded.usedBy == [])
     }
 }
 

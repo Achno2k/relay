@@ -12,6 +12,7 @@ public actor UsageMonitor: Service {
     let hub: EventHub
     let codexProbe: CodexUsageProbe
     let claudeProbe: ClaudeUsageProbe
+    let piProbe: PiAuthProbe
     let tick: Duration
     let baseInterval: TimeInterval
     let maxInterval: TimeInterval
@@ -20,11 +21,13 @@ public actor UsageMonitor: Service {
     let now: @Sendable () -> Date
 
     public init(hub: EventHub, codexProbe: CodexUsageProbe = CodexUsageProbe(), claudeProbe: ClaudeUsageProbe = ClaudeUsageProbe(),
+                piProbe: PiAuthProbe = PiAuthProbe(),
                 tick: Duration = .seconds(15), baseInterval: TimeInterval = 60, maxInterval: TimeInterval = 600,
                 staleAfter: TimeInterval = 900, manualCooldown: TimeInterval = 15, now: @escaping @Sendable () -> Date = Date.init) {
         self.hub = hub
         self.codexProbe = codexProbe
         self.claudeProbe = claudeProbe
+        self.piProbe = piProbe
         self.tick = tick
         self.baseInterval = baseInterval
         self.maxInterval = maxInterval
@@ -41,10 +44,14 @@ public actor UsageMonitor: Service {
         }
     }
 
-    /// `GET /usage`: the cache only, with `stale` re-derived against the current time.
+    /// `GET /usage`: the cache only, with `stale` re-derived against the current time. `opencode-go`
+    /// is never marked stale (see api.md "Usage" — there's no fetch to go stale).
     public func snapshot() -> [UsageProvider] {
         let n = now()
-        return ["claude", "codex"].compactMap { providers[$0]?.markedStale(now: n, staleAfter: staleAfter) }
+        return ["claude", "codex", "opencode-go"].compactMap { id in
+            guard let p = providers[id] else { return nil }
+            return id == "opencode-go" ? p : p.markedStale(now: n, staleAfter: staleAfter)
+        }
     }
 
     /// `POST /usage/refresh`. Returns false (throttled) within `manualCooldown` of the last refresh.
@@ -58,26 +65,42 @@ public actor UsageMonitor: Service {
     }
 
     private func pollAll(force: Bool) async {
-        await pollCodex(force: force)
-        await pollClaude(force: force)
+        let piCodex = piProbe.isReady(provider: "openai-codex")
+        let piClaude = piProbe.isReady(provider: "anthropic")
+        let piOpenCodeGo = piProbe.isReady(provider: "opencode-go")
+        await pollCodex(force: force, piReady: piCodex)
+        await pollClaude(force: force, piReady: piClaude)
+        pollOpenCodeGo(piReady: piOpenCodeGo)
     }
 
-    private func pollCodex(force: Bool) async {
+    private func pollCodex(force: Bool, piReady: Bool) async {
         guard force || isEligible("codex") else { return }
         let n = now()
-        guard let raw = codexProbe.fetch(), let provider = UsageParsers.parseCodex(raw, now: n) else {
+        guard let raw = codexProbe.fetch(), let provider = UsageParsers.parseCodex(raw, now: n, piReady: piReady) else {
             recordFailure("codex", reason: "codex app-server didn't respond", now: n)
             return
         }
         record(provider, now: n)
     }
 
-    private func pollClaude(force: Bool) async {
+    private func pollClaude(force: Bool, piReady: Bool) async {
         guard force || isEligible("claude") else { return }
         let n = now()
         let (usage, auth) = claudeProbe.fetch()
-        guard let provider = UsageParsers.parseClaude(usage: usage, auth: auth, now: n) else {
+        guard let provider = UsageParsers.parseClaude(usage: usage, auth: auth, now: n, piReady: piReady) else {
             recordFailure("claude", reason: "claude -p /usage didn't return usage data", now: n)
+            return
+        }
+        record(provider, now: n)
+    }
+
+    /// No backoff/eligibility gating — this is just `pi auth check`, not a rate-limited fetch. When
+    /// pi loses `opencode-go` auth, the card is dropped from the cache entirely (matches "omitted, not
+    /// shown empty" in api.md).
+    private func pollOpenCodeGo(piReady: Bool) {
+        let n = now()
+        guard let provider = UsageParsers.openCodeGoProvider(piReady: piReady, now: n) else {
+            providers["opencode-go"] = nil
             return
         }
         record(provider, now: n)
@@ -101,13 +124,14 @@ public actor UsageMonitor: Service {
         let interval = min(maxInterval, (backoff[id] ?? baseInterval) * 2)
         backoff[id] = interval
         nextEligiblePoll[id] = n.addingTimeInterval(interval)
-        let label = id == "claude" ? "Claude" : "Codex / pi"
+        let label = id == "claude" ? "Claude" : "ChatGPT"
         let source = id == "claude" ? "claude -p /usage" : "codex app-server"
-        // Keep the last known windows (dimmed via `stale`) rather than blanking them on one failure.
+        // Keep the last known windows/usedBy (dimmed via `stale`) rather than blanking them on one failure.
         let previousWindows = providers[id]?.windows ?? []
+        let previousUsedBy = providers[id]?.usedBy ?? [id]
         let provider = UsageProvider(id: id, label: label, plan: providers[id]?.plan, windows: previousWindows,
                                      updatedAt: providers[id]?.updatedAt ?? Timestamps.format(n),
-                                     source: source, stale: true, unavailableReason: reason)
+                                     source: source, stale: true, unavailableReason: reason, usedBy: previousUsedBy)
         let changed = providers[id]?.unavailableReason != reason
         providers[id] = provider
         if changed { hub.broadcast(.usageUpdated(provider)) }

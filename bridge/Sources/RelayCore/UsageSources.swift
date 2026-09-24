@@ -124,3 +124,28 @@ public struct ClaudeUsageProbe: Sendable {
         return data.isEmpty ? nil : data
     }
 }
+
+/// `pi auth check --provider <id> --json`: reports whether pi has a *valid* stored credential for a
+/// provider, never the credential itself. Used to populate `usedBy` (pi joins a subscription's card
+/// only when this reports `status: "ready"`) and to build the `opencode-go` card. See api.md "Usage".
+public struct PiAuthProbe: Sendable {
+    var run: @Sendable (String) -> Data?
+
+    public init(run: @escaping @Sendable (String) -> Data? = PiAuthProbe.liveRun) {
+        self.run = run
+    }
+
+    /// nil on any failure (pi not on PATH, timeout, non-JSON output) — callers treat that the same as
+    /// "not ready", never as "ready".
+    public func isReady(provider: String) -> Bool {
+        guard let data = run(provider),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              obj["status"] as? String == "ready"
+        else { return false }
+        return true
+    }
+
+    public static func liveRun(provider: String) -> Data? {
+        ClaudeUsageProbe.run(["pi", "auth", "check", "--provider", provider, "--json"], cwd: nil, timeout: 8)
+    }
+}

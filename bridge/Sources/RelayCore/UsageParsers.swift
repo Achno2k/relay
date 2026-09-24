@@ -2,8 +2,9 @@ import Foundation
 
 /// Pure parsing of the two providers' raw process output into `UsageProvider`. No I/O.
 public enum UsageParsers {
-    /// The `account/rateLimits/read` JSON-RPC response line.
-    public static func parseCodex(_ line: Data, now: Date) -> UsageProvider? {
+    /// The `account/rateLimits/read` JSON-RPC response line. `piReady` is whether pi's `openai-codex`
+    /// login checked out (same ChatGPT account) — adds `"pi"` to `usedBy` when true.
+    public static func parseCodex(_ line: Data, now: Date, piReady: Bool = false) -> UsageProvider? {
         guard let root = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
               let result = root["result"] as? [String: Any],
               let rateLimits = result["rateLimits"] as? [String: Any]
@@ -12,8 +13,9 @@ public enum UsageParsers {
         if let w = window(rateLimits["primary"], id: "primary") { windows.append(w) }
         if let w = window(rateLimits["secondary"], id: "secondary") { windows.append(w) }
         let plan = (rateLimits["planType"] as? String).map(planLabel)
-        return UsageProvider(id: "codex", label: "Codex / pi", plan: plan, windows: windows,
-                             updatedAt: Timestamps.format(now), source: "codex app-server", stale: false)
+        return UsageProvider(id: "codex", label: "ChatGPT", plan: plan, windows: windows,
+                             updatedAt: Timestamps.format(now), source: "codex app-server", stale: false,
+                             usedBy: piReady ? ["codex", "pi"] : ["codex"])
     }
 
     private static func window(_ raw: Any?, id: String) -> UsageWindow? {
@@ -50,8 +52,9 @@ public enum UsageParsers {
     }
 
     /// `claude -p "/usage" --output-format stream-json --verbose` stdout: one JSON object per line;
-    /// the assistant message carries `usage_report.rate_limits.limits[]`. See api.md "Usage".
-    public static func parseClaude(usage usageData: Data?, auth authData: Data?, now: Date) -> UsageProvider? {
+    /// the assistant message carries `usage_report.rate_limits.limits[]`. See api.md "Usage". `piReady`
+    /// is whether pi's own `anthropic` login checked out — adds `"pi"` to `usedBy` when true.
+    public static func parseClaude(usage usageData: Data?, auth authData: Data?, now: Date, piReady: Bool = false) -> UsageProvider? {
         guard let usageData else { return nil }
         var limits: [[String: Any]]?
         for lineData in usageData.split(separator: UInt8(ascii: "\n")) where lineData.count > 20 {
@@ -80,6 +83,18 @@ public enum UsageParsers {
             plan = planLabel(subscriptionType)
         }
         return UsageProvider(id: "claude", label: "Claude", plan: plan, windows: windows,
-                             updatedAt: Timestamps.format(now), source: "claude -p /usage", stale: false)
+                             updatedAt: Timestamps.format(now), source: "claude -p /usage", stale: false,
+                             usedBy: piReady ? ["claude", "pi"] : ["claude"])
+    }
+
+    /// No usage/quota API exists for OpenCode Go (flat API-key plan, not OAuth) — see
+    /// `docs/tasks/round-5/usage-pi-research.md`. Built entirely from `pi auth check`, never from a
+    /// network call or the stored key. `nil` when pi isn't authenticated to it at all, so the card is
+    /// omitted rather than shown empty.
+    public static func openCodeGoProvider(piReady: Bool, now: Date) -> UsageProvider? {
+        guard piReady else { return nil }
+        return UsageProvider(id: "opencode-go", label: "OpenCode Go", plan: "OpenCode Go", windows: [],
+                             updatedAt: Timestamps.format(now), source: "pi auth check", stale: false,
+                             unavailableReason: "Usage not available from OpenCode", usedBy: ["pi"])
     }
 }

@@ -41,13 +41,18 @@ struct UsageView: View {
 private struct UsageProviderCard: View {
     let provider: UsageProvider
 
+    /// A permanently-unavailable card (e.g. OpenCode Go: no fetch exists, so nothing can go stale) reads
+    /// calm and settled, not like a failed check — no dimming, no "Stale" badge, a neutral icon.
+    private var isCalmUnavailable: Bool { provider.windows.isEmpty && !provider.stale && provider.unavailableReason != nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
             if provider.windows.isEmpty {
-                Text(provider.unavailableReason ?? "No usage data yet.")
+                Label(provider.unavailableReason ?? "No usage data yet.", systemImage: isCalmUnavailable ? "info.circle" : "clock.arrow.circlepath")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .labelStyle(.titleAndIcon)
             } else {
                 ForEach(provider.windows) { UsageWindowRow(window: $0) }
             }
@@ -67,6 +72,9 @@ private struct UsageProviderCard: View {
                 if let plan = provider.plan {
                     Text(plan).font(.footnote).foregroundStyle(.secondary)
                 }
+                if !provider.usedBy.isEmpty {
+                    UsedByRow(usedBy: provider.usedBy)
+                }
             }
             Spacer()
             if provider.stale {
@@ -82,6 +90,55 @@ private struct UsageProviderCard: View {
         Text("Updated \(RelativeTime.short(provider.updatedAt))")
             .font(.caption)
             .foregroundStyle(.tertiary)
+    }
+}
+
+/// "Used by ⌾ Claude Code · π pi" — which harnesses on this Mac draw on this subscription.
+private struct UsedByRow: View {
+    let usedBy: [String]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("Used by").foregroundStyle(.tertiary)
+            ForEach(Array(usedBy.enumerated()), id: \.offset) { index, kind in
+                if index > 0 { Text("·").foregroundStyle(.tertiary) }
+                UsedByGlyph(kind: kind)
+                Text(Self.name(kind))
+            }
+        }
+        .font(.caption2.weight(.medium))
+        .foregroundStyle(.secondary)
+        .padding(.top, 1)
+    }
+
+    static func name(_ kind: String) -> String {
+        switch kind {
+        case "claude": "Claude Code"
+        case "codex": "Codex"
+        case "pi": "pi"
+        default: kind.capitalized
+        }
+    }
+}
+
+private struct UsedByGlyph: View {
+    let kind: String
+
+    var body: some View {
+        Group {
+            switch kind {
+            case "pi":
+                Text("π").font(.system(size: 11, weight: .semibold, design: .serif))
+            case "codex":
+                Image(systemName: "chevron.left.forwardslash.chevron.right").font(.system(size: 10, weight: .semibold))
+            case "claude":
+                Image(systemName: "sparkle").font(.system(size: 11, weight: .semibold))
+            default:
+                Image(systemName: "cpu").font(.system(size: 10, weight: .semibold))
+            }
+        }
+        .frame(width: 12)
+        .accessibilityHidden(true)
     }
 }
 

@@ -327,33 +327,60 @@ text as a preview.
 
 ## Usage
 
-Subscription usage limits for the three harnesses herdr drives. Works for any Relay user out of the
-box: no status-line setup, nothing to configure. There are two provider entries, not three, because pi
-authenticates through the same `openai-codex` OAuth account as codex, so one fetch covers both:
+Subscription usage, one entry per **subscription**, not per harness. Works for any Relay user out of
+the box: no status-line setup, nothing to configure. Every provider entry carries `usedBy: [String]` —
+which of the herdr-driven harnesses (`"claude"`, `"codex"`, `"pi"`) are actually authenticated against
+that subscription on this Mac, e.g. `["codex", "pi"]`. A harness only appears in `usedBy` when its own
+auth check reports it's actively using that subscription; it is never guessed.
+
+Three provider entries:
 
 - `claude`: spawns `claude -p "/usage" --output-format stream-json --verbose --no-session-persistence`
   from a dedicated cwd (`~/.relay/usage-probe`), and parses the assistant message's structured
   `usage_report.rate_limits.limits[]` (not the prose). `--no-session-persistence` and the dedicated cwd
   keep this out of the user's normal Claude Code history; `windows` are built from the `session` and
   `weekly_all` entries. `plan` comes from a second, much cheaper call, `claude auth status --json`
-  (`subscriptionType`).
+  (`subscriptionType`). `usedBy` always includes `"claude"`; it includes `"pi"` only when
+  `pi auth check --provider anthropic --json` reports `status: "ready"` — pi's `/login` Anthropic
+  session is a separate token store from Claude Code's own, so this is checked independently rather
+  than assumed. It commonly reports `"invalid"` (not logged in on this Mac), in which case pi is left
+  out of `usedBy` even though the card exists.
 - `codex`: a one-shot JSON-RPC call to `codex app-server` (`account/rateLimits/read`), which uses
   codex's own already-stored ChatGPT OAuth session — the bridge never touches `~/.codex/auth.json`.
-  `windows` are built from `rateLimits.primary`/`.secondary`. Labelled "Codex / pi".
+  `windows` are built from `rateLimits.primary`/`.secondary`. Labelled "ChatGPT". `usedBy` always
+  includes `"codex"`; it includes `"pi"` when `pi auth check --provider openai-codex --json` reports
+  `status: "ready"` (pi authenticates through the same ChatGPT OAuth account as Codex — confirmed in
+  `docs/tasks/round-5/usage-pi-research.md`).
+- `opencode-go`: no usage/quota API exists for this plan (it's a flat API-key credential, not an OAuth
+  subscription with rate-limit headers — see `usage-pi-research.md`). The bridge does not call out to
+  OpenCode or read the stored key at all; the card is built entirely from `pi auth check --provider
+  opencode-go --json`. When that reports `status: "ready"`, the provider is `{id: "opencode-go", label:
+  "OpenCode Go", plan: "OpenCode Go", windows: [], usedBy: ["pi"], stale: false, unavailableReason:
+  "Usage not available from OpenCode"}` — deliberately not `stale`, since there's no fetch to go stale;
+  the client shows this as a calm "no data" state, not the dimmed/warning stale treatment. When pi
+  isn't authenticated to OpenCode Go at all, the provider is omitted from `providers[]` entirely rather
+  than shown empty.
 
-Both are read-only probes: nothing is typed into a herdr pane, and neither is a herdr agent kind.
+All three are read-only probes: nothing is typed into a herdr pane, none is a herdr agent kind, and
+`pi auth check` never reads or prints a credential value — it only reports the stored credential's
+validity.
 
-- The bridge polls both on a timer, but only while at least one `/ws` client is connected (a poll with
-  nobody watching burns a subscription's rate limit for no reason). `GET /usage` always serves the
-  cache; it never triggers a fetch itself, so it's cheap to call from the app on screen appear.
+- The bridge polls `claude` and `codex` on a timer, but only while at least one `/ws` client is
+  connected (a poll with nobody watching burns a subscription's rate limit for no reason); `pi auth
+  check` (for `usedBy` and the `opencode-go` card) is cheap enough to run on every poll pass alongside
+  them, gated by the same connected-client check. `GET /usage` always serves the cache; it never
+  triggers a fetch itself, so it's cheap to call from the app on screen appear.
 - Backoff: each provider's own poll interval starts at 60 s and doubles (capped at 10 min) while its
-  `windows` don't change between polls, and resets to 60 s the moment they do.
+  `windows` don't change between polls, and resets to 60 s the moment they do. `opencode-go`'s `windows`
+  are always `[]`, so once seeded it settles at the 10-minute ceiling like any other unchanging provider.
 - `POST /usage/refresh` (pull-to-refresh) bypasses backoff and polls immediately, but is rate-limited to
-  once every 15 s across both providers (automatic or manual) — `429 rate_limited` otherwise.
+  once every 15 s across all providers (automatic or manual) — `429 rate_limited` otherwise.
 - `stale: true` means `updatedAt` is more than 15 minutes old (screen wasn't open, or the harness has
   been unreachable), not that the numbers are wrong — the app should show them dimmed with "updated x
   ago" rather than hide them. A provider that has never successfully returned data has `windows: []`,
-  `stale: true`, and `unavailableReason` set (e.g. the CLI isn't on `PATH`, or isn't logged in).
+  `stale: true`, and `unavailableReason` set (e.g. the CLI isn't on `PATH`, or isn't logged in). This is
+  distinct from `opencode-go`'s permanent `unavailableReason` above, which is `stale: false` — there was
+  never a fetch to fail, so nothing is stale.
 - `usage.updated` is sent once per provider whose snapshot actually changed (compared field by field,
-  not just re-fetched) — same shape as `GET /usage`'s `providers[]`, one entry.
+  not just re-fetched, `usedBy` included) — same shape as `GET /usage`'s `providers[]`, one entry.
 - Fixtures: `docs/fixtures/usage.json`.

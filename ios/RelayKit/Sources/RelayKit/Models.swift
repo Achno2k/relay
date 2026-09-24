@@ -506,10 +506,13 @@ public struct UsageProvider: Codable, Hashable, Identifiable, Sendable {
     public var source: String
     public var stale: Bool
     public var unavailableReason: String?
+    /// Which herdr-driven harnesses (`"claude"`, `"codex"`, `"pi"`) are authenticated against this
+    /// subscription on this Mac. See api.md "Usage".
+    public var usedBy: [String]
 
     public init(
         id: String, label: String, plan: String? = nil, windows: [UsageWindow], updatedAt: Date,
-        source: String, stale: Bool, unavailableReason: String? = nil
+        source: String, stale: Bool, unavailableReason: String? = nil, usedBy: [String] = []
     ) {
         self.id = id
         self.label = label
@@ -519,6 +522,26 @@ public struct UsageProvider: Codable, Hashable, Identifiable, Sendable {
         self.source = source
         self.stale = stale
         self.unavailableReason = unavailableReason
+        self.usedBy = usedBy
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, label, plan, windows, updatedAt, source, stale, unavailableReason, usedBy
+    }
+
+    /// Manual `init(from:)` so a bridge that predates `usedBy` still decodes (`decodeIfPresent`,
+    /// defaulting to `[]`); `encode(to:)` stays compiler-synthesized.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = try c.decode(String.self, forKey: .label)
+        plan = try c.decodeIfPresent(String.self, forKey: .plan)
+        windows = try c.decode([UsageWindow].self, forKey: .windows)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        source = try c.decode(String.self, forKey: .source)
+        stale = try c.decode(Bool.self, forKey: .stale)
+        unavailableReason = try c.decodeIfPresent(String.self, forKey: .unavailableReason)
+        usedBy = try c.decodeIfPresent([String].self, forKey: .usedBy) ?? []
     }
 }
 

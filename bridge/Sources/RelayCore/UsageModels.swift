@@ -26,9 +26,12 @@ public struct UsageProvider: Codable, Sendable, Equatable {
     public var source: String
     public var stale: Bool
     public var unavailableReason: String?
+    /// Which herdr-driven harnesses (`"claude"`, `"codex"`, `"pi"`) are authenticated against this
+    /// subscription on this Mac, per `pi auth check`. Never guessed. See api.md "Usage".
+    public var usedBy: [String]
 
     public init(id: String, label: String, plan: String?, windows: [UsageWindow], updatedAt: String,
-                source: String, stale: Bool, unavailableReason: String? = nil) {
+                source: String, stale: Bool, unavailableReason: String? = nil, usedBy: [String] = []) {
         self.id = id
         self.label = label
         self.plan = plan
@@ -37,6 +40,7 @@ public struct UsageProvider: Codable, Sendable, Equatable {
         self.source = source
         self.stale = stale
         self.unavailableReason = unavailableReason
+        self.usedBy = usedBy
     }
 
     /// True after `updatedAt` for `stale`, without touching the fields a comparison should ignore.
