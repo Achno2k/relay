@@ -9,7 +9,8 @@ enum MockChats {
             "w1:p1": fixtureMessages.messages,
             "w1:p2": flakyTests,
             "w2:p1": longHistory + landing,
-            "w2:p3": codex,
+            "w2:p3": [],
+            "w2:p5": screenRead,
             "w2:p4": pi,
         ]
     }
@@ -87,10 +88,11 @@ enum MockChats {
         ]),
     ]
 
-    /// Codex has no transcript here, so the bridge falls back to reading the screen.
-    static let codex: [Message] = [
-        Message(id: "c1", role: .assistant, createdAt: at(170), blocks: [
-            .text("Updated `package.json` scripts and removed the unused `lint:css` task. All checks pass."),
+    /// An `unsupported` kind: the bridge sends the screen as one fenced assistant message.
+    static let screenRead: [Message] = [
+        Message(id: "screen:w2:p5", role: .assistant, createdAt: at(170), blocks: [
+            // What the bridge sends when it can only read the screen: the terminal, fenced.
+            .text("```\n› Tidy the build scripts\n\n• Updated package.json scripts and removed the unused lint:css task.\n• All checks pass.\n\n› _\n```"),
         ]),
     ]
 }

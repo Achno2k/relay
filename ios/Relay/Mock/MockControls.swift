@@ -69,6 +69,15 @@ enum MockControls {
                 sessionId: "pi-session-1"
             ))
         }
+        // A kind the bridge has no transcript parser for: its chat is a read of the screen.
+        if let website = agents.first(where: { $0.workspaceId == "w2" }) {
+            agents.append(Agent(
+                id: "w2:p5", name: "gem", kind: "gemini", title: "Tidy the build scripts",
+                workspaceId: website.workspaceId, workspaceName: website.workspaceName, cwdName: website.cwdName,
+                status: .idle, hasTranscript: false, updatedAt: Date().addingTimeInterval(-40 * 60),
+                transcriptState: .unsupported
+            ))
+        }
         return agents
     }
 }

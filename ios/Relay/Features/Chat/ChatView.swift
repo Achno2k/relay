@@ -264,11 +264,9 @@ private struct ChatTranscript: View {
                             if visible { loadEarlier(anchor: items.first?.id, proxy: proxy) }
                         }
                 }
-                if !agent.hasTranscript {
-                    Label("No transcript. Showing what's on screen.", systemImage: "text.viewfinder")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
+                if items.isEmpty && !working && agent.transcript != .unsupported {
+                    AgentEmptyState(agent: agent, subtitle: store.controlsState(for: agent).subtitle)
+                        .padding(.top, 120)
                 }
                 ForEach(items) { item in
                     row(item, isLast: item.id == lastId, working: working)
@@ -329,8 +327,12 @@ private struct ChatTranscript: View {
         case .user(_, let text, let pending, let attachments):
             UserBubble(text: text, pending: pending, maxWidth: width * 0.8, attachments: attachments, agentId: agent.id, store: store)
         case .text(_, let markdown):
-            MarkdownView(markdown)
-                .textSelection(.enabled)
+            if agent.transcript == .unsupported {
+                LiveScreenCard(text: LiveScreenCard.screenText(markdown))
+            } else {
+                MarkdownView(markdown)
+                    .textSelection(.enabled)
+            }
         case .thinking(_, let text):
             ThinkingRow(text: text)
         case .stopped:

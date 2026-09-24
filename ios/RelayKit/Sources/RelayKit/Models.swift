@@ -23,6 +23,17 @@ public enum AgentStatus: String, Codable, Hashable, Sendable {
     }
 }
 
+/// Whether the bridge has a real transcript for an agent.
+/// `pending`: it will once the first message is sent (a brand-new agent). `unsupported`: this kind has none,
+/// so messages are a read of the screen.
+public enum TranscriptState: String, Codable, Hashable, Sendable {
+    case ready, pending, unsupported
+
+    public init(from decoder: any Decoder) throws {
+        self = TranscriptState(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .ready
+    }
+}
+
 public struct Agent: Codable, Hashable, Identifiable, Sendable {
     public let id: String
     public var name: String?
@@ -43,13 +54,15 @@ public struct Agent: Codable, Hashable, Identifiable, Sendable {
     public var effort: String?
     /// Changes when the agent starts a new session (e.g. after /clear); the chat must be refetched.
     public var sessionId: String?
+    /// Absent on older bridges; see `transcript`.
+    public var transcriptState: TranscriptState?
 
     public init(
         id: String, name: String?, kind: String, title: String,
         workspaceId: String, workspaceName: String, cwdName: String,
         status: AgentStatus, hasTranscript: Bool, updatedAt: Date,
         model: String? = nil, modelLabel: String? = nil, permissionMode: String? = nil,
-        effort: String? = nil, sessionId: String? = nil
+        effort: String? = nil, sessionId: String? = nil, transcriptState: TranscriptState? = nil
     ) {
         self.id = id
         self.name = name
@@ -66,6 +79,15 @@ public struct Agent: Codable, Hashable, Identifiable, Sendable {
         self.permissionMode = permissionMode
         self.effort = effort
         self.sessionId = sessionId
+        self.transcriptState = transcriptState
+    }
+
+    /// Kinds the bridge can read a transcript for (api.md).
+    public static let transcriptKinds: Set<String> = ["claude", "pi", "codex"]
+
+    /// `transcriptState`, or what api.md says to assume when an older bridge doesn't send it.
+    public var transcript: TranscriptState {
+        transcriptState ?? (hasTranscript ? .ready : Self.transcriptKinds.contains(kind) ? .pending : .unsupported)
     }
 
     /// Title for lists and the chat header. herdr falls back to the kind when a pane has no title.

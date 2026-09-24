@@ -43,6 +43,10 @@ actor MockBackend: Backend {
 
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage {
         try await Task.sleep(for: latency)
+        // A new agent has no transcript yet: the bridge sends nothing rather than a read of the screen.
+        if agentList.first(where: { $0.id == agentId })?.transcript == .pending {
+            return MessagePage(messages: [], hasMore: false)
+        }
         var list = chats[agentId] ?? []
         if let before, let i = list.firstIndex(where: { $0.id == before }) { list = Array(list[..<i]) }
         return MessagePage(messages: Array(list.suffix(limit)), hasMore: list.count > limit)
@@ -78,6 +82,10 @@ actor MockBackend: Backend {
     }
 
     func prompt(agentId: String, text: String, attachments: [String]) async throws {
+        if let i = agentList.firstIndex(where: { $0.id == agentId }), agentList[i].transcriptState == .pending {
+            agentList[i].transcriptState = .ready
+            agentList[i].hasTranscript = true
+        }
         let refs = try attachments.map { id in
             guard let upload = uploads[id] else { throw RelayError.http(status: 400, code: "bad_request", message: "Unknown attachment \(id).") }
             return upload.attachment.ref
@@ -201,12 +209,13 @@ actor MockBackend: Backend {
         let agent = Agent(
             id: "\(request.workspaceId):p\(pane + 10)", name: request.name, kind: request.kind, title: request.kind,
             workspaceId: request.workspaceId, workspaceName: workspace?.name ?? request.workspaceId,
-            cwdName: workspace?.name ?? request.workspaceId, status: .idle, hasTranscript: true, updatedAt: Date(),
+            cwdName: workspace?.name ?? request.workspaceId, status: .idle, hasTranscript: false, updatedAt: Date(),
             model: request.kind == "claude" ? "claude-opus-5-5" : nil,
             modelLabel: request.kind == "claude" ? "Opus 5.5" : nil,
             permissionMode: request.kind == "claude" ? "default" : nil,
             effort: request.kind == "claude" ? "medium" : nil,
-            sessionId: UUID().uuidString
+            sessionId: UUID().uuidString,
+            transcriptState: .pending
         )
         agentList.append(agent)
         chats[agent.id] = []

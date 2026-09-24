@@ -107,6 +107,7 @@ struct StoreRound3Tests {
         let (store, _, agent) = try await store(nil)
         var screenOnly = agent
         screenOnly.hasTranscript = false
+        screenOnly.transcriptState = .unsupported
         screenOnly.status = .idle
         store.apply(.agentUpdated(screenOnly))
         store.send("hello", to: agent.id)
@@ -122,6 +123,7 @@ struct StoreRound3Tests {
         // With a transcript the bubble waits for the echo instead.
         var transcribed = screenOnly
         transcribed.hasTranscript = true
+        transcribed.transcriptState = .ready
         store.apply(.agentUpdated(transcribed))
         store.send("again", to: agent.id)
         transcribed.status = .working

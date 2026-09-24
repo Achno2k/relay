@@ -410,10 +410,10 @@ final class AppStore {
         pending[agentId] = list.isEmpty ? nil : list
     }
 
-    /// Stopgap for agents without a transcript (screen-read fallback): nothing will ever echo a prompt
+    /// Stopgap for agents without a transcript (`unsupported`, screen-read fallback): nothing will ever echo a prompt
     /// back, so its pending bubble would stay forever. Drop it once the agent finishes the turn.
     private func dropPendingIfFinished(_ agent: Agent, previous: AgentStatus?) {
-        guard !agent.hasTranscript, previous == .working,
+        guard agent.transcript == .unsupported, previous == .working,
               agent.status == .idle || agent.status == .done,
               pending[agent.id] != nil
         else { return }
