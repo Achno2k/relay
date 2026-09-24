@@ -326,6 +326,58 @@ public struct ControlsCatalog: Codable, Hashable, Sendable {
     }
 }
 
+/// `GET /agents/:id/controls`: what this agent's kind can change, with its own model and effort lists.
+public struct AgentControlsInfo: Codable, Hashable, Sendable {
+    public struct Supports: Codable, Hashable, Sendable {
+        public var model: Bool
+        public var effort: Bool
+        public var mode: Bool
+        public var compact: Bool
+        public var clear: Bool
+
+        public init(model: Bool, effort: Bool, mode: Bool, compact: Bool, clear: Bool) {
+            self.model = model
+            self.effort = effort
+            self.mode = mode
+            self.compact = compact
+            self.clear = clear
+        }
+
+        public var any: Bool { model || effort || mode || compact || clear }
+    }
+
+    public var models: [ControlOption]
+    public var efforts: [ControlOption]
+    public var modes: [ControlOption]
+    public var supports: Supports
+
+    public init(models: [ControlOption], efforts: [ControlOption], modes: [ControlOption], supports: Supports) {
+        self.models = models
+        self.efforts = efforts
+        self.modes = modes
+        self.supports = supports
+    }
+
+    /// What an older bridge (no per-agent route) offers: Claude's global list, everything supported.
+    public init(claudeCatalog catalog: ControlsCatalog) {
+        self.init(
+            models: catalog.models, efforts: catalog.efforts, modes: catalog.modes,
+            supports: Supports(model: true, effort: true, mode: true, compact: true, clear: true)
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey { case models, efforts, modes, supports }
+
+    /// Lists a kind doesn't have may be missing or null.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        models = try c.decodeIfPresent([ControlOption].self, forKey: .models) ?? []
+        efforts = try c.decodeIfPresent([ControlOption].self, forKey: .efforts) ?? []
+        modes = try c.decodeIfPresent([ControlOption].self, forKey: .modes) ?? []
+        supports = try c.decode(Supports.self, forKey: .supports)
+    }
+}
+
 /// Body of `POST /agents/:id/control`; exactly one key per call.
 public enum ControlRequest: Hashable, Sendable, Encodable {
     /// The bridge confirms model/mode/effort within ~10 s, `/clear` within ~30 s and `/compact` within ~90 s.
