@@ -134,6 +134,47 @@ final class LiveE2ETests: XCTestCase {
         shot("ft-3-done")
     }
 
+    /// Model and mode from the title pill: Sonnet, then Plan, then back to Auto. The pill must follow the bridge.
+    func testControls() throws {
+        let subtitle = app.staticTexts["titleSubtitle"]
+        XCTAssertTrue(subtitle.waitForExistence(timeout: 15), "no model/mode line under the title")
+        let originalModel = subtitle.label.components(separatedBy: " · ").first ?? ""
+        shot("ctl-1-start")
+
+        pick("Model", "Sonnet 5")
+        XCTAssertTrue(subtitle.label.hasPrefix("Sonnet 5"), "pill shows \(subtitle.label), not Sonnet")
+
+        pick("Mode", "Plan")
+        XCTAssertTrue(subtitle.label.hasSuffix("· Plan"), "pill shows \(subtitle.label), not Plan")
+        XCTAssertTrue(app.buttons["modeChip"].exists, "no Plan chip")
+        shot("ctl-2-sonnet-plan")
+
+        pick("Mode", "Auto")
+        XCTAssertTrue(subtitle.label.hasSuffix("· Auto"), "pill shows \(subtitle.label), not Auto")
+        XCTAssertTrue(subtitle.label.hasPrefix("Sonnet 5"))
+        shot("ctl-3-auto")
+
+        if !originalModel.isEmpty, originalModel != "Sonnet 5" {
+            pick("Model", originalModel)
+            XCTAssertTrue(subtitle.label.hasPrefix(originalModel))
+        }
+    }
+
+    /// Opens the title menu, a submenu, then the choice, and waits for the bridge to confirm.
+    private func pick(_ submenu: String, _ choice: String) {
+        app.buttons["titleMenu"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@", submenu, submenu + ",")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "no \(submenu) row")
+        row.tap()
+        let item = app.buttons.matching(NSPredicate(format: "label == %@", choice)).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 5), "no \(choice) in \(submenu)")
+        item.tap()
+        let idle = expectation(for: NSPredicate(format: "value == 'idle'"), evaluatedWith: app.buttons["titleMenu"])
+        wait(for: [idle], timeout: 30)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"Couldn't\"")).firstMatch.exists,
+                       "bridge refused \(choice)")
+    }
+
     private func assertKeyboardHidden() {
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
         wait(for: [gone], timeout: 5)

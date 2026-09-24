@@ -8,6 +8,7 @@ actor RecordingBackend: Backend {
     enum Call: Equatable {
         case keys([String])
         case text(String, submit: Bool)
+        case control(ControlRequest)
     }
 
     private(set) var calls: [Call] = []
@@ -27,6 +28,22 @@ actor RecordingBackend: Backend {
     func sendText(agentId: String, text: String, submit: Bool) async throws { calls.append(.text(text, submit: submit)) }
     func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : nil }
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent { agent }
+    func controls() async throws -> ControlsCatalog { try FixtureFiles.decode(ControlsCatalog.self, "controls.json") }
+    func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
+        calls.append(.control(request))
+        if let controlError { throw controlError }
+        var updated = agent
+        switch request {
+        case .model(let alias): updated.model = "claude-\(alias)-5"; updated.modelLabel = alias.capitalized
+        case .permissionMode(let mode): updated.permissionMode = mode
+        case .effort(let effort): updated.effort = effort
+        case .command(.clear): updated.sessionId = "new-session"
+        case .command(.compact): break
+        }
+        return updated
+    }
+    var controlError: HerdError?
+    func failControls(with error: HerdError) { controlError = error }
     nonisolated func events() -> AsyncStream<ConnectionEvent> { AsyncStream { $0.finish() } }
 }
 

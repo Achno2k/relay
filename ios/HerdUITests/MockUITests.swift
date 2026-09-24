@@ -73,6 +73,91 @@ final class MockUITests: XCTestCase {
         XCTAssertTrue(reply.waitForExistence(timeout: 10), "answer never reached the agent")
     }
 
+    /// Model, mode (with the composer chip), a refused mode, and /clear, all from the title pill.
+    func testControls() throws {
+        launch("-agent", "w2:p1")
+        let subtitle = app.staticTexts["titleSubtitle"]
+        XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
+        XCTAssertEqual(subtitle.label, "Opus 5.5 · Default")
+        XCTAssertFalse(app.buttons["modeChip"].exists, "no chip in default mode")
+
+        app.buttons["titleMenu"].tap()
+        shot("controls-menu")
+        menuItem("Model").tap()
+        shot("controls-model")
+        menuItem("Sonnet 5").tap()
+        XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Default"), "pill didn't follow the model")
+        shot("controls-switching")
+        waitForIdle()
+
+        app.buttons["titleMenu"].tap()
+        menuItem("Mode").tap()
+        menuItem("Plan").tap()
+        XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Plan"), "pill didn't follow the mode")
+        waitForIdle()
+        let chip = app.buttons["modeChip"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), "no Plan chip")
+        shot("controls-plan-chip")
+
+        // A mode outside Claude's cycle is refused; the pill reverts and a toast explains.
+        chip.tap()
+        shot("controls-chip-menu")
+        menuItem("Bypass permissions").tap()
+        let toast = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Couldn\u{2019}t switch' OR label CONTAINS \"Couldn't switch\"")).firstMatch
+        XCTAssertTrue(toast.waitForExistence(timeout: 5), "no error toast")
+        shot("controls-error")
+        XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Plan"), "pill didn't revert")
+        waitForIdle()
+
+        chip.tap()
+        menuItem("Default").tap()
+        XCTAssertTrue(waitForLabel(subtitle, "Sonnet 5 · Default"))
+        waitForIdle()
+        XCTAssertFalse(chip.waitForExistence(timeout: 2) && chip.isHittable, "chip should go away in default mode")
+
+        // Clear asks first, then the chat starts over.
+        app.buttons["titleMenu"].tap()
+        menuItem("Clear conversation").tap()
+        let confirm = app.buttons.matching(NSPredicate(format: "label == 'Clear conversation'")).element(boundBy: 0)
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        shot("controls-clear-confirm")
+        confirm.tap()
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.staticTexts["Done"])
+        wait(for: [gone], timeout: 10)
+    }
+
+    /// While the agent works, the controls are disabled with a caption.
+    func testControlsDisabledWhileWorking() throws {
+        launch("-agent", "w1:p1")
+        let subtitle = app.staticTexts["titleSubtitle"]
+        XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
+        XCTAssertEqual(subtitle.label, "Opus 5.5 · Auto")
+        XCTAssertTrue(app.buttons["modeChip"].exists, "Auto isn't default, so the chip shows")
+        app.buttons["titleMenu"].tap()
+        XCTAssertTrue(app.staticTexts["Agent is working"].waitForExistence(timeout: 5))
+        shot("controls-busy")
+        // XCUITest reports disabled menu pickers as enabled; check the submenu doesn't open instead.
+        menuItem("Model").tap()
+        XCTAssertFalse(app.buttons["Sonnet 5"].waitForExistence(timeout: 2), "Model opened while working")
+    }
+
+    private func waitForIdle() {
+        let idle = expectation(for: NSPredicate(format: "value == 'idle'"), evaluatedWith: app.buttons["titleMenu"])
+        wait(for: [idle], timeout: 10)
+    }
+
+    /// A menu row by title; submenu rows read "Title, value".
+    private func menuItem(_ prefix: String) -> XCUIElement {
+        let item = app.buttons.matching(NSPredicate(format: "label == %@ OR label BEGINSWITH %@", prefix, prefix + ",")).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 5), "no menu item \(prefix)")
+        return item
+    }
+
+    private func waitForLabel(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 8) -> Bool {
+        let match = expectation(for: NSPredicate(format: "label == %@", label), evaluatedWith: element)
+        return XCTWaiter().wait(for: [match], timeout: timeout) == .completed
+    }
+
     /// Saved to `HERD_SHOTS` when set (pass it as `TEST_RUNNER_HERD_SHOTS`).
     private func shot(_ name: String) {
         guard let dir = ProcessInfo.processInfo.environment["HERD_SHOTS"] else { return }
