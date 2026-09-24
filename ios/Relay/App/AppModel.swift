@@ -3,7 +3,7 @@ import RelayKit
 import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
-/// `-demo sidebar|tools|top|card|newChat|pairing`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
+/// `-demo sidebar|tools|top|card|newChat|usage|pairing`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
 struct LaunchOptions {
     var mock = false
     var demo: String?

@@ -13,6 +13,9 @@ final class AppStore {
     let backend: any Backend
     /// Shown in the sidebar footer.
     let hostLabel: String
+    /// Subscription usage (Claude, Codex/pi). Kept off the main `RelayState` reducer; fed by
+    /// `apply(_:)` below and refetched on every `refresh()` so it never needs its own socket.
+    let usage: UsageStore
 
     private(set) var state = RelayState()
     private(set) var connection: ConnectionState = .connecting
@@ -75,6 +78,7 @@ final class AppStore {
     init(backend: any Backend, hostLabel: String) {
         self.backend = backend
         self.hostLabel = hostLabel
+        self.usage = UsageStore(backend: backend)
         self.selectedAgentId = AppDefaults.standard.string(forKey: "selectedAgentId")
         let raw = AppDefaults.standard.dictionary(forKey: "seenAgents") as? [String: Double] ?? [:]
         self.seen = raw.mapValues { Date(timeIntervalSince1970: $0) }
@@ -183,6 +187,8 @@ final class AppStore {
             Task { await loadAgentControls(agent.id) }
         case .agentUpdated(let agent), .agentCreated(let agent):
             unarchiveIfBlocked([agent])
+        case .usageUpdated(let provider):
+            usage.apply(provider)
         default:
             break
         }
@@ -218,6 +224,7 @@ final class AppStore {
         }
         guard refreshGeneration == generation else { return }
         hasLoadedAgents = true
+        Task { await usage.load() }
         // Machine info doesn't depend on the selected agent, so fetch it alongside the open chat's
         // controls/messages/approval instead of one round trip after another: on a slow Tailscale
         // link that's the difference between the chat reappearing in ~1s after a long background

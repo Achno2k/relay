@@ -246,10 +246,12 @@ public enum ServerEvent: Sendable, Equatable {
     case messageUpserted(agentId: String, message: Message)
     /// In-progress assistant text preview; see api.md "Live reply". `text: nil` clears it.
     case replyLive(agentId: String, text: String?, seq: Int)
+    /// One provider's usage snapshot changed; see api.md "Usage".
+    case usageUpdated(UsageProvider)
 }
 
 extension ServerEvent: Encodable {
-    private enum CodingKeys: String, CodingKey { case type, agent, agentId, message, text, seq }
+    private enum CodingKeys: String, CodingKey { case type, agent, agentId, message, text, seq, provider }
 
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -274,6 +276,9 @@ extension ServerEvent: Encodable {
             try c.encode(id, forKey: .agentId)
             try c.encode(text, forKey: .text)
             try c.encode(seq, forKey: .seq)
+        case .usageUpdated(let p):
+            try c.encode("usage.updated", forKey: .type)
+            try c.encode(p, forKey: .provider)
         }
     }
 }

@@ -1,0 +1,30 @@
+{
+  "providers": [
+    {
+      "id": "claude",
+      "label": "Claude",
+      "plan": "Max",
+      "windows": [
+        { "id": "session", "label": "Session", "usedPercent": 11.0, "windowMinutes": null, "resetsAt": "2026-09-25T23:00:00+00:00" },
+        { "id": "weekly_all", "label": "This week", "usedPercent": 11.0, "windowMinutes": null, "resetsAt": "2026-09-30T12:00:00+00:00" }
+      ],
+      "updatedAt": "2026-09-25T20:47:26+00:00",
+      "source": "claude -p /usage",
+      "stale": false,
+      "unavailableReason": null
+    },
+    {
+      "id": "codex",
+      "label": "Codex / pi",
+      "plan": "Plus",
+      "windows": [
+        { "id": "primary", "label": "5-hour", "usedPercent": 39.0, "windowMinutes": 300, "resetsAt": "2026-09-26T04:00:00+00:00" },
+        { "id": "secondary", "label": "Weekly", "usedPercent": 18.0, "windowMinutes": 10080, "resetsAt": "2026-09-30T12:00:00+00:00" }
+      ],
+      "updatedAt": "2026-09-25T20:47:30+00:00",
+      "source": "codex app-server",
+      "stale": false,
+      "unavailableReason": null
+    }
+  ]
+}

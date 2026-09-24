@@ -39,9 +39,10 @@ public struct RelayApp: Sendable {
             onSnapshots: { snaps in Task { await liveReply.update(snaps) } },
             onMessage: { id, message in Task { await liveReply.landed(agentId: id, message: message) } })
         monitorRef.withLock { $0 = monitor }
-        let router = RelayRoutes.router(service: service, hub: hub, token: token, monitor: monitor, startedAt: Date())
+        let usage = UsageMonitor(hub: hub)
+        let router = RelayRoutes.router(service: service, hub: hub, token: token, monitor: monitor, usage: usage, startedAt: Date())
 
-        var services: [any Service] = [monitor, liveReply, UploadCleaner(store: service.uploads, logger: logger), LogRotator()]
+        var services: [any Service] = [monitor, liveReply, usage, UploadCleaner(store: service.uploads, logger: logger), LogRotator()]
         for host in hosts {
             let app = Application(
                 router: router,

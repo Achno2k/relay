@@ -67,6 +67,8 @@ actor ProgrammableBackend: Backend {
     }
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent { agentsToReturn[0] }
     nonisolated func events() -> AsyncStream<ConnectionEvent> { AsyncStream { $0.finish() } }
+    func usage() async throws -> UsageSnapshot { UsageSnapshot(providers: []) }
+    func refreshUsage() async throws {}
 }
 
 private func testAgent(id: String = "w1:p1", title: String = "Test agent", status: AgentStatus = .idle) -> Agent {

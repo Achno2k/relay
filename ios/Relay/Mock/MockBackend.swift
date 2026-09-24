@@ -18,6 +18,7 @@ actor MockBackend: Backend {
     private var counter = 0
     private var uploads: [String: (attachment: Attachment, data: Data)] = [:]
     private let latency: Duration = .milliseconds(UserDefaults.standard.integer(forKey: "latency").nonZero ?? 120)
+    private var usageSnapshot: UsageSnapshot
 
     init(replayInterval: Duration? = .seconds(4)) {
         let fixtures = Fixtures()
@@ -29,6 +30,7 @@ actor MockBackend: Backend {
         self.fixtures = fixtures
         self.replayInterval = replayInterval
         chats = MockChats.all(fixtureMessages: fixtures.messages)
+        usageSnapshot = fixtures.usage
     }
 
     func workspaces() async throws -> [Workspace] {
@@ -54,6 +56,28 @@ actor MockBackend: Backend {
 
     func machine() async throws -> Machine {
         Machine(id: "mock-mac", name: "Mock MacBook Pro", kind: .laptop, model: "Mac15,9", os: "macOS 26.4")
+    }
+
+    func usage() async throws -> UsageSnapshot {
+        try await Task.sleep(for: latency)
+        return usageSnapshot
+    }
+
+    /// Bumps every window's `usedPercent` a bit and pushes `usage.updated`, like a real refresh landing.
+    func refreshUsage() async throws {
+        try await Task.sleep(for: latency)
+        usageSnapshot.providers = usageSnapshot.providers.map { p in
+            var p = p
+            p.updatedAt = Date()
+            p.stale = false
+            p.windows = p.windows.map { w in
+                var w = w
+                if let percent = w.usedPercent { w.usedPercent = min(100, percent + 1) }
+                return w
+            }
+            return p
+        }
+        for p in usageSnapshot.providers { continuation?.yield(.event(.usageUpdated(p))) }
     }
 
     /// Stores the bytes and reports progress in a few steps, like a slow network.
@@ -273,7 +297,7 @@ actor MockBackend: Backend {
             chats[id] = nil
         case .messageUpserted(let agentId, let message):
             store(message, agentId: agentId)
-        case .hello, .unknown:
+        case .hello, .unknown, .replyLive, .usageUpdated:
             break
         }
         continuation?.yield(.event(event))
@@ -317,6 +341,7 @@ struct Fixtures: Sendable {
     var events: [ServerEvent] = []
     var controls = ControlsCatalog(models: [], modes: [], efforts: [])
     var agentControls: [String: AgentControlsInfo] = [:]
+    var usage = UsageSnapshot(providers: [])
 
     init(directory: URL? = Bundle.main.url(forResource: "Fixtures", withExtension: nil)) {
         guard let directory else { return }
@@ -333,6 +358,7 @@ struct Fixtures: Sendable {
         for kind in ["claude", "pi", "codex"] {
             agentControls[kind] = load("agent-controls-\(kind).json")
         }
+        usage = load("usage.json") ?? usage
         if let text = try? String(contentsOf: directory.appending(path: "ws-events.jsonl"), encoding: .utf8) {
             events = text.split(separator: "\n").compactMap { try? decoder.decode(ServerEvent.self, from: Data($0.utf8)) }
         }

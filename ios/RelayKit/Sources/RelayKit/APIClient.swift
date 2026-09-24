@@ -127,6 +127,13 @@ public struct APIClient: Sendable {
         try await send("POST", "/agents", body: request)
     }
 
+    public func usage() async throws -> UsageSnapshot { try await send("GET", "/usage") }
+
+    /// `429 rate_limited` (thrown as `RelayError.http`) if called within 15 s of the last refresh.
+    public func refreshUsage() async throws {
+        _ = try await raw("POST", "/usage/refresh")
+    }
+
     // MARK: - Plumbing
 
     /// Agent ids contain `:`; encode everything outside the unreserved set.

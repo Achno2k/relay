@@ -480,6 +480,57 @@ public struct CreateAgentRequest: Codable, Hashable, Sendable {
     }
 }
 
+/// See api.md "Usage".
+public struct UsageWindow: Codable, Hashable, Identifiable, Sendable {
+    public var id: String
+    public var label: String
+    public var usedPercent: Double?
+    public var windowMinutes: Int?
+    public var resetsAt: Date?
+
+    public init(id: String, label: String, usedPercent: Double?, windowMinutes: Int? = nil, resetsAt: Date? = nil) {
+        self.id = id
+        self.label = label
+        self.usedPercent = usedPercent
+        self.windowMinutes = windowMinutes
+        self.resetsAt = resetsAt
+    }
+}
+
+public struct UsageProvider: Codable, Hashable, Identifiable, Sendable {
+    public var id: String
+    public var label: String
+    public var plan: String?
+    public var windows: [UsageWindow]
+    public var updatedAt: Date
+    public var source: String
+    public var stale: Bool
+    public var unavailableReason: String?
+
+    public init(
+        id: String, label: String, plan: String? = nil, windows: [UsageWindow], updatedAt: Date,
+        source: String, stale: Bool, unavailableReason: String? = nil
+    ) {
+        self.id = id
+        self.label = label
+        self.plan = plan
+        self.windows = windows
+        self.updatedAt = updatedAt
+        self.source = source
+        self.stale = stale
+        self.unavailableReason = unavailableReason
+    }
+}
+
+/// `GET /usage`.
+public struct UsageSnapshot: Codable, Hashable, Sendable {
+    public var providers: [UsageProvider]
+
+    public init(providers: [UsageProvider]) {
+        self.providers = providers
+    }
+}
+
 /// One WebSocket frame.
 public enum ServerEvent: Decodable, Hashable, Sendable {
     case hello
@@ -490,10 +541,12 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
     /// In-progress assistant text preview while an agent is working; `text: nil` clears it. See
     /// api.md "Live reply".
     case replyLive(agentId: String, text: String?, seq: Int)
+    /// One provider's usage snapshot changed. See api.md "Usage".
+    case usageUpdated(UsageProvider)
     case unknown(type: String)
 
     private enum CodingKeys: String, CodingKey {
-        case type, agent, agentId, message, text, seq
+        case type, agent, agentId, message, text, seq, provider
     }
 
     public init(from decoder: any Decoder) throws {
@@ -515,6 +568,8 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
                 text: try c.decodeIfPresent(String.self, forKey: .text),
                 seq: try c.decode(Int.self, forKey: .seq)
             )
+        case "usage.updated":
+            self = .usageUpdated(try c.decode(UsageProvider.self, forKey: .provider))
         default: self = .unknown(type: type)
         }
     }

@@ -15,6 +15,7 @@ struct MainView: View {
     @State private var dragX: CGFloat = 0
     @State private var dragging = false
     @State private var newChatWorkspace: NewChatRequest?
+    @State private var showUsage = false
 
     var body: some View {
         GeometryReader { geo in
@@ -28,7 +29,8 @@ struct MainView: View {
                         setSidebar(false)
                     },
                     onNewChat: { presentNewChat($0) },
-                    onUnpair: { model.unpair() }
+                    onUnpair: { model.unpair() },
+                    onUsage: { showUsage = true }
                 )
                 .frame(width: width)
                 .opacity(reduceMotion ? progress : 0.3 + 0.7 * progress)
@@ -88,12 +90,19 @@ struct MainView: View {
                 }
             }
         }
+        .sheet(isPresented: $showUsage) {
+            UsageView(store: store.usage)
+        }
         .sensoryFeedback(.impact(weight: .light), trigger: sidebarOpen)
         .task {
             store.start()
             if LaunchOptions.current.isDemo("newChat") {
                 try? await Task.sleep(for: .milliseconds(600))
                 presentNewChat(nil)
+            }
+            if LaunchOptions.current.isDemo("usage") {
+                try? await Task.sleep(for: .milliseconds(600))
+                showUsage = true
             }
         }
         .onChange(of: store.isApprovalSheetPresented) { _, presented in

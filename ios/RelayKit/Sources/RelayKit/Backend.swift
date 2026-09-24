@@ -29,6 +29,10 @@ public protocol Backend: Sendable {
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent
     /// Socket state and deltas. Reconnects by itself until the stream is dropped.
     func events() -> AsyncStream<ConnectionEvent>
+    /// `GET /usage`: the bridge's cache, never a live fetch.
+    func usage() async throws -> UsageSnapshot
+    /// `POST /usage/refresh`: throws `RelayError.http(status: 429, ...)` if throttled.
+    func refreshUsage() async throws
 }
 
 public struct LiveBackend: Backend {
@@ -71,4 +75,6 @@ public struct LiveBackend: Backend {
         try await client.control(agentId: agentId, request)
     }
     public func events() -> AsyncStream<ConnectionEvent> { socket.events() }
+    public func usage() async throws -> UsageSnapshot { try await client.usage() }
+    public func refreshUsage() async throws { try await client.refreshUsage() }
 }

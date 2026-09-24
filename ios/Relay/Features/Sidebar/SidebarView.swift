@@ -8,6 +8,7 @@ struct SidebarView: View {
     let onSelect: (String) -> Void
     let onNewChat: (_ workspaceId: String?) -> Void
     let onUnpair: () -> Void
+    let onUsage: () -> Void
 
     @State private var expanded: Set<String> = Set(AppDefaults.standard.stringArray(forKey: "expandedProjects") ?? [])
     @State private var query = ""
@@ -69,6 +70,12 @@ struct SidebarView: View {
                 Label(store.hostLabel, systemImage: "network")
                 Label(store.connection == .connected ? "Connected" : "Reconnecting…",
                       systemImage: store.connection == .connected ? "checkmark.circle" : "wifi.exclamationmark")
+            }
+            Section {
+                Button(action: onUsage) {
+                    Label("Usage", systemImage: "gauge")
+                }
+                .accessibilityIdentifier("sidebarUsage")
             }
             Section {
                 Button(role: .destructive, action: onUnpair) {

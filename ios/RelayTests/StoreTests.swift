@@ -85,6 +85,8 @@ actor RecordingBackend: Backend {
     var controlError: RelayError?
     func failControls(with error: RelayError) { controlError = error }
     nonisolated func events() -> AsyncStream<ConnectionEvent> { AsyncStream { $0.finish() } }
+    func usage() async throws -> UsageSnapshot { UsageSnapshot(providers: []) }
+    func refreshUsage() async throws {}
 }
 
 @MainActor

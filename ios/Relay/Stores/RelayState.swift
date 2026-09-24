@@ -17,7 +17,7 @@ struct RelayState: Equatable, Sendable {
 
     mutating func apply(_ event: ServerEvent) {
         switch event {
-        case .hello, .unknown, .replyLive:
+        case .hello, .unknown, .replyLive, .usageUpdated:
             break
         case .agentUpdated(let agent), .agentCreated(let agent):
             upsert(agent)

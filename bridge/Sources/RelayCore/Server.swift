@@ -102,7 +102,8 @@ public enum RelayRoutes {
     }
     struct Empty: Encodable {}
 
-    public static func router(service: AgentService, hub: EventHub, token: String, monitor: AgentMonitor? = nil, startedAt: Date = Date()) -> Router<RelayContext> {
+    public static func router(service: AgentService, hub: EventHub, token: String, monitor: AgentMonitor? = nil,
+                              usage: UsageMonitor? = nil, startedAt: Date = Date()) -> Router<RelayContext> {
         let router = Router(context: RelayContext.self)
         router.add(middleware: ErrorMiddleware())
         router.add(middleware: AuthMiddleware(token: token))
@@ -164,6 +165,19 @@ public enum RelayRoutes {
         }
 
         router.get("/machine") { _, _ in try JSONResponse.make(Machine.current()) }
+
+        router.get("/usage") { _, _ in
+            guard let usage else { return try JSONResponse.make(UsageSnapshot(providers: [])) }
+            return try JSONResponse.make(UsageSnapshot(providers: await usage.snapshot()))
+        }
+
+        router.post("/usage/refresh") { _, _ in
+            guard let usage else { return try JSONResponse.make(Empty(), status: .accepted) }
+            guard await usage.requestRefresh() else {
+                throw APIError(.tooManyRequests, "rate_limited", "usage was just refreshed; try again in a few seconds")
+            }
+            return try JSONResponse.make(Empty(), status: .accepted)
+        }
 
         router.post("/agents/:id/attachments") { request, context in
             let raw = request.headers[.init("X-Filename")!] ?? "file"
