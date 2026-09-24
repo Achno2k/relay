@@ -23,9 +23,9 @@ final class Round3UITests: XCTestCase {
         waitForIdle()
 
         app.buttons["titleMenu"].tap()
-        XCTAssertFalse(app.buttons["Mode"].exists || menuRow("Mode").exists, "pi has no modes")
-        XCTAssertFalse(app.buttons["Compact context"].exists)
-        XCTAssertFalse(app.buttons["Clear conversation"].exists)
+        XCTAssertFalse(menuRow("Mode").exists, "pi has no modes")
+        XCTAssertTrue(app.buttons["Compact context"].exists, "pi has /compact")
+        XCTAssertTrue(app.buttons["Clear conversation"].exists, "and /new")
         menuRow("Model").tap()
         XCTAssertTrue(app.buttons["Claude Sonnet 4.5"].waitForExistence(timeout: 3), "current model first")
         shot("round3-pi-model-menu")
@@ -42,7 +42,7 @@ final class Round3UITests: XCTestCase {
         XCTAssertFalse(app.buttons["model-openai/gpt-5.1"].exists, "search filters the list")
         shot("round3-pi-model-search")
         grok.tap()
-        XCTAssertTrue(waitForLabel(subtitle, "Grok 4 · Medium"))
+        XCTAssertTrue(waitForLabel(subtitle, "Grok 4 · Medium"), "pi resets effort on a model switch")
         waitForIdle()
 
         app.buttons["titleMenu"].tap()
@@ -52,29 +52,36 @@ final class Round3UITests: XCTestCase {
         XCTAssertTrue(waitForLabel(subtitle, "Grok 4 · Extra high"))
     }
 
-    func testCodexModelAndEffort() throws {
+    func testCodexModelEffortAndMode() throws {
         launch("-agent", "w2:p3")
         let subtitle = app.staticTexts["titleSubtitle"]
         XCTAssertTrue(subtitle.waitForExistence(timeout: 10))
-        XCTAssertEqual(subtitle.label, "GPT-5.1 Codex · Medium")
+        XCTAssertEqual(subtitle.label, "GPT-5.6-Terra · Approve for me")
+        XCTAssertTrue(app.buttons["modeChip"].waitForExistence(timeout: 5), "Approve for me isn't codex's default (Ask)")
         waitForIdle()
 
         app.buttons["titleMenu"].tap()
-        XCTAssertTrue(app.buttons["Compact context"].waitForExistence(timeout: 3), "codex supports compact")
-        XCTAssertFalse(app.buttons["Clear conversation"].exists, "but not clear")
+        XCTAssertTrue(app.buttons["Compact context"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Clear conversation"].exists)
         shot("round3-codex-menu")
         menuRow("Model").tap()
-        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'All models'")).firstMatch.exists)
-        app.buttons["GPT-5.1"].tap()
-        XCTAssertTrue(waitForLabel(subtitle, "GPT-5.1 · Medium"))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'All models'")).firstMatch.exists, "short list")
+        app.buttons["GPT-5.5"].tap()
+        XCTAssertTrue(waitForLabel(subtitle, "GPT-5.5 · Approve for me"))
         waitForIdle()
 
         app.buttons["titleMenu"].tap()
         menuRow("Effort").tap()
-        XCTAssertTrue(app.buttons["Minimal"].waitForExistence(timeout: 3), "codex's own effort levels")
-        app.buttons["High"].tap()
-        XCTAssertTrue(waitForLabel(subtitle, "GPT-5.1 · High"))
-        XCTAssertFalse(app.buttons["modeChip"].exists, "no mode chip for codex")
+        XCTAssertTrue(app.buttons["Ultra"].waitForExistence(timeout: 3), "codex's own effort levels")
+        app.buttons["Max"].tap()
+        waitForIdle()
+
+        app.buttons["modeChip"].tap()
+        XCTAssertTrue(app.buttons["Full Access"].waitForExistence(timeout: 3))
+        app.buttons["Ask for approval"].tap()
+        XCTAssertTrue(waitForLabel(subtitle, "GPT-5.5 · Ask for approval"))
+        let chipGone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["modeChip"])
+        wait(for: [chipGone], timeout: 5)
     }
 
     // MARK: - Helpers

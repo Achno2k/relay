@@ -4,34 +4,29 @@ import HerdKit
 
 /// Synthetic per-kind controls for the mock backend (what `GET /agents/:id/controls` returns).
 enum MockControls {
-    static func info(for kind: String, claude catalog: ControlsCatalog) -> AgentControlsInfo {
+    /// Claude and codex come from `docs/fixtures/agent-controls-*.json`. pi uses a synthetic long list here
+    /// (its fixture has 6 models) so the search sheet gets exercised.
+    static func info(for kind: String, fixtures: Fixtures) -> AgentControlsInfo {
         switch kind {
         case "claude":
-            return AgentControlsInfo(claudeCatalog: catalog)
+            return fixtures.agentControls["claude"] ?? AgentControlsInfo(claudeCatalog: fixtures.controls)
         case "codex":
-            return AgentControlsInfo(
-                models: [
-                    ControlOption(id: "gpt-5.1-codex", label: "GPT-5.1 Codex"),
-                    ControlOption(id: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini"),
-                    ControlOption(id: "gpt-5.1", label: "GPT-5.1"),
-                ],
-                efforts: ["minimal", "low", "medium", "high"].map { ControlOption(id: $0, label: $0.capitalized) },
-                modes: [],
-                supports: .init(model: true, effort: true, mode: false, compact: true, clear: false)
-            )
+            return fixtures.agentControls["codex"] ?? none
         case "pi":
             return AgentControlsInfo(
                 models: piModels,
-                efforts: [("off", "Off"), ("minimal", "Minimal"), ("low", "Low"), ("medium", "Medium"),
-                          ("high", "High"), ("xhigh", "Extra high"), ("max", "Max")]
-                    .map { ControlOption(id: $0.0, label: $0.1) },
+                efforts: fixtures.agentControls["pi"]?.efforts ?? [],
                 modes: [],
-                supports: .init(model: true, effort: true, mode: false, compact: false, clear: false)
+                supports: .init(model: true, effort: true, mode: false, compact: true, clear: true)
             )
         default:
-            return AgentControlsInfo(models: [], efforts: [], modes: [], supports: .init(model: false, effort: false, mode: false, compact: false, clear: false))
+            return none
         }
     }
+
+    private static let none = AgentControlsInfo(
+        models: [], efforts: [], modes: [], supports: .init(model: false, effort: false, mode: false, compact: false, clear: false)
+    )
 
     /// Long on purpose: pi lists every provider's models, with the user's scoped ones first.
     static let piModels: [ControlOption] = {
@@ -53,14 +48,16 @@ enum MockControls {
         return (scoped + rest).map { ControlOption(id: $0.0, label: $0.1) }
     }()
 
-    /// The fixture codex agent has no model; a pi agent doesn't exist in the fixtures.
+    /// The codex agent in `agents.json` predates controls: give it the fields `agents-multi.json` shows.
+    /// A pi agent is added to the website folder.
     static func extraAgents(_ agents: [Agent]) -> [Agent] {
         var agents = agents.map { agent -> Agent in
             guard agent.kind == "codex", agent.model == nil else { return agent }
             var a = agent
-            a.model = "gpt-5.1-codex"
-            a.modelLabel = "GPT-5.1 Codex"
-            a.effort = "medium"
+            a.model = "gpt-5.6-terra"
+            a.modelLabel = "GPT-5.6-Terra"
+            a.effort = "high"
+            a.permissionMode = "approveForMe"
             return a
         }
         if let website = agents.first(where: { $0.workspaceId == "w2" }) {

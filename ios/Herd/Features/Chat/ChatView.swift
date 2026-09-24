@@ -181,7 +181,7 @@ private struct ChatTranscript: View {
         store.controlsState(for: agent)
     }
     private var showsModeChip: Bool {
-        controls.supports.mode && controls.mode != nil && controls.mode != "default"
+        controls.showsModeChip
     }
     private var items: [ChatItem] {
         var items = ChatItem.build(from: messages)

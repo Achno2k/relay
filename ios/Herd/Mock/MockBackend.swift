@@ -11,6 +11,7 @@ actor MockBackend: Backend {
     private var chats: [String: [Message]]
     private var approvals: [String: Approval]
     private let catalog: ControlsCatalog
+    private let fixtures: Fixtures
     private let replay: [ServerEvent]
     private let replayInterval: Duration?
     private var continuation: AsyncStream<ConnectionEvent>.Continuation?
@@ -25,6 +26,7 @@ actor MockBackend: Backend {
         approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
         replay = fixtures.events
         catalog = fixtures.controls
+        self.fixtures = fixtures
         self.replayInterval = replayInterval
         chats = MockChats.all(fixtureMessages: fixtures.messages)
     }
@@ -142,7 +144,7 @@ actor MockBackend: Backend {
         guard let agent = agentList.first(where: { $0.id == agentId }) else {
             throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
         }
-        return MockControls.info(for: agent.kind, claude: catalog)
+        return MockControls.info(for: agent.kind, fixtures: fixtures)
     }
 
     /// Mirrors the bridge: 409 while busy, 400 for non-Claude agents and for bypass (not in this cycle),
@@ -152,11 +154,11 @@ actor MockBackend: Backend {
             throw HerdError.http(status: 404, code: "not_found", message: "No such agent.")
         }
         let agent = agentList[i]
-        let info = MockControls.info(for: agent.kind, claude: catalog)
+        let info = MockControls.info(for: agent.kind, fixtures: fixtures)
         let supported: Bool = switch request {
         case .model(let id): info.supports.model && info.models.contains { $0.id == id }
         case .effort(let id): info.supports.effort && info.efforts.contains { $0.id == id }
-        case .permissionMode: info.supports.mode
+        case .permissionMode(let id): info.supports.mode && info.modes.contains { $0.id == id }
         case .command(.compact): info.supports.compact
         case .command(.clear): info.supports.clear
         }
@@ -175,6 +177,8 @@ actor MockBackend: Backend {
             let option = info.models.first { $0.id == id }
             updated.model = agent.kind == "claude" ? "claude-\(id)-mock" : id
             updated.modelLabel = option?.label ?? id
+            // pi resets thinking to the new model's default.
+            if agent.kind == "pi" { updated.effort = "medium" }
         case .permissionMode(let mode):
             updated.permissionMode = mode
         case .effort(let effort):
@@ -287,6 +291,7 @@ struct Fixtures: Sendable {
     var approval: Approval?
     var events: [ServerEvent] = []
     var controls = ControlsCatalog(models: [], modes: [], efforts: [])
+    var agentControls: [String: AgentControlsInfo] = [:]
 
     init(directory: URL? = Bundle.main.url(forResource: "Fixtures", withExtension: nil)) {
         guard let directory else { return }
@@ -300,6 +305,9 @@ struct Fixtures: Sendable {
         messages = load("messages.json") ?? messages
         approval = load("approval.json")
         controls = load("controls.json") ?? controls
+        for kind in ["claude", "pi", "codex"] {
+            agentControls[kind] = load("agent-controls-\(kind).json")
+        }
         if let text = try? String(contentsOf: directory.appending(path: "ws-events.jsonl"), encoding: .utf8) {
             events = text.split(separator: "\n").compactMap { try? decoder.decode(ServerEvent.self, from: Data($0.utf8)) }
         }

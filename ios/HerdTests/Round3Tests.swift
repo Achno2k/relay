@@ -18,6 +18,32 @@ struct PerAgentControlsTests {
               permissionMode: mode, effort: effort, sessionId: "s1")
     }
 
+    @Test func decodesContractFixtures() throws {
+        let pi = try FixtureFiles.decode(AgentControlsInfo.self, "agent-controls-pi.json")
+        #expect(pi.models.first?.id == "openai-codex/gpt-5.6-sol")
+        #expect(pi.efforts.first?.id == "off" && pi.modes.isEmpty && !pi.supports.mode && pi.supports.clear)
+        let codex = try FixtureFiles.decode(AgentControlsInfo.self, "agent-controls-codex.json")
+        #expect(codex.modes.map(\.id) == ["ask", "approveForMe", "fullAccess"])
+        #expect(codex.efforts.last?.id == "ultra")
+        let claude = try FixtureFiles.decode(AgentControlsInfo.self, "agent-controls-claude.json")
+        #expect(claude.models.map(\.id) == ["opus", "sonnet", "haiku", "fable"])
+
+        let agents = try FixtureFiles.decode([Agent].self, "agents-multi.json")
+        let piAgent = try #require(agents.first { $0.kind == "pi" })
+        let codexAgent = try #require(agents.first { $0.kind == "codex" })
+        #expect(ControlDisplay.modelId(piAgent, models: pi.models) == "openai-codex/gpt-5.6-sol")
+        let piControls = AgentControls(agent: piAgent, info: pi, pending: nil)
+        #expect(piControls.subtitle == "gpt-5.6-sol · High", "pi has no modes, so effort shows")
+        #expect(!piControls.showsModeChip)
+        let codexControls = AgentControls(agent: codexAgent, info: codex, pending: nil)
+        #expect(codexControls.modelId == "gpt-5.6-terra")
+        #expect(codexControls.subtitle == "GPT-5.6-Terra · Approve for me")
+        #expect(codexControls.showsModeChip, "not codex's first mode (ask)")
+        var asking = codexAgent
+        asking.permissionMode = "ask"
+        #expect(!AgentControls(agent: asking, info: codex, pending: nil).showsModeChip)
+    }
+
     @Test func decodesWithMissingLists() throws {
         let json = #"{"models":[{"id":"openai/gpt-5.1","label":"GPT-5.1"}],"efforts":null,"supports":{"model":true,"effort":false,"mode":false,"compact":false,"clear":false}}"#
         let info = try HerdJSON.decoder().decode(AgentControlsInfo.self, from: Data(json.utf8))

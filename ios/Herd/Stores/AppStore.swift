@@ -317,11 +317,12 @@ final class AppStore {
         AgentControls(agent: agent, info: agentControls[agent.id], pending: pendingControls[agent.id])
     }
 
-    /// Fetches the agent's controls unless we already have them for its current kind and session.
+    /// Fetches the agent's controls unless we already have them for its current kind, session and model.
     /// Bridges without the per-agent route (404) fall back to Claude's global list for Claude agents.
     func loadAgentControls(_ agentId: String, force: Bool = false) async {
         guard let agent = state.agent(agentId) else { return }
-        let key = "\(agent.kind)|\(agent.sessionId ?? "")"
+        // Effort levels depend on the current model (pi, codex), so a model change refetches too.
+        let key = "\(agent.kind)|\(agent.sessionId ?? "")|\(agent.model ?? "")"
         guard force || agentControlsKey[agentId] != key || agentControls[agentId] == nil else { return }
         do {
             agentControls[agentId] = try await backend.agentControls(agentId: agentId)
@@ -345,6 +346,8 @@ final class AppStore {
                 let agent = try await backend.control(agentId: agentId, request)
                 state.upsert(agent)
                 reloadIfDropped(agent.id)
+                // pi resets effort on a model switch and the effort list follows the model.
+                await loadAgentControls(agent.id)
                 if case .command(.compact) = request { await loadMessages(agentId) }
             } catch {
                 report(error, prefix: ControlDisplay.failurePrefix(request, info: agentControls[agentId]))
