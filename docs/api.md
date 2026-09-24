@@ -10,6 +10,7 @@ Both sides build against `docs/fixtures/*.json`. Change this file first, then th
 - Token lives in `~/.relay/token` (0600) and is created on first run. A bridge that finds only the pre-rename `~/.herd` moves it to `~/.relay` first, so the token (and pairing) survives the rename.
 - Timestamps are ISO 8601 with an offset. JSON keys are camelCase.
 - Errors: `{"error": {"code": "not_found", "message": "..."}}` with the matching HTTP status.
+- Round 5 hardening: every JSON request body is capped at 2 MB (`413 too_large`); the herdr socket dying mid-request answers `503 herdr_unavailable` within a couple of seconds, never hangs; `/health` also reports `herdr` (`connected`/`unavailable`) and `uptimeSeconds`.
 
 ## Pairing
 - `relay pair` prints a QR code for `relay://pair?url=<base>&token=<token>` and prints the same string as text. The app also accepts the old `herd://pair?…` links.
@@ -108,7 +109,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 ## REST
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| GET | /health | – | `{"ok":true,"name":"relay","version":"0.1.0"}` |
+| GET | /health | – | `{"ok":true,"name":"relay","version":"0.1.0","herdr":"connected","uptimeSeconds":42}` |
 | GET | /workspaces | – | `[Workspace]` |
 | GET | /agents | – | `[Agent]` (all live agents; the app groups them by workspace) |
 | GET | /agents/:id | – | `Agent` |

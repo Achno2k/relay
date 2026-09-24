@@ -93,15 +93,25 @@ public enum RelayRoutes {
         var effort: String?
         var cwdFromPane: String?
     }
-    struct Health: Encodable { var ok = true; var name = "relay"; var version = Relay.version }
+    struct Health: Encodable {
+        var ok = true
+        var name = "relay"
+        var version = Relay.version
+        var herdr: String
+        var uptimeSeconds: Int
+    }
     struct Empty: Encodable {}
 
-    public static func router(service: AgentService, hub: EventHub, token: String) -> Router<RelayContext> {
+    public static func router(service: AgentService, hub: EventHub, token: String, monitor: AgentMonitor? = nil, startedAt: Date = Date()) -> Router<RelayContext> {
         let router = Router(context: RelayContext.self)
         router.add(middleware: ErrorMiddleware())
         router.add(middleware: AuthMiddleware(token: token))
 
-        router.get("/health") { _, _ in try JSONResponse.make(Health()) }
+        router.get("/health") { _, _ in
+            let reachable = await monitor?.isHerdrReachable ?? false
+            let uptime = max(0, Int(Date().timeIntervalSince(startedAt)))
+            return try JSONResponse.make(Health(herdr: reachable ? "connected" : "unavailable", uptimeSeconds: uptime))
+        }
 
         router.get("/workspaces") { _, _ in try JSONResponse.make(try await service.workspaces()) }
 
@@ -141,6 +151,7 @@ public enum RelayRoutes {
         router.post("/agents/:id/keys") { request, context in
             let body = try await decode(KeysBody.self, request, context)
             guard !body.keys.isEmpty else { throw APIError.badRequest("keys is required") }
+            if let bad = KeyNames.firstInvalid(body.keys) { throw APIError.badRequest("invalid key \"\(bad)\"") }
             try await service.sendKeys(id: try agentId(context), keys: body.keys)
             return try JSONResponse.make(Empty(), status: .accepted)
         }
@@ -225,12 +236,21 @@ public enum RelayRoutes {
 
     static func agentId(_ context: RelayContext) throws -> String {
         guard let raw = context.parameters.get("id") else { throw APIError.badRequest("missing agent id") }
-        return raw.removingPercentEncoding ?? raw
+        let id = raw.removingPercentEncoding ?? raw
+        // herdr ids (`w13:p1`) are short; this only rejects obviously-adversarial input (a control
+        // character, or a huge id meant to stress path-scrubbing/lookup code) before it reaches herdr,
+        // which would otherwise just answer `not_found` for it anyway.
+        guard id.utf8.count <= 128, !id.unicodeScalars.contains(where: { $0.value < 0x20 }) else {
+            throw APIError.badRequest("invalid agent id")
+        }
+        return id
     }
 
     static func decode<T: Decodable>(_ type: T.Type, _ request: Request, _ context: RelayContext) async throws -> T {
         do {
             return try await request.decode(as: T.self, context: context)
+        } catch is NIOTooManyBytesError {
+            throw APIError(.contentTooLarge, "too_large", "request body is limited to \(context.maxUploadSize) bytes")
         } catch {
             throw APIError.badRequest("invalid JSON body")
         }

@@ -10,12 +10,21 @@ final class FakeHerdr: Sendable {
     let socketPath: String
     private let handler: Handler
     private let listenFD: Int32
+    private let connFDs = Mutex<[Int32]>([])
     let calls = Mutex<[(String, String)]>([])
 
-    init(handler: @escaping Handler) throws {
-        dir = URL(fileURLWithPath: "/tmp").appendingPathComponent("relay-\(UUID().uuidString.prefix(8))")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        socketPath = dir.appendingPathComponent("s").path
+    /// `reusing` lets a test simulate herdr restarting on the same socket path: pass the previous
+    /// instance's `socketPath` (its directory is kept, not regenerated).
+    init(reusing existingSocketPath: String? = nil, handler: @escaping Handler) throws {
+        if let existingSocketPath {
+            dir = URL(fileURLWithPath: existingSocketPath).deletingLastPathComponent()
+            socketPath = existingSocketPath
+            if FileManager.default.fileExists(atPath: socketPath) { try FileManager.default.removeItem(atPath: socketPath) }
+        } else {
+            dir = URL(fileURLWithPath: "/tmp").appendingPathComponent("relay-\(UUID().uuidString.prefix(8))")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            socketPath = dir.appendingPathComponent("s").path
+        }
         self.handler = handler
 
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -35,10 +44,15 @@ final class FakeHerdr: Sendable {
         t.start()
     }
 
+    /// Also drops already-accepted connections (e.g. a live `events.subscribe`), like a real herdr
+    /// crash or restart would, not just the listening socket.
     func stop() {
         Darwin.shutdown(listenFD, SHUT_RDWR)
         Darwin.close(listenFD)
-        try? FileManager.default.removeItem(at: dir)
+        for fd in connFDs.withLock({ let v = $0; $0 = []; return v }) {
+            Darwin.shutdown(fd, SHUT_RDWR)
+        }
+        try? FileManager.default.removeItem(atPath: socketPath)
     }
 
     func methods() -> [String] { calls.withLock { $0.map(\.0) } }
@@ -48,13 +62,17 @@ final class FakeHerdr: Sendable {
         while true {
             let c = accept(listenFD, nil, nil)
             if c < 0 { return }
+            connFDs.withLock { $0.append(c) }
             let t = Thread { [self] in serve(c) }
             t.start()
         }
     }
 
     private func serve(_ fd: Int32) {
-        defer { close(fd) }
+        defer {
+            close(fd)
+            connFDs.withLock { $0.removeAll { $0 == fd } }
+        }
         var buf = Data()
         var chunk = [UInt8](repeating: 0, count: 65536)
         while true {

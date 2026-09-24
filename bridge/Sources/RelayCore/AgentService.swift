@@ -293,7 +293,7 @@ public final class AgentService: Sendable {
         }) {
             return hit
         }
-        let data = try Data(contentsOf: ref.url)
+        let data = try Self.readBounded(ref.url, size: size)
         let messages = TranscriptParser.parse(data, format: ref.format, cwd: ref.cwd, uploads: uploads)
         cache.withLock { c in
             c[ref.url] = CachedTranscript(size: size, mtime: mtime, messages: messages, used: Date())
@@ -302,6 +302,25 @@ public final class AgentService: Sendable {
             }
         }
         return messages
+    }
+
+    /// A session file the bridge will read for `/messages`. Real sessions are a few MB; a huge one
+    /// (a long-lived session, or a runaway agent) would otherwise mean holding the whole file plus
+    /// every parsed `Message` in memory just to answer one page. Past `maxTranscriptReadBytes`, only
+    /// the tail is read — trading off very old history in that one session for bounded memory. Aligned
+    /// to the next newline so the first line read is never a truncated fragment of a bigger one.
+    static let maxTranscriptReadBytes: UInt64 = 64 << 20
+
+    static func readBounded(_ url: URL, size: UInt64, cap: UInt64 = maxTranscriptReadBytes) throws -> Data {
+        guard size > cap else { return try Data(contentsOf: url) }
+        let h = try FileHandle(forReadingFrom: url)
+        defer { try? h.close() }
+        try h.seek(toOffset: size - cap)
+        var data = (try h.readToEnd()) ?? Data()
+        if let nl = data.firstIndex(of: UInt8(ascii: "\n")) {
+            data.removeSubrange(data.startIndex...nl)
+        }
+        return data
     }
 
     /// No transcript: show the recent screen as one synthetic assistant message.

@@ -16,12 +16,24 @@ public actor AgentMonitor: Service {
     private var initialized = false
     private var refreshing = false
     private var pending = false
+    private var herdrReachable = false
+    /// Live-reply hooks (round 5): fed the agent list on every refresh, and every transcript message
+    /// as it lands, so `LiveReplyMonitor` needs no herdr calls of its own beyond `agent.read`.
+    private let onSnapshots: (@Sendable ([AgentService.Snapshot]) -> Void)?
+    private let onMessage: (@Sendable (String, Message) -> Void)?
 
-    public init(service: AgentService, hub: EventHub, stream: HerdrEventStream, interval: Duration = .seconds(5)) {
+    /// Whether the last `agent.list`/`workspace.list` round trip to herdr succeeded, for `/health`.
+    public var isHerdrReachable: Bool { herdrReachable }
+
+    public init(service: AgentService, hub: EventHub, stream: HerdrEventStream, interval: Duration = .seconds(5),
+                onSnapshots: (@Sendable ([AgentService.Snapshot]) -> Void)? = nil,
+                onMessage: (@Sendable (String, Message) -> Void)? = nil) {
         self.service = service
         self.hub = hub
         self.stream = stream
         self.interval = interval
+        self.onSnapshots = onSnapshots
+        self.onMessage = onMessage
     }
 
     public func run() async throws {
@@ -61,7 +73,12 @@ public actor AgentMonitor: Service {
     }
 
     private func refresh() async {
-        guard let snaps = try? await service.snapshots() else { return }
+        guard let snaps = try? await service.snapshots() else {
+            herdrReachable = false
+            return
+        }
+        herdrReachable = true
+        onSnapshots?(snaps)
         var next: [String: Agent] = [:]
         for s in snaps {
             next[s.agent.id] = s.agent
@@ -94,8 +111,10 @@ public actor AgentMonitor: Service {
         if let t = tailers[id], t.url == ref.url, !t.isDead { return }
         tailers.removeValue(forKey: id)?.stop()
         let hub = self.hub
+        let onMessage = self.onMessage
         let t = TranscriptTailer(url: ref.url, format: ref.format, cwd: ref.cwd, uploads: service.uploads) { message in
             hub.broadcast(.messageUpserted(agentId: id, message: message))
+            onMessage?(id, message)
         }
         t.start()
         tailers[id] = t

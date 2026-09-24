@@ -33,11 +33,15 @@ public struct RelayApp: Sendable {
             Task { await m.trigger() }
         })
         let hub = EventHub()
-        let monitor = AgentMonitor(service: service, hub: hub, stream: HerdrEventStream(socketPath: socketPath))
+        let liveReply = LiveReplyMonitor(herdr: herdr, hub: hub)
+        let monitor = AgentMonitor(
+            service: service, hub: hub, stream: HerdrEventStream(socketPath: socketPath),
+            onSnapshots: { snaps in Task { await liveReply.update(snaps) } },
+            onMessage: { id, message in Task { await liveReply.landed(agentId: id, message: message) } })
         monitorRef.withLock { $0 = monitor }
-        let router = RelayRoutes.router(service: service, hub: hub, token: token)
+        let router = RelayRoutes.router(service: service, hub: hub, token: token, monitor: monitor, startedAt: Date())
 
-        var services: [any Service] = [monitor, UploadCleaner(store: service.uploads, logger: logger)]
+        var services: [any Service] = [monitor, liveReply, UploadCleaner(store: service.uploads, logger: logger), LogRotator()]
         for host in hosts {
             let app = Application(
                 router: router,

@@ -77,6 +77,8 @@ import Testing
                 let o = try JSONSerialization.jsonObject(with: Data(buffer: r.body)) as? [String: Any]
                 #expect(o?["ok"] as? Bool == true)
                 #expect(o?["version"] as? String == Relay.version)
+                #expect(o?["herdr"] as? String == "unavailable")  // no AgentMonitor wired into this test app
+                #expect((o?["uptimeSeconds"] as? Int) ?? -1 >= 0)
             }
         }
     }
@@ -126,6 +128,17 @@ import Testing
                     Workspace(id: "w1", name: "shop-api", agentCount: 2),
                     Workspace(id: "w2", name: "website", agentCount: 1),
                 ])
+            }
+        }
+    }
+
+    @Test func rejectsAdversarialAgentIds() async throws {
+        try await withApp { client, _, _ in
+            try await client.execute(uri: "/agents/\(String(repeating: "w1%3Ap1", count: 30))", method: .get, headers: Self.auth) { r throws in
+                #expect(r.status == .badRequest)
+            }
+            try await client.execute(uri: "/agents/w1%3Ap1%00x", method: .get, headers: Self.auth) { r throws in
+                #expect(r.status == .badRequest)
             }
         }
     }
@@ -361,6 +374,39 @@ import Testing
             }
             #expect(a.id == "w1:p1")
             #expect(a.status == .working)
+        }
+    }
+
+    /// Security audit: every route this fixture world can reach, swept for a leaked absolute path.
+    /// `w1:p1`'s title ("Refactor /Users/dev/shop-api/auth") is deliberately adversarial input.
+    @Test func noRouteEverLeaksAnAbsolutePath() async throws {
+        try await withApp { client, _, _ in
+            func checkGet(_ uri: String, expectedStatus: HTTPResponse.Status? = nil) async throws {
+                try await client.execute(uri: uri, method: .get, headers: Self.auth) { r throws in
+                    if let expectedStatus { #expect(r.status == expectedStatus, "\(uri)") }
+                    let body = String(buffer: r.body)
+                    #expect(!body.contains("/Users/"), "\(uri) leaked /Users/: \(body)")
+                    #expect(!body.contains("/private/"), "\(uri) leaked /private/: \(body)")
+                }
+            }
+            for uri in [
+                "/health", "/workspaces", "/agents", "/machine", "/controls", "/controls?kind=claude",
+                "/agents/w1%3Ap1", "/agents/w1%3Ap2", "/agents/w2%3Ap3",
+                "/agents/w1%3Ap1/messages", "/agents/w1%3Ap2/messages", "/agents/w2%3Ap3/messages",
+                "/agents/w1%3Ap1/controls", "/agents/w1%3Ap2/approval", "/agents/w1%3Ap1/approval",
+                "/agents/w9%3Ap9",  // not_found error body
+                "/agents/w1%3Ap1/attachments/0000000000000000",  // not_found error body
+            ] { try await checkGet(uri) }
+
+            // Error bodies from bad/oversized input.
+            try await client.execute(uri: "/agents", method: .post, headers: Self.auth, body: ByteBuffer(string: #"{"workspaceId":"w9","kind":"claude"}"#)) { r throws in
+                #expect(!String(buffer: r.body).contains("/Users/"))
+            }
+            let tooBig = ByteBuffer(string: #"{"text":""# + String(repeating: "x", count: 3 << 20) + #""}"#)
+            try await client.execute(uri: "/agents/w1%3Ap1/prompt", method: .post, headers: Self.auth, body: tooBig) { r throws in
+                #expect(r.status == .contentTooLarge)
+                #expect(!String(buffer: r.body).contains("/Users/"))
+            }
         }
     }
 }
