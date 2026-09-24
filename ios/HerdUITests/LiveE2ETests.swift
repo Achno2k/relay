@@ -63,8 +63,8 @@ final class LiveE2ETests: XCTestCase {
 
         // Stop mid-turn.
         // A long tool call, not an essay: Claude writes a text block to the transcript only once it's complete,
-        // but the tool_use line lands before the command runs. That gives a reliable moment to stop.
-        send("Run this exact Bash command and nothing else: sleep 45 && echo slept. Then reply with the single word: done.", via: composer)
+        // but the tool_use line lands before the command runs. (Claude Code blocks a foreground `sleep`, so ping.)
+        send("Run this exact Bash command and nothing else: ping -c 45 127.0.0.1. Then reply with the single word: done.", via: composer)
         let stop = app.buttons["Stop"].firstMatch
         XCTAssertTrue(stop.waitForExistence(timeout: 30), "stop button never appeared")
         let running = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Running Bash'")).firstMatch
