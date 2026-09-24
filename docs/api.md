@@ -121,9 +121,10 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
 | GET | /controls | – | `Controls`: Claude's list only, kept for older apps. Use `/agents/:id/controls`. |
+| GET | /controls?kind=claude\|codex\|pi | – | `AgentControls` for a kind with no agent yet (the New chat sheet), with `defaultModel`/`defaultEffort` and, for pi and codex, `effortsByModel`. `400 unsupported` for other kinds. |
 | GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
 | POST | /agents/:id/control | exactly one of `{"model":"sonnet"}`, `{"permissionMode":"plan"}`, `{"effort":"high"}`, `{"command":"compact"}`, `{"command":"clear"}` | `202 Agent` (fresh, with the new value) once the change shows on screen or in the transcript. Errors below. |
-| POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","prompt":"optional"}` | `201 Agent` (new tab in the workspace, cwd = workspace's first pane cwd, `agent.start`, then optional prompt) |
+| POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","model":"optional","effort":"optional"}` | `201 Agent`: a new tab in the workspace (cwd = the workspace's first pane's cwd), the agent started with that model and effort. See "Starting an agent". |
 
 `:id` is URL-encoded (`w13%3Ap1`).
 
@@ -189,7 +190,11 @@ AgentControls {
   "models":  [ { "id": "openai-codex/gpt-5.6-sol", "label": "gpt-5.6-sol" }, … ],  // the agent's own list
   "efforts": [ { "id": "off", "label": "Off" }, … ],                              // for the agent's current model
   "modes":   [ { "id": "ask", "label": "Ask for approval" }, … ],                  // [] when the kind has none
-  "supports": { "model": true, "effort": true, "mode": false, "compact": true, "clear": true }
+  "supports": { "model": true, "effort": true, "mode": false, "compact": true, "clear": true },
+  // Optional (always sent by GET /controls?kind=…; may be absent on /agents/:id/controls):
+  "defaultModel": "openai-codex/gpt-5.6-sol",   // the agent's saved default (what it starts with if you pick nothing)
+  "defaultEffort": "high",
+  "effortsByModel": { "openai-codex/gpt-5.6-sol": [ { "id": "off", "label": "Off" }, … ], … }  // pi and codex; for claude all models share `efforts`
 }
 ```
 | kind | models (`id` → what `Agent.model` holds) | efforts | modes | compact / clear |
@@ -214,6 +219,21 @@ AgentControls {
   - `/compact` on codex starts a new session id, so refetch messages.
   - `clear` (`/new`) puts pi and codex back on their saved default model and effort.
 - Fixtures: `docs/fixtures/agent-controls-claude.json`, `agent-controls-pi.json`, `agent-controls-codex.json`, and `agents-multi.json` (a pi and a codex agent with these fields).
+
+### Starting an agent (`POST /agents`)
+
+- Body:
+  - `workspaceId` and `kind` are required. `name` is optional.
+  - `model` and `effort` are optional, and use ids from `GET /controls?kind=<kind>`. `effort` must be in `effortsByModel[model]` when that exists; with no `model`, it's checked against the default model's efforts.
+  - A value outside the list gives `400 bad_request`.
+- The bridge passes them as the agent's own launch flags, so nothing is typed into the agent and no saved default changes:
+  - claude: `--model <alias> --effort <level>`
+  - codex: `-m <slug> -c model_reasoning_effort="<effort>"`
+  - pi: `--model <provider/id>:<thinking>`, or `--thinking <level>` alone
+- The `201 Agent` carries the chosen `model`, `modelLabel` and `effort`. Anything left out is the agent's saved default (`defaultModel`/`defaultEffort`).
+- A startup dialog (e.g. folder trust) still comes back as `status: "blocked"` plus `/approval`. The agent then starts with the chosen model/effort once it's answered.
+- `prompt` (optional) is still accepted and sent once the agent is ready, but the app no longer uses it. The first message goes through `POST /agents/:id/prompt` like any other.
+- `cwdFromPane` (optional, for tests): start in that pane's cwd instead of the workspace's first pane's.
 
 ### Claude details
 
