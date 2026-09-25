@@ -11,7 +11,7 @@ private func nextReplyLiveText(_ events: AsyncStream<ServerEvent>, agentId: Stri
     await withTaskGroup(of: String???.self) { group in
         group.addTask {
             for await e in events {
-                if case .replyLive(let id, let text, _) = e, id == agentId, (text != nil) == nonNil {
+                if case .replyLive(let id, let text, _, _) = e, id == agentId, (text != nil) == nonNil {
                     return .some(text)
                 }
             }

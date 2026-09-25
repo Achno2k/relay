@@ -286,7 +286,8 @@ Server → client only, one JSON object per frame:
 { "type": "agent.created", "agent": Agent }
 { "type": "agent.closed",  "agentId": "w13:p1" }
 { "type": "message.upserted", "agentId": "w13:p1", "message": Message }  // new or grown message (the last assistant message grows while working)
-{ "type": "reply.live", "agentId": "w13:p1", "text": "The answer starts here" | null, "seq": 4 }  // in-progress text preview; see Live reply
+{ "type": "reply.live", "agentId": "w13:p1", "seq": 4, "text": "The answer starts here" | null,
+  "tool": { "name": "Bash", "summary": "Ran ping -c 8 127.0.0.1", "state": "running" } | null }  // live preview; see Live reply
 { "type": "usage.updated", "provider": UsageProvider }   // one provider's snapshot changed; see Usage
 ```
 - The client refetches `/agents` and the open chat's messages on (re)connect. The socket carries deltas only; nothing is replayed.
@@ -294,33 +295,61 @@ Server → client only, one JSON object per frame:
 
 ## Live reply
 
-Claude (and the other kinds) only write a text block to the transcript once it's complete, so the app
-would otherwise show nothing but the pulsing dot until a whole paragraph lands. While an agent is
-`working`, the bridge instead reads the pane's visible screen and streams the in-progress assistant
-text as a preview.
+Claude (and the other kinds) only write a text block to the transcript once it's complete, and Claude
+writes a `tool_use` a few seconds after the tool has started. Without help the app would show nothing
+but the pulsing dot. While an agent is `working`, the bridge reads the pane's visible screen and streams
+what's in progress: the assistant prose being written and the tool that's running.
 
-- `reply.live`: `agentId`, `text` (the growing tail of the current assistant reply, markdown, or `null`),
-  `seq` (a per-agent counter that increases on every frame for that agent, including the `null` ones, so
-  the client can ignore a frame that arrives after a newer one already landed).
+- `reply.live`: `agentId`, `seq`, `text`, `tool`. Every frame carries the full state; nothing is
+  "unchanged if missing". A missing `tool` key means `null`.
+  - `seq`: a per-agent counter that increases on every frame for that agent, including clearing ones,
+    so the client can ignore a frame that arrives after a newer one already landed.
+  - `text`: the current assistant prose of this turn (markdown), or `null`. Never tool text: no tool
+    headers, commands, `⎿`/`└` output, spinners or "Running…" lines.
+  - `tool`: the tool call that's on screen right now and not yet in the transcript, or `null`.
+    - `name`: the same tool name the transcript's `toolCall` will carry for that kind (claude `Bash`,
+      `Read`, `Edit`, `Write`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, `Agent`, …; codex `Shell`,
+      `Edit`, `<server>.<tool>`; pi `bash`, `read`, `write`, `edit`, `ls`, `grep`, `find`). An
+      unrecognised tool is named `Tool`.
+    - `summary`: built and scrubbed exactly like the transcript `toolCall.summary`, so the client can
+      match the two (`Ran ping -c 8 127.0.0.1`, `Edited Sources/App.swift`). When the screen doesn't
+      show the arguments yet (claude's "Running 1 shell command…"), it's the generic summary for that
+      name (`Ran a command`, `Read a file`), and it's refined in a later frame once they show.
+    - `state`: `"running"`. Clients should treat any other value the same way.
 - Sent only while at least one `/ws` client is connected, throttled to about 4 frames per second per
-  agent, and only when the text actually changed.
-- `text: null` is sent once the matching transcript message lands (`message.upserted` for that agent's
-  growing assistant message already contains what was shown) or the agent stops working, whichever
-  comes first. A client should treat it exactly like clearing a scratch buffer: stop showing the preview
-  and let the real message take over.
-- The preview is never persisted and never duplicates transcript text: the bridge suppresses it once the
-  transcript has caught up to (or passed) what's on screen.
-- The source per kind, read from the pane's visible screen (`agent.read source: visible` — herdr refuses
+  agent, and only when `text` or `tool` actually changed.
+- Stable by construction. Screen redraws (claude blinks a running tool's `⏺`, spinners animate, a
+  partial read can drop lines) never make the preview alternate:
+  - `text` only grows. A different text replaces it only after two reads in a row agree (a new text
+    block after a tool), and a replaced or landed text is never sent again this turn. A shorter or
+    empty read keeps the current text.
+  - `tool` appears, changes or clears only after two reads in a row agree, except a generic summary
+    being refined, which goes out at once.
+- Clearing, both bypass the throttle:
+  - `text` goes to `null` once the transcript has that text (`message.upserted` for that agent carries
+    it), `tool` goes to `null` once the transcript has its `toolCall` (same `summary`, or for a generic
+    summary any new `toolCall` with the same `name`). The other field is untouched.
+  - Both go to `null` when the agent stops working. A client should treat that like clearing a scratch
+    buffer: stop showing the preview and let the real messages take over.
+- The preview is never persisted and never duplicates transcript text or tool calls.
+- Only the current turn counts: everything above the user's last prompt on screen is ignored, so a
+  previous turn's reply never shows up as live text.
+- The source per kind, read from the pane's visible screen (`agent.read source: visible`; herdr refuses
   to scroll a working agent's alternate-screen history, so `recent_unwrapped` isn't an option while it's
-  actively working; ANSI, spinners, footers and box-drawing stripped; paths scrubbed the same way as
-  everywhere else):
-  - claude: the last `⏺` block, unless it's a tool call (its next line starts with `⎿`, or the whole
-    first line is a bare `Name(args)` call signature).
-  - codex: the last `• ` bullet, unless it's a tool call (`• Ran …` followed by a `└` result line) or the
-    `• Working (…)` placeholder codex shows while it has nothing to print yet — codex doesn't stream, so
-    its live text usually only appears once, right before the transcript message itself lands.
-  - pi: the last non-chrome paragraph above the footer, while pi's own `Working` spinner line isn't
-    present. Like codex, pi renders its reply in one piece rather than incrementally.
+  actively working). ANSI, spinners, footers and box-drawing stripped; paths scrubbed the same way as
+  everywhere else:
+  - claude: blocks start at `⏺` (or, while a running tool's `⏺` blinks off, at the line before its
+    `⎿`). A block is a tool when its header is a call signature `Name(args)` (possibly wrapped), when
+    it has a `⎿` line, or when it's a grouped label like `Running 1 shell command…` / `Read 3 files`.
+    The arguments come from the signature or from the `⎿  $ command` line. `text` is the last non-tool
+    block; `tool` is the last block when it's a tool.
+  - codex: `• ` bullets. `• Running …` / `• Ran …`, `• Explored`, `• Edited …`, `• Called …` and any
+    bullet followed by a `└` result are tools; `• Working (…)` is chrome. codex streams its prose, so
+    `text` grows like claude's.
+  - pi: tools are its tool boxes (`$ command`, `read path`, `write path`, `edit path`, `ls path`,
+    `grep /pattern/ in path`, `find pattern in path`); `tool` is the last one while its `Elapsed …` is
+    still counting or nothing follows it. `text` is the last non-chrome paragraph after the last tool
+    box, only while pi's own `Working` spinner isn't present (pi renders its reply in one piece).
 - Wrapped lines are rejoined into one paragraph; a blank line in the block is kept as a paragraph break.
 - Only the visible viewport is read, so only the tail of a reply is guaranteed once it scrolls: if the
   block's own start marker has scrolled off, the last paragraph still on screen is shown instead of nothing.

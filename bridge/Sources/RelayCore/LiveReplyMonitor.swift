@@ -1,7 +1,7 @@
 import Foundation
 import ServiceLifecycle
 
-/// Streams `reply.live` previews for every working agent, while at least one `/ws` client is
+/// Streams `reply.live` previews (prose and running tool) for every working agent, while at least one `/ws` client is
 /// connected. `AgentMonitor` feeds it the agent list it already refreshes and the messages its
 /// transcript tailers already parse, so this adds exactly one `agent.read` per working agent per
 /// tick and no other herdr calls.
@@ -43,8 +43,7 @@ public actor LiveReplyMonitor: Service {
     /// Fed by `AgentMonitor` whenever a transcript message grows, so the preview never repeats it.
     public func landed(agentId: String, message: Message) async {
         guard message.role == .assistant else { return }
-        let text = message.blocks.compactMap { if case .text(let t) = $0 { t } else { nil } }.joined(separator: "\n\n")
-        if let ev = await tracker.landed(agentId: agentId, text: text) { hub.broadcast(ev) }
+        if let ev = await tracker.landed(agentId: agentId, blocks: message.blocks) { hub.broadcast(ev) }
     }
 
     public func run() async throws {
@@ -72,8 +71,12 @@ public actor LiveReplyMonitor: Service {
     /// always is. The viewport is all a live poll can read, and it's enough for a tail preview.
     private func poll(_ t: Tracked) async {
         guard let read = try? await herdr.read(t.agent.id, source: .visible) else { return }
-        let parsed = LiveReplyParser.extract(screen: read.text, kind: t.agent.kind)
-        let scrubbed = parsed.map { PathScrubber(cwd: t.cwd).scrub($0) }
-        if let ev = await tracker.offer(agentId: t.agent.id, text: scrubbed) { hub.broadcast(ev) }
+        let parsed = LiveReplyParser.parse(screen: read.text, kind: t.agent.kind)
+        let scrubber = PathScrubber(cwd: t.cwd)
+        let tool = parsed.tool.map { LiveTool(name: $0.name, summary: $0.summary(scrubber: scrubber)) }
+        if let ev = await tracker.offer(agentId: t.agent.id, text: parsed.text.map(scrubber.scrub), tool: tool,
+                                        toolGeneric: parsed.tool?.generic ?? false) {
+            hub.broadcast(ev)
+        }
     }
 }
