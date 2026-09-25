@@ -188,10 +188,6 @@ struct SidebarSectionHeader<Content: View>: View {
     var top: CGFloat = 22
     @ViewBuilder let content: Content
 
-    /// What the inset-grouped list adds around every header, even with zero insets (measured on 3× screenshots).
-    static var listExtraTop: CGFloat { 3 }
-    static var listExtraBottom: CGFloat { 7 / 3 }
-
     var body: some View {
         HStack(spacing: 8) { content }
             .foregroundStyle(.primary)
@@ -199,8 +195,8 @@ struct SidebarSectionHeader<Content: View>: View {
             .frame(minHeight: 36)
             .padding(.leading, 20)
             .padding(.trailing, 20)
-            .padding(.top, top - Self.listExtraTop)
-            .padding(.bottom, 4 - Self.listExtraBottom)
+            .padding(.top, top)
+            .padding(.bottom, 4)
             .listRowInsets(EdgeInsets())
     }
 }

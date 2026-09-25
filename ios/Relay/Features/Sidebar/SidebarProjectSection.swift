@@ -24,10 +24,7 @@ struct SidebarProjectSection: View {
             Section {
                 allInNowRow
             } header: {
-                // 12 pt between cards, less what the list adds around a header.
-                Color.clear
-                    .frame(height: 12 - SidebarSectionHeader<EmptyView>.listExtraTop - SidebarSectionHeader<EmptyView>.listExtraBottom)
-                    .listRowInsets(EdgeInsets())
+                Color.clear.frame(height: 12).listRowInsets(EdgeInsets())
             }
         } else {
             Section {
