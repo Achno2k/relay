@@ -21,7 +21,7 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 | R7-1 | P2 | sidebar-lists | verified (a3b974b, device) | AX3: chat titles are `lineLimit(1)` and truncate to ~9 characters ("Weekly re…") |
 | R7-2 | P2 | sidebar-lists | verified at AX3 (a3b974b); see R7-15 for AX5 | AX3: "2 completed" hyphenates over three lines ("2 / complet- / ed"); the all-in-Now row hyphenates "run-ning" |
 | R7-3 | P2 | sidebar-shell | verified (6acdaff, device) | AX3: New chat wraps to two lines, the machine name truncates to "Mock…", Filter and ••• crowd the pill |
-| R7-4 | P2 | sidebar-shell | fixed (6acdaff): tree order is now toolbar, list, bottom bar; the user's VoiceOver swipe is pending | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
+| R7-4 | P2 | sidebar-shell | verified (6acdaff; tree order toolbar, list, bottom bar; VoiceOver confirmed by the user) | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
 | R7-13 | P2 | sidebar-shell | verified (6acdaff, device) | Scrolled: rows stay legible behind the status bar and just under the toolbar; the top edge barely fades |
 | R7-5 | P3 | sidebar-lists | partly fixed: gap now 56.7 pt, design 62 (5 pt tight), see R7-14 | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
 | R7-6 | P3 | sidebar-lists | verified (1 px hairline, device) | Row separators are 1 pt (3 px), design 0.5 pt |
@@ -129,7 +129,7 @@ In `docs/screenshots/` (mock data only; mockup renders stay local because they h
 - UI tests on device: 32/32 pass (all mock suites; Live* excluded). Unit tests: 121/121 on the simulator. On device the fixture-reading unit tests can't reach `docs/fixtures` (host `#filePath`); that's a harness limit.
 - The device renders match the simulator: same layout, glass and glyphs. R7-1 to R7-3 reproduce on device (`round7-device-ax3-*.png`); at AX3 the Filter and ••• glyphs also overlap inside the pill.
 - R7-8 verified: the dot is white in dark and black in light (`round7-device-dark-default.png`, `round7-device-light-default.png`).
-- Manual VoiceOver swipe not done (no hands on the phone). The on-device tree and audit match the simulator's. R7-4 still needs a person to swipe through with VoiceOver.
+- Manual VoiceOver swipe not done (no hands on the phone). The on-device tree and audit match the simulator's. R7-4 was later confirmed by the user with VoiceOver (see the recheck).
 
 ## Recheck (master `b7933d3`: lists a3b974b, shell 6acdaff)
 - Sim (iPhone 17 Pro) and device (iPhone 13) from a clean worktree. Device: 35/35 UI tests pass, including `SidebarShellUITests.testAccessibilityOrder` and `testAccessibilitySizes`. Unit tests: 121/121 on the sim.

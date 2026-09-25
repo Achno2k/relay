@@ -2,9 +2,9 @@
 
 ## Verdict (after the recheck at `b7933d3`)
 - **Design fidelity: GO.** The sidebar matches design B · Grouped. Cards, rows, headers, toolbar, bottom bar, monochrome status, Now / Show all / completed fold / all-in-Now all measure within a few points of the mockup.
-- **Ship: GO, once the user's VoiceOver swipe confirms R7-4.**
+- **Ship: GO.**
   - Every P2 is fixed and verified on device: R7-1, R7-2, R7-3, R7-13.
-  - R7-4 is fixed in the tree order and covered by `testAccessibilityOrder`. The user is doing the VoiceOver swipe.
+  - R7-4 is fixed in the tree order, covered by `testAccessibilityOrder`, and the user confirmed it with VoiceOver.
 - **Open P3s (not blocking):**
   - R7-14: section gap 56.7 pt vs 62.
   - R7-15: the Now header count hyphenates at AX5 only.
@@ -43,7 +43,7 @@ After: grouped cards on the grouped ground, the Now card with Show all, project 
 | R7-1 titles truncate at AX3 | P2 | sidebar-lists | verified (a3b974b, device) |
 | R7-2 "2 completed" / "running" hyphenate at AX3 | P2 | sidebar-lists | verified at AX3 (a3b974b) |
 | R7-3 New chat wraps, toolbar crowds at AX3 | P2 | sidebar-shell | verified (6acdaff, device) |
-| R7-4 toolbar after the list in the accessibility tree | P2 | sidebar-shell | fixed (6acdaff); user's VoiceOver swipe pending |
+| R7-4 toolbar after the list in the accessibility tree | P2 | sidebar-shell | verified (6acdaff; the user confirmed with VoiceOver) |
 | R7-13 rows legible behind status bar/toolbar when scrolled | P2 | sidebar-shell | verified (6acdaff, device) |
 | R7-5 section gap 71 vs 62 pt | P3 | sidebar-lists | partly fixed, see R7-14 |
 | R7-6 separators 1 pt vs 0.5 pt | P3 | sidebar-lists | verified |
@@ -78,7 +78,7 @@ After: grouped cards on the grouped ground, the Now card with Show all, project 
   - Every suite launches with `-uitest`, so UI state goes to the isolated `dev.amansingh.herd.uitest` defaults suite, and `-resetSidebar` clears only that suite.
   - Mock mode never reads or writes the pairing.
   - The app was installed over the top, never uninstalled, so the data container was kept.
-- **Manual pass:** I compared the device screenshots (same size as the mockup) against the design; they match the simulator. I could not do a hands-on VoiceOver swipe, so R7-4 needs a person to confirm.
+- **Manual pass:** I compared the device screenshots (same size as the mockup) against the design; they match the simulator. I could not do a hands-on VoiceOver swipe; the user did it after the recheck and confirmed R7-4.
 - **Afterwards:**
   - Reinstalled the normal build with `TEAM=TC56945264 scripts/install-device.sh` from the same clean worktree.
   - Uninstalled `RelayUITests-Runner`.
@@ -93,7 +93,7 @@ After: grouped cards on the grouped ground, the Now card with Show all, project 
   - Scrolled: no rows behind the status bar or toolbar.
   - Separators are 1 px.
 - Shots: `docs/screenshots/round7-recheck-device-{dark-default,dark-scrolled,ax3-default,ax3-scrolled}.png`.
-- Normal build reinstalled from that worktree; test runner uninstalled; worktree removed. The phone is free for the user's R7-4 VoiceOver swipe.
+- Normal build reinstalled from that worktree; test runner uninstalled; worktree removed. The phone is free.
 
 ## Commits (my paths only)
 - `c1d2279` `ios/RelayUITests/DesignQAShots.swift` (QA shots and accessibility test).
@@ -102,5 +102,4 @@ After: grouped cards on the grouped ground, the Now card with Show all, project 
 - This report, the device screenshots, and the R7-8 verified status.
 
 ## Next
-- R7-4: the user swipes through the sidebar with VoiceOver. Expected order: machine menu, Filter, More, Relay, Now…, then search and New chat.
 - R7-14 and R7-15 (P3) whenever sidebar-lists picks them up.
