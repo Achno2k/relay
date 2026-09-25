@@ -7,7 +7,7 @@ The container for design B · Grouped. It composes the views from sidebar-lists 
   - `List(.insetGrouped)`, 16 pt horizontal content margins, `listSectionSpacing(0)` (lists pad their own headers), `systemGroupedBackground`.
   - The title "Relay" is 34 pt bold at 20 pt leading.
   - With filter All it shows the Now card and then one section per project from `sidebar.grouped()`. Any other filter shows the flat `SidebarSessionList`, and so does a search ("Results").
-  - Toolbar and bottom bar are iOS 26 `safeAreaBar`s, so the list gets the native soft scroll-edge fade under both.
+  - The toolbar sits above the List in a `VStack` (it was a `safeAreaBar` until the QA fixes below). The bottom bar is an iOS 26 `safeAreaBar`, so rows get the native soft fade under it.
 - New `SidebarToolbar.swift` (52 pt tall, 16 pt padding):
   - A glass machine menu: 7 pt dot, name, chevron.down. The dot is filled when connected and hollow while reconnecting (monochrome). The menu lists machines, host and connection, which is what used to sit at the top of •••.
   - A glass pill holding `SidebarFilterMenu` and •••. ••• keeps Usage and Unpair.
