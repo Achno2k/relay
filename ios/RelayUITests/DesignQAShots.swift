@@ -2,7 +2,7 @@ import XCTest
 
 /// Design QA, not a regression test: screenshots every sidebar state in dark and light, plus AX3 and an
 /// accessibility audit, for comparison with the sidebar-b mockups. Skipped unless `RELAY_SHOTS` is set
-/// (pass it as `TEST_RUNNER_RELAY_SHOTS`); nothing here fails on design deltas.
+/// (pass it as `TEST_RUNNER_RELAY_SHOTS`; shots are also kept as attachments); nothing here fails on design deltas.
 @MainActor
 final class DesignQAShots: XCTestCase {
     private var app: XCUIApplication!
@@ -41,7 +41,8 @@ final class DesignQAShots: XCTestCase {
                 return true
             }
         }
-        try report.write(to: dir.appendingPathComponent("a11y.txt"), atomically: true, encoding: .utf8)
+        try? report.write(to: dir.appendingPathComponent("a11y.txt"), atomically: true, encoding: .utf8)
+        keep(XCTAttachment(string: report), "a11y.txt")
     }
 
     // MARK: -
@@ -100,6 +101,15 @@ final class DesignQAShots: XCTestCase {
 
     private func shot(_ name: String) {
         sleep(1)
-        try? XCUIScreen.main.screenshot().pngRepresentation.write(to: dir.appendingPathComponent("\(name).png"))
+        let screenshot = XCUIScreen.main.screenshot()
+        try? screenshot.pngRepresentation.write(to: dir.appendingPathComponent("\(name).png"))
+        keep(XCTAttachment(screenshot: screenshot), name)
+    }
+
+    /// Also in the .xcresult, since on a device `RELAY_SHOTS` is a host path the runner can't write to.
+    private func keep(_ attachment: XCTAttachment, _ name: String) {
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }
