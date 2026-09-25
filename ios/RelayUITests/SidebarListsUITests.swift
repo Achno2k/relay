@@ -12,18 +12,19 @@ final class SidebarListsUITests: XCTestCase {
         app = XCUIApplication()
     }
 
-    private func launch(reset: Bool = true) {
-        app.launchArguments = ["-uitest", "-mock", "-replay", "off", "-agent", "w2:p1"] + (reset ? ["-resetSidebar"] : [])
+    private func launch(reset: Bool = true, _ extra: String...) {
+        app.launchArguments = ["-uitest", "-mock", "-replay", "off", "-agent", "w2:p1"] + (reset ? ["-resetSidebar"] : []) + extra
         app.launch()
         let open = app.buttons["Open sidebar"]
         XCTAssertTrue(open.waitForExistence(timeout: 10))
         open.tap()
-        XCTAssertTrue(app.buttons["nowShowAll"].waitForExistence(timeout: 5), "Now card never appeared")
+        XCTAssertTrue(app.descendants(matching: .any)["nowHeader"].waitForExistence(timeout: 5), "Now card never appeared")
     }
 
     func testNowShowsFourThenAll() throws {
         launch()
         let showAll = app.buttons["nowShowAll"]
+        XCTAssertTrue(showAll.waitForExistence(timeout: 5))
         XCTAssertEqual(showAll.label, "Show all 7 running")
         XCTAssertEqual(showAll.value as? String, "collapsed")
         XCTAssertTrue(row("Weekly report export").exists, "newest running chat is in Now")
@@ -128,6 +129,23 @@ final class SidebarListsUITests: XCTestCase {
         app.buttons["All"].tap()
         scroll(to: docs)
         XCTAssertTrue(docs.exists, "unarchived chat is back in its card")
+    }
+
+    /// AX3: titles wrap instead of truncating, and the fold rows keep whole words (design-qa R7-1, R7-2).
+    func testAccessibilitySizesWrap() throws {
+        launch(reset: true, "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL")
+        let title = row("Weekly report export")
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(title.frame.height, 110, "a wrapped title makes the row taller")
+        shot("round7-ax3-now")
+
+        let completed = app.buttons["completed-website"]
+        scroll(to: completed)
+        XCTAssertLessThan(completed.frame.height, 90, "\"2 completed\" stays on one line")
+        let analytics = app.buttons["project-analytics"]
+        scroll(to: analytics)
+        shot("round7-ax3-folds")
+        XCTAssertLessThan(analytics.frame.height, 130, "name over \"2 running\", no hyphenated count")
     }
 
     // MARK: - Helpers

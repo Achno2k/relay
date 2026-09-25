@@ -10,6 +10,14 @@ struct SessionRow: View {
     let store: AppStore
     let showsProject: Bool
     let onSelect: (String) -> Void
+    /// A hairline under the row; off for the last row in a card.
+    var separator = true
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// One line as designed; up to three at accessibility sizes, where one line holds a word or two.
+    private var titleLines: Int { typeSize.isAccessibilitySize ? 3 : 1 }
 
     var body: some View {
         let unseen = store.isUnseen(agent)
@@ -22,7 +30,8 @@ struct SessionRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .sidebarCardRow(selected: selected, leading: showsProject ? 18 : 20)
+        // Two-line rows: the hairline starts under the text (18 inset + 18 glyph + 14 gap).
+        .sidebarCardRow(selected: selected, leading: showsProject ? 18 : 20, separator: separator ? (showsProject ? 32 : 0) : nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(agent.displayTitle)
         .accessibilityValue(accessibilityValue(unseen: unseen))
@@ -50,18 +59,19 @@ struct SessionRow: View {
     private func twoLine(unseen: Bool) -> some View {
         HStack(spacing: 14) {
             StatusGlyph(status: agent.status, unseen: unseen)
-            VStack(alignment: .leading, spacing: 1) {
+            // SwiftUI's line heights run taller than the design's; -2 brings the gap back to it.
+            VStack(alignment: .leading, spacing: -2) {
                 Text(agent.displayTitle)
                     .font(.body)
-                    .lineLimit(1)
+                    .lineLimit(titleLines)
                 Text("\(agent.workspaceName) · \(RelativeTime.compact(agent.updatedAt))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
             }
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             Spacer(minLength: 0)
         }
+        .padding(.vertical, 8)
         .frame(minHeight: 60)
     }
 
@@ -73,13 +83,13 @@ struct SessionRow: View {
             }
             Text(agent.displayTitle)
                 .font(.body)
-                .lineLimit(1)
+                .lineLimit(titleLines)
             Spacer(minLength: 0)
             Text(RelativeTime.compact(agent.updatedAt))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+        .padding(.vertical, 8)
         .frame(minHeight: 50)
     }
 
@@ -91,7 +101,7 @@ struct SessionRow: View {
     }
 
     private func setArchived(_ value: Bool) {
-        withAnimation(.smooth) { store.setArchived(agent.id, value) }
+        withAnimation(reduceMotion ? nil : .smooth) { store.setArchived(agent.id, value) }
     }
 }
 
@@ -110,10 +120,10 @@ struct SidebarSessionList: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-                    .sidebarCardRow(leading: 20)
+                    .sidebarCardRow(leading: 20, separator: nil)
             }
             ForEach(agents) { agent in
-                SessionRow(agent: agent, store: store, showsProject: true, onSelect: onSelect)
+                SessionRow(agent: agent, store: store, showsProject: true, onSelect: onSelect, separator: agent.id != agents.last?.id)
             }
         } header: {
             SidebarSectionHeader(top: 16) {
@@ -133,16 +143,32 @@ struct SidebarSessionList: View {
 
 // MARK: - Shared pieces
 
-/// Row chrome inside a card: design insets, the `surface` fill, a highlight for the open chat.
+/// Row chrome inside a card: design insets, the `surface` fill, a highlight for the open chat, and a
+/// hairline under the row. The list's own separators come out 1 pt; the design's are a hairline.
 struct SidebarCardRowModifier: ViewModifier {
     var selected = false
     var leading: CGFloat
+    /// Where the hairline starts, from the row's content edge; nil for none (the card's last row).
+    var separator: CGFloat?
+    static let trailing: CGFloat = 18
+
+    @Environment(\.displayScale) private var displayScale
 
     func body(content: Content) -> some View {
         content
-            .listRowInsets(EdgeInsets(top: 0, leading: leading, bottom: 0, trailing: 18))
-            // Separators run to the card's edge, past the trailing inset.
-            .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] + 18 }
+            .overlay(alignment: .bottom) {
+                if let separator {
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(height: 1 / displayScale)
+                        // Runs to the card's edge, past the trailing inset.
+                        .padding(.leading, separator)
+                        .padding(.trailing, -Self.trailing)
+                        .accessibilityHidden(true)
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 0, leading: leading, bottom: 0, trailing: Self.trailing))
             .listRowBackground(
                 Color(.secondarySystemGroupedBackground)
                     .overlay(selected ? Color(.systemFill) : .clear)
@@ -151,8 +177,8 @@ struct SidebarCardRowModifier: ViewModifier {
 }
 
 extension View {
-    func sidebarCardRow(selected: Bool = false, leading: CGFloat) -> some View {
-        modifier(SidebarCardRowModifier(selected: selected, leading: leading))
+    func sidebarCardRow(selected: Bool = false, leading: CGFloat, separator: CGFloat?) -> some View {
+        modifier(SidebarCardRowModifier(selected: selected, leading: leading, separator: separator))
     }
 }
 
@@ -162,6 +188,10 @@ struct SidebarSectionHeader<Content: View>: View {
     var top: CGFloat = 22
     @ViewBuilder let content: Content
 
+    /// What the inset-grouped list adds around every header, even with zero insets (measured on 3× screenshots).
+    static var listExtraTop: CGFloat { 3 }
+    static var listExtraBottom: CGFloat { 7 / 3 }
+
     var body: some View {
         HStack(spacing: 8) { content }
             .foregroundStyle(.primary)
@@ -169,8 +199,8 @@ struct SidebarSectionHeader<Content: View>: View {
             .frame(minHeight: 36)
             .padding(.leading, 20)
             .padding(.trailing, 20)
-            .padding(.top, top)
-            .padding(.bottom, 4)
+            .padding(.top, top - Self.listExtraTop)
+            .padding(.bottom, 4 - Self.listExtraBottom)
             .listRowInsets(EdgeInsets())
     }
 }
