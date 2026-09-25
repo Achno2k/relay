@@ -2,8 +2,8 @@ import RelayKit
 import SwiftUI
 
 /// Chat with a sidebar drawer underneath, animated like the Codex app: opening slides and fades the sidebar
-/// in while the chat recedes (smaller, rounded, dimmed); closing eases the sidebar down and out while the chat
-/// springs back. Everything follows one `progress`, so edge swipes and drags track the finger.
+/// in while the chat recedes into a rounded card peeking on the right (design B); closing eases the sidebar
+/// down and out while the chat springs back. Everything follows one `progress`, so edge swipes and drags track the finger.
 /// Reduce Motion: no movement or scaling, the sidebar just crossfades over the dimmed chat.
 struct MainView: View {
     @Bindable var store: AppStore
@@ -19,9 +19,19 @@ struct MainView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let width = min(geo.size.width * 0.84, 360)
+            let width = sidebarWidth(geo.size.width)
             let progress = openProgress(width: width)
+            let peek = PeekShape(
+                progress: reduceMotion ? 0 : progress,
+                safeTop: geo.safeAreaInsets.top,
+                safeBottom: geo.safeAreaInsets.bottom,
+                bottomGap: peekBottomGap,
+                radius: peekRadius
+            )
             ZStack(alignment: .leading) {
+                // The grouped ground shows in the gap between the sidebar and the chat peek.
+                Color(.systemGroupedBackground).ignoresSafeArea()
+
                 SidebarView(
                     store: store,
                     onSelect: { id in
@@ -39,7 +49,7 @@ struct MainView: View {
                 .zIndex(reduceMotion ? 1 : 0)
                 .accessibilityHidden(progress == 0)
                 // No drag-to-close on the sidebar itself: a left swipe there archives a chat.
-                // The dimmed chat on the right still closes the drawer on tap or drag.
+                // The chat peek on the right still closes the drawer on tap or drag.
 
                 ChatView(
                     store: store,
@@ -47,24 +57,30 @@ struct MainView: View {
                     onNewChat: { presentNewChat($0) }
                 )
                 .overlay {
+                    // The peek stays undimmed, as in the mockup. Reduce Motion keeps the dim: there the sidebar
+                    // crossfades over the full chat instead of moving it aside.
                     Color.black
-                        .opacity(0.28 * progress)
+                        .opacity(reduceMotion ? 0.28 * progress : 0)
+                        .contentShape(.rect)
                         .ignoresSafeArea()
                         .allowsHitTesting(progress > 0)
                         .onTapGesture { setSidebar(false) }
                         .gesture(drawerDrag(width: width))
+                        .accessibilityElement()
+                        .accessibilityLabel(peekLabel)
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { setSidebar(false) }
+                        .accessibilityIdentifier("sidebarPeek")
+                        .accessibilityHidden(progress == 0)
                 }
-                .clipShape(.rect(cornerRadius: reduceMotion ? 0 : 38 * progress, style: .continuous))
-                // A hairline edge, so the receded chat still reads as a card on a black sidebar in dark mode.
+                .clipShape(peek)
+                // A hairline edge, so the peek reads as a card on the grouped ground in dark mode.
                 .overlay {
                     if !reduceMotion && progress > 0 {
-                        RoundedRectangle(cornerRadius: 38 * progress, style: .continuous)
-                            .strokeBorder(Color(.separator).opacity(progress), lineWidth: 0.5)
-                            .ignoresSafeArea()
+                        peek.stroke(Color(.separator).opacity(progress), lineWidth: 0.5)
                             .allowsHitTesting(false)
                     }
                 }
-                .scaleEffect(reduceMotion ? 1 : 1 - 0.05 * progress, anchor: .leading)
                 .overlay(alignment: .leading) {
                     if !sidebarOpen {
                         // Edge swipe to open. Starts below the toolbar so the sidebar button stays tappable.
@@ -75,8 +91,7 @@ struct MainView: View {
                             .gesture(drawerDrag(width: width))
                     }
                 }
-                .offset(x: reduceMotion ? 0 : width * progress)
-                .shadow(color: .black.opacity(reduceMotion ? 0 : 0.18 * progress), radius: 24)
+                .offset(x: reduceMotion ? 0 : (width + peekGap) * progress)
             }
         }
         .overlay(alignment: .top) { ConnectionBanner(store: store) }
@@ -115,6 +130,19 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             store.handleMemoryWarning()
         }
+    }
+
+    // Design B: a 342 pt sidebar, then a 10 pt gap and the chat as a card (radius 36) whose top meets the
+    // safe area and whose bottom stops 18 pt above the screen edge. On a 390 pt phone 38 pt of it peeks.
+    private let peekGap: CGFloat = 10
+    private let peekRadius: CGFloat = 36
+    private let peekBottomGap: CGFloat = 18
+
+    private func sidebarWidth(_ screen: CGFloat) -> CGFloat { min(screen - 48, 342) }
+
+    private var peekLabel: String {
+        if let title = store.selectedAgent?.displayTitle { return "Return to \(title)" }
+        return "Return to chat"
     }
 
     private func openProgress(width: CGFloat) -> CGFloat {
@@ -158,6 +186,29 @@ struct MainView: View {
 
     private func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+
+/// The chat's outline as it recedes. The chat's frame is the safe area, but it draws edge to edge, so when
+/// closed this is the whole screen. Open, the card runs from the safe-area top to `bottomGap` above the
+/// screen's bottom edge, with rounded corners.
+private struct PeekShape: Shape {
+    var progress: CGFloat
+    var safeTop: CGFloat
+    var safeBottom: CGFloat
+    var bottomGap: CGFloat
+    var radius: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let top = rect.minY - safeTop * (1 - progress)
+        let bottom = rect.maxY + safeBottom - (safeBottom - bottomGap) * progress
+        let card = CGRect(x: rect.minX, y: top, width: rect.width, height: bottom - top)
+        return Path(roundedRect: card, cornerRadius: radius * progress, style: .continuous)
     }
 }
 
