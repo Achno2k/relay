@@ -61,7 +61,9 @@ final class DesignQAShots: XCTestCase {
 
         // The list is lazy: the completed row only exists once scrolled into view.
         let completed = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'completed-'")).firstMatch
-        for _ in 0..<3 where !(completed.exists && completed.isHittable) { app.swipeUp() }
+        // "Hittable" is true under the bottom bar too, so scroll until the row clears it.
+        let clear = app.windows.firstMatch.frame.maxY - 140
+        for _ in 0..<4 where !(completed.exists && completed.frame.maxY < clear) { app.swipeUp() }
         if completed.exists {
             completed.tap()
             shot("\(name)-completed")

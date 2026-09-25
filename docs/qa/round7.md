@@ -18,19 +18,21 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 
 | id | sev | owner | status | finding |
 |---|---|---|---|---|
-| R7-1 | P2 | sidebar-lists | fixed (lists, verify) | AX3: chat titles are `lineLimit(1)` and truncate to ~9 characters ("Weekly re…") |
-| R7-2 | P2 | sidebar-lists | fixed (lists, verify) | AX3: "2 completed" hyphenates over three lines ("2 / complet- / ed"); the all-in-Now row hyphenates "run-ning" |
-| R7-3 | P2 | sidebar-shell | fixed (shell) | AX3: New chat wraps to two lines, the machine name truncates to "Mock…", Filter and ••• crowd the pill |
-| R7-4 | P2 | sidebar-shell | fixed (shell), verify on device | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
-| R7-13 | P2 | sidebar-shell | fixed (shell) | Scrolled: rows stay legible behind the status bar and just under the toolbar; the top edge barely fades |
-| R7-5 | P3 | sidebar-lists | fixed (lists, verify) | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
-| R7-6 | P3 | sidebar-lists | fixed (lists, verify) | Row separators are 1 pt (3 px), design 0.5 pt |
-| R7-7 | P3 | sidebar-lists | fixed (lists, verify) | Now rows: title-to-subtitle gap about 3 pt wider than the design (SwiftUI line heights) |
+| R7-1 | P2 | sidebar-lists | verified (a3b974b, device) | AX3: chat titles are `lineLimit(1)` and truncate to ~9 characters ("Weekly re…") |
+| R7-2 | P2 | sidebar-lists | verified at AX3 (a3b974b); see R7-15 for AX5 | AX3: "2 completed" hyphenates over three lines ("2 / complet- / ed"); the all-in-Now row hyphenates "run-ning" |
+| R7-3 | P2 | sidebar-shell | verified (6acdaff, device) | AX3: New chat wraps to two lines, the machine name truncates to "Mock…", Filter and ••• crowd the pill |
+| R7-4 | P2 | sidebar-shell | fixed (6acdaff): tree order is now toolbar, list, bottom bar; the user's VoiceOver swipe is pending | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
+| R7-13 | P2 | sidebar-shell | verified (6acdaff, device) | Scrolled: rows stay legible behind the status bar and just under the toolbar; the top edge barely fades |
+| R7-5 | P3 | sidebar-lists | partly fixed: gap now 56.7 pt, design 62 (5 pt tight), see R7-14 | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
+| R7-6 | P3 | sidebar-lists | verified (1 px hairline, device) | Row separators are 1 pt (3 px), design 0.5 pt |
+| R7-7 | P3 | sidebar-lists | verified (gap 5.4 pt, design 5.3) | Now rows: title-to-subtitle gap about 3 pt wider than the design (SwiftUI line heights) |
 | R7-8 | P3 | filter-menu | verified (b7900b8, device) | The needs-input dot on Filter renders grey, design is label colour |
 | R7-9 | P3 | filter-menu | accepted (lead) | Native menu differs from the mockup: it grows over the Filter button, rows are 42 pt, and there is no veil or blur behind it |
-| R7-10 | P3 | sidebar-shell, sidebar-lists | fixed (both halves) | Reduce Motion: a few `.smooth` animations ignore it |
+| R7-10 | P3 | sidebar-shell, sidebar-lists | verified in code (every listed animation now checks Reduce Motion) | Reduce Motion: a few `.smooth` animations ignore it |
 | R7-11 | P3 | herd-native (design call) | accepted (lead) | Light mode: secondary text contrast is 3.4 to 3.8:1, under AA 4.5:1 |
 | R7-12 | P3 | sidebar-shell | accepted (lead) | The bottom scroll-edge fade is softer than the design; rows stay legible under the bar |
+| R7-14 | P3 | sidebar-lists | open | Section gap overcorrected: card to card is 56.7 pt, design 62 pt (the header sits ≈ 3 pt high, the card ≈ 1.3 pt high) |
+| R7-15 | P3 | sidebar-lists | open | AX5 only: the Now header's "7 running" hyphenates ("7 / run- / ning") beside "Now" |
 
 ### R7-1: titles truncate at AX3
 - Where: `SessionRow.swift:56,76` (`.lineLimit(1)`).
@@ -128,3 +130,12 @@ In `docs/screenshots/` (mock data only; mockup renders stay local because they h
 - The device renders match the simulator: same layout, glass and glyphs. R7-1 to R7-3 reproduce on device (`round7-device-ax3-*.png`); at AX3 the Filter and ••• glyphs also overlap inside the pill.
 - R7-8 verified: the dot is white in dark and black in light (`round7-device-dark-default.png`, `round7-device-light-default.png`).
 - Manual VoiceOver swipe not done (no hands on the phone). The on-device tree and audit match the simulator's. R7-4 still needs a person to swipe through with VoiceOver.
+
+## Recheck (master `b7933d3`: lists a3b974b, shell 6acdaff)
+- Sim (iPhone 17 Pro) and device (iPhone 13) from a clean worktree. Device: 35/35 UI tests pass, including `SidebarShellUITests.testAccessibilityOrder` and `testAccessibilitySizes`. Unit tests: 121/121 on the sim.
+- R7-1: at AX3, titles wrap to three lines ("Weekly / report / export"). R7-2: at AX3, "2 completed" fits on one line and all-in-Now stacks "analytics / 2 running".
+- R7-3: both bars capped at AX1; from AX3 New chat is icon-only (still labelled "New chat"); the machine name scales, then truncates; Filter and ••• no longer overlap.
+- R7-13: the toolbar sits above the list, so scrolled rows clip at its bottom edge and nothing shows behind the status bar or toolbar. The clip is a hard edge with no fade; that's fine for iOS.
+- R7-6: the separators are 1 px hairlines. R7-7: the title-to-subtitle gap is 5.4 pt against the design's 5.3.
+- R7-14: card to card is 56.7 pt on both sim and device, against 62 in the design. The earlier 71 was 9 pt too loose; this is 5 pt too tight.
+- R7-15: only at the largest size (AX5 = XXXL); AX3 is fine.
