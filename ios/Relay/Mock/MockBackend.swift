@@ -119,6 +119,10 @@ actor MockBackend: Backend {
         let user = Message(id: nextId(), role: .user, createdAt: Date(), blocks: blocks)
         push(user, to: agentId)
         setStatus(.working, for: agentId)
+        if text.lowercased().hasPrefix("slow bash") {
+            Task { await liveToolTurn(agentId: agentId) }
+            return
+        }
         let replyId = nextId()
         Task {
             try? await Task.sleep(for: .seconds(1.2))
@@ -313,6 +317,35 @@ actor MockBackend: Backend {
         var list = chats[agentId] ?? []
         if let i = list.firstIndex(where: { $0.id == message.id }) { list[i] = message } else { list.append(message) }
         chats[agentId] = list
+    }
+
+    /// A slow Bash call the way the bridge reports it: `reply.live` shows "Running Bash…" right away
+    /// (one frame carries the raw tool block an older bridge would send as text), the transcript's
+    /// toolCall lands seconds later, then `tool: null`.
+    private func liveToolTurn(agentId: String) async {
+        let live = LiveTool(name: "Bash", summary: "Ran sleep 5")
+        var seq = 0
+        func frame(_ text: String?, _ tool: LiveTool?) {
+            seq += 1
+            continuation?.yield(.event(.replyLive(agentId: agentId, text: text, seq: seq, tool: tool)))
+        }
+        try? await Task.sleep(for: .milliseconds(300))
+        // Claude's "Running 1 shell command…" comes first; the arguments show a frame later.
+        frame(nil, LiveTool(name: "Bash", summary: "Ran a command"))
+        for i in 0..<20 {
+            try? await Task.sleep(for: .milliseconds(250))
+            frame(i.isMultiple(of: 3) ? "⏺ Bash(sleep 5)\n  ⎿  Running…" : nil, live)
+        }
+        let call = ToolCall(id: nextId(), name: "Bash", summary: "Ran sleep 5")
+        var reply = Message(id: nextId(), role: .assistant, createdAt: Date(), blocks: [.toolCall(call)])
+        push(reply, to: agentId)
+        try? await Task.sleep(for: .milliseconds(300))
+        frame(nil, nil)
+        try? await Task.sleep(for: .seconds(1.5))
+        reply.blocks.append(.toolResult(ToolResult(toolCallId: call.id, isError: false, preview: "")))
+        reply.blocks.append(.text("Slept for 5 seconds."))
+        push(reply, to: agentId)
+        setStatus(.idle, for: agentId)
     }
 
     private func setStatus(_ status: AgentStatus, for agentId: String) {

@@ -38,6 +38,7 @@
 		686AAFC844E3A23D25C9DFB5 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0A990FC5609C510C9292727 /* AppStore.swift */; };
 		6EDE857D80CB85B4580F175F /* AttachmentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419E711F41DCBBFD54DC38A3 /* AttachmentViews.swift */; };
 		754F03A18E88ADC6486B24EB /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80270D748DB6A250BBD42E65 /* SidebarView.swift */; };
+		7911D9686763E2217D75E764 /* LiveToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B422B228FE886B476AB4D0 /* LiveToolTests.swift */; };
 		7D0D49DBA9142B74E0A83FB8 /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90196BBD5CED7BA229F94D64 /* DecodingTests.swift */; };
 		7D7D6D31B3F1D331FBE35A11 /* AttachmentProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 221B62D927CB7DF72095AB1A /* AttachmentProcessing.swift */; };
 		805FC1F71935D1871D4D3F36 /* RelayKit in Frameworks */ = {isa = PBXBuildFile; productRef = 67ECA99C43186CD671E794FC /* RelayKit */; };
@@ -58,7 +59,9 @@
 		DFE81EE22F032533638455A8 /* APIClientErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E379AC9AC1269414DC7E03A9 /* APIClientErrorTests.swift */; };
 		E3367A9E8F9848FBEB742FF8 /* LiveReplyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A6F978C0914B64C02FBC3F4 /* LiveReplyTests.swift */; };
 		F0AA0EEF4403BAD6DF90C8AF /* ChatRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBF8D8D3985AE405380C374B /* ChatRows.swift */; };
+		F0E1F063F8C80074396C0D40 /* LiveToolUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911B728F87D66ED9C7393DCA /* LiveToolUITests.swift */; };
 		F3E81726E78071F0E98493CD /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B1E2B5D03381101B4D44B0 /* EmptyStateUITests.swift */; };
+		F497E732369A285939A361DF /* LiveReply.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD33F0C433E9DDA4481FB3F3 /* LiveReply.swift */; };
 		F8162CC8A6211B5A282F5A26 /* LiveReplyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F974603DF0BC3EFCAFBC06 /* LiveReplyView.swift */; };
 		FDBD8BBAB810DF2CE81502E3 /* SidebarModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75FF1B5F03BE66B8748BECE7 /* SidebarModel.swift */; };
 /* End PBXBuildFile section */
@@ -119,8 +122,10 @@
 		7EABCC8390D9298E86FFF168 /* RelayState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayState.swift; sourceTree = "<group>"; };
 		80270D748DB6A250BBD42E65 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		81389142837BCFC9F10C8F0D /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
+		82B422B228FE886B476AB4D0 /* LiveToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveToolTests.swift; sourceTree = "<group>"; };
 		88EBB50D6387C066EBEE9162 /* RelayKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RelayKit; path = RelayKit; sourceTree = SOURCE_ROOT; };
 		90196BBD5CED7BA229F94D64 /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
+		911B728F87D66ED9C7393DCA /* LiveToolUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveToolUITests.swift; sourceTree = "<group>"; };
 		93FAEBF9FC6FDCDBD9837274 /* MockUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockUITests.swift; sourceTree = "<group>"; };
 		A002275E7E5C75D936C3983A /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		A23917E0B538A432F082C782 /* LiveE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveE2ETests.swift; sourceTree = "<group>"; };
@@ -140,6 +145,7 @@
 		EBF8D8D3985AE405380C374B /* ChatRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRows.swift; sourceTree = "<group>"; };
 		F3BB9BE8AFCB5D157451CFC2 /* MockBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockBackend.swift; sourceTree = "<group>"; };
 		F4E037C3CB7E6F9CBB240548 /* ReducerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReducerTests.swift; sourceTree = "<group>"; };
+		FD33F0C433E9DDA4481FB3F3 /* LiveReply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveReply.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -304,6 +310,7 @@
 				0A82BCCC3A5466E4DBBC2AB4 /* LiveKindControlsTests.swift */,
 				4B065EDF3B9E1F1832310B1E /* LiveNewChatTests.swift */,
 				7C2FF35A0E89A5DBCB9F89AC /* LiveReplyUITests.swift */,
+				911B728F87D66ED9C7393DCA /* LiveToolUITests.swift */,
 				93FAEBF9FC6FDCDBD9837274 /* MockUITests.swift */,
 				CF6F0A8401B00C5DBDBBBBD1 /* NewChatUITests.swift */,
 				247E5C6385B60B0588E471A5 /* Round2UITests.swift */,
@@ -317,6 +324,7 @@
 			isa = PBXGroup;
 			children = (
 				B0A990FC5609C510C9292727 /* AppStore.swift */,
+				FD33F0C433E9DDA4481FB3F3 /* LiveReply.swift */,
 				7EABCC8390D9298E86FFF168 /* RelayState.swift */,
 				75FF1B5F03BE66B8748BECE7 /* SidebarModel.swift */,
 				247130B71D364069C059DFAD /* UsageStore.swift */,
@@ -377,6 +385,7 @@
 				90196BBD5CED7BA229F94D64 /* DecodingTests.swift */,
 				7D8661E2BDD60A9CC62DE8A9 /* EmptyStateTests.swift */,
 				6A6F978C0914B64C02FBC3F4 /* LiveReplyTests.swift */,
+				82B422B228FE886B476AB4D0 /* LiveToolTests.swift */,
 				53BC0B51B9E3C3E9AF8E1D5A /* NewChatTests.swift */,
 				F4E037C3CB7E6F9CBB240548 /* ReducerTests.swift */,
 				2E9B76A4DA5BA891DBC04D9D /* Round2Tests.swift */,
@@ -540,6 +549,7 @@
 				526CC581323542FEA1CF344F /* LiveKindControlsTests.swift in Sources */,
 				0E0524B7FA44C586C9538A36 /* LiveNewChatTests.swift in Sources */,
 				4E4411C10C00A4ED93CD86AE /* LiveReplyUITests.swift in Sources */,
+				F0E1F063F8C80074396C0D40 /* LiveToolUITests.swift in Sources */,
 				1DE542C7C80DB21ADB144893 /* MockUITests.swift in Sources */,
 				43B00B6D80DAE4131F4C9BAF /* NewChatUITests.swift in Sources */,
 				3E03058DD86EB9DEE1DA4D9C /* Round2UITests.swift in Sources */,
@@ -558,6 +568,7 @@
 				7D0D49DBA9142B74E0A83FB8 /* DecodingTests.swift in Sources */,
 				3BAA7C393662E6FF5FAC27FB /* EmptyStateTests.swift in Sources */,
 				E3367A9E8F9848FBEB742FF8 /* LiveReplyTests.swift in Sources */,
+				7911D9686763E2217D75E764 /* LiveToolTests.swift in Sources */,
 				AE7C9913E4BE7398EAC193C6 /* NewChatTests.swift in Sources */,
 				8A64622C8DFB780A4A2ACBB6 /* ReducerTests.swift in Sources */,
 				AFCB351F77BFF9ECC3E5CD6B /* Round2Tests.swift in Sources */,
@@ -586,6 +597,7 @@
 				88EE44731B4AE49DD2F18D0E /* ControlDisplay.swift in Sources */,
 				94DD778E22D03B48E25FA1BB /* ControlMenus.swift in Sources */,
 				C34A2C3D2EF3050156579EFB /* Indicators.swift in Sources */,
+				F497E732369A285939A361DF /* LiveReply.swift in Sources */,
 				F8162CC8A6211B5A282F5A26 /* LiveReplyView.swift in Sources */,
 				66C1F33B161E533D81BED6CB /* MainView.swift in Sources */,
 				1F4A03B8A6AEE7AC1D217650 /* Markdown.swift in Sources */,

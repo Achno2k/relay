@@ -49,9 +49,11 @@ final class AppStore {
     private var lastSendAt: [String: Date] = [:]
     /// First/last time this session saw each message grow over the socket; feeds "Worked for 42s".
     private(set) var liveSpans: [String: ClosedRange<Date>] = [:]
-    /// In-progress assistant text preview from `reply.live`, keyed by agent id; never persisted.
-    private(set) var liveReplyText: [String: String] = [:]
-    private var liveReplySeq: [String: Int] = [:]
+    /// `reply.live` per agent: the in-progress reply text and the tool running on screen; never persisted.
+    private(set) var live = LiveReplies()
+    /// Last `reply.live` seq per agent. Not observed: it changes on every frame.
+    @ObservationIgnored private var liveReplySeq: [String: Int] = [:]
+    var liveReplyText: [String: String] { live.byAgent.compactMapValues(\.text) }
     private var seen: [String: Date]
     /// Client-side archive (App Group defaults); it never closes the agent.
     private(set) var archived: Set<String>
@@ -149,6 +151,11 @@ final class AppStore {
         case .connected:
             let wasDown = connection == .reconnecting
             connection = .connected
+            // Frames sent while we were away are gone, and a restarted bridge starts `seq` over.
+            if wasDown {
+                liveReplySeq = [:]
+                updateLive { $0.clearAll() }
+            }
             // The socket carries deltas only; resync after every (re)connect.
             if wasDown { await refresh() }
         case .disconnected:
@@ -164,20 +171,24 @@ final class AppStore {
             dropPendingIfFinished(updated, previous: state.agent(updated.id)?.status)
         }
         state.apply(event)
+        if case .agentUpdated(let agent) = event, agent.status != .working, agent.status != .blocked {
+            updateLive { $0.clear(agentId: agent.id) }
+        }
         switch event {
         case .messageUpserted(let agentId, let message):
             let now = Date()
             let start = min(liveSpans[message.id]?.lowerBound ?? message.createdAt, now)
             liveSpans[message.id] = start...now
             if message.role == .user { resolvePending(agentId: agentId, with: [message]) }
-        case .replyLive(let agentId, let text, let seq):
+            updateLive { $0.match(agentId: agentId, transcript: state.messages[agentId] ?? []) }
+        case .replyLive(let agentId, let text, let seq, let tool):
             guard seq > (liveReplySeq[agentId] ?? 0) else { break }
             liveReplySeq[agentId] = seq
-            liveReplyText[agentId] = text
+            updateLive { $0.apply(agentId: agentId, text: text, tool: tool, transcript: state.messages[agentId] ?? []) }
         case .agentClosed(let id):
             for message in pending[id] ?? [] { failedPending.remove(message.id) }
             pending[id] = nil
-            liveReplyText[id] = nil
+            updateLive { $0.remove(agentId: id) }
             liveReplySeq[id] = nil
             if id == selectedAgentId { selectedAgentId = firstAgentId() }
         case .agentUpdated(let agent) where agent.id == selectedAgentId:
@@ -194,6 +205,13 @@ final class AppStore {
         }
         let after = selectedAgent?.status
         if before != after { Task { await refreshApproval() } }
+    }
+
+    /// Assigns only on a real change, so a frame that changes nothing doesn't re-render the chat.
+    private func updateLive(_ change: (inout LiveReplies) -> Void) {
+        var next = live
+        change(&next)
+        if next != live { live = next }
     }
 
     /// Full resync: agents, workspaces, then the open chat.
@@ -270,6 +288,7 @@ final class AppStore {
             guard messagesRequest[agentId] == generation else { return }  // superseded by a newer load
             state.setPage(page, agentId: agentId)
             resolvePending(agentId: agentId, with: page.messages)
+            updateLive { $0.match(agentId: agentId, transcript: state.messages[agentId] ?? []) }
         } catch {
             guard messagesRequest[agentId] == generation else { return }
             report(error)

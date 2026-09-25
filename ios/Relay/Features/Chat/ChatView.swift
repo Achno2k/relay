@@ -186,7 +186,10 @@ private struct ChatTranscript: View {
             }
             return item
         }
-        return items
+        return ChatItem.withLive(
+            items, live: store.live[agent.id], aliases: store.live.aliases[agent.id] ?? [:],
+            working: agent.status == .working
+        )
     }
 
     var body: some View {
@@ -263,7 +266,8 @@ private struct ChatTranscript: View {
     /// A plain `VStack`, not a lazy one: lazy rows are measured with estimates, so on a long, real transcript
     /// the initial bottom offset landed short of the end. Real chats are one page (50 messages) at a time.
     private func transcript(_ items: [ChatItem], working: Bool, proxy: ScrollViewProxy) -> some View {
-        let lastId = items.last?.id
+        // Pending prompts sit after the turn in progress; "last" is the newest transcript/live row.
+        let last = items.last { !$0.isPending }
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if store.hasMore(agent.id) {
@@ -278,17 +282,13 @@ private struct ChatTranscript: View {
                         .padding(.top, 120)
                 }
                 ForEach(items) { item in
-                    row(item, isLast: item.id == lastId, working: working)
+                    row(item, isLast: item.id == last?.id, working: working)
                         .id(item.id)
                 }
-                if working, !(items.last?.isAssistantText ?? false), !lastIsLiveTools(items, working: working) {
-                    if let live = store.liveReplyText[agent.id], !live.isEmpty {
-                        LiveReplyView(markdown: live)
-                    } else {
-                        PulsingDot()
-                            .padding(.leading, 2)
-                            .transition(.opacity)
-                    }
+                if working, !showsProgress(last) {
+                    PulsingDot()
+                        .padding(.leading, 2)
+                        .transition(.opacity)
                 }
                 Color.clear
                     .frame(height: 1)
@@ -350,6 +350,8 @@ private struct ChatTranscript: View {
             ThinkingRow(text: text)
         case .stopped:
             StoppedMarker()
+        case .live(_, let markdown):
+            LiveReplyView(markdown: markdown)
         case .tools(_, let steps, let messageIds):
             ToolGroupView(
                 steps: steps,
@@ -367,9 +369,13 @@ private struct ChatTranscript: View {
         return end.timeIntervalSince(start)
     }
 
-    private func lastIsLiveTools(_ items: [ChatItem], working: Bool) -> Bool {
-        if case .tools = items.last { return working }
-        return false
+    /// Whether the newest row already shows the agent is busy (its reply text, live text or a
+    /// "Running …" tool row), so the pulsing dot isn't needed.
+    private func showsProgress(_ last: ChatItem?) -> Bool {
+        switch last {
+        case .text, .live, .tools: true
+        default: false
+        }
     }
 }
 

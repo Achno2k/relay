@@ -554,6 +554,30 @@ public struct UsageSnapshot: Codable, Hashable, Sendable {
     }
 }
 
+/// The tool call an agent is running right now, read off its screen (`reply.live.tool`). `summary` is
+/// scrubbed the same way as a transcript `ToolCall.summary`, so the two can be matched.
+public struct LiveTool: Codable, Hashable, Sendable {
+    public var name: String
+    public var summary: String
+    /// "running" today; kept as a string so a new state doesn't break decoding.
+    public var state: String
+
+    public init(name: String, summary: String, state: String = "running") {
+        self.name = name
+        self.summary = summary
+        self.state = state
+    }
+
+    private enum CodingKeys: String, CodingKey { case name, summary, state }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        state = try c.decodeIfPresent(String.self, forKey: .state) ?? "running"
+    }
+}
+
 /// One WebSocket frame.
 public enum ServerEvent: Decodable, Hashable, Sendable {
     case hello
@@ -561,15 +585,15 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
     case agentCreated(Agent)
     case agentClosed(agentId: String)
     case messageUpserted(agentId: String, message: Message)
-    /// In-progress assistant text preview while an agent is working; `text: nil` clears it. See
-    /// api.md "Live reply".
-    case replyLive(agentId: String, text: String?, seq: Int)
+    /// In-progress assistant text preview while an agent is working; `text: nil` clears it. `tool` is
+    /// the tool call running on screen before the transcript has it; `nil` clears it. See api.md "Live reply".
+    case replyLive(agentId: String, text: String?, seq: Int, tool: LiveTool? = nil)
     /// One provider's usage snapshot changed. See api.md "Usage".
     case usageUpdated(UsageProvider)
     case unknown(type: String)
 
     private enum CodingKeys: String, CodingKey {
-        case type, agent, agentId, message, text, seq, provider
+        case type, agent, agentId, message, text, seq, provider, tool
     }
 
     public init(from decoder: any Decoder) throws {
@@ -589,7 +613,9 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
             self = .replyLive(
                 agentId: try c.decode(String.self, forKey: .agentId),
                 text: try c.decodeIfPresent(String.self, forKey: .text),
-                seq: try c.decode(Int.self, forKey: .seq)
+                seq: try c.decode(Int.self, forKey: .seq),
+                // An older bridge has no `tool`; a malformed one is ignored rather than dropping the frame.
+                tool: (try? c.decodeIfPresent(LiveTool.self, forKey: .tool)) ?? nil
             )
         case "usage.updated":
             self = .usageUpdated(try c.decode(UsageProvider.self, forKey: .provider))

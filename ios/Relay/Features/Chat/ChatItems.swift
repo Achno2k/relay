@@ -18,15 +18,65 @@ enum ChatItem: Identifiable, Hashable {
     case tools(id: String, steps: [ToolStep], messageIds: [String])
     /// Claude's "[Request interrupted by user]" line after a stop.
     case stopped(id: String)
+    /// The in-progress reply from `reply.live`, until the transcript's text lands.
+    case live(id: String, markdown: String)
 
     var id: String {
         switch self {
-        case .user(let id, _, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id): id
+        case .user(let id, _, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id), .live(let id, _): id
         }
     }
 
     var isAssistantText: Bool {
         if case .text = self { true } else { false }
+    }
+
+    var isPending: Bool {
+        if case .user(_, _, true, _) = self { true } else { false }
+    }
+
+    static let liveTextId = "live-text"
+
+    /// Adds what's live for a working agent to the built transcript: the reply text as it's typed and
+    /// the tool running on screen, both before any pending prompts (they belong to the turn in progress,
+    /// and the transcript rows that replace them land there too).
+    ///
+    /// The running tool goes exactly where its transcript call will land: into the last tool group if
+    /// the chat ends with one, otherwise as a new group. A landed call keeps the placeholder's id
+    /// (`aliases`), so the row swaps in place.
+    static func withLive(_ items: [ChatItem], live: LiveReply?, aliases: [String: String], working: Bool) -> [ChatItem] {
+        var body = aliases.isEmpty ? items : items.map { $0.aliased(aliases) }
+        let split = body.lastIndex { !$0.isPending }.map { $0 + 1 } ?? 0
+        let pending = body[split...]
+        body.removeSubrange(split...)
+        guard working, let live else { return body + pending }
+
+        let showText = live.text.map { !$0.isEmpty } == true && !(body.last?.isAssistantText ?? false)
+        if showText, let text = live.text {
+            body.append(.live(id: liveTextId, markdown: text))
+        }
+        if let run = live.tool, run.matchedCallId == nil {
+            let step = ToolStep(
+                id: run.placeholderId, name: run.tool.name, summary: run.tool.summary,
+                isError: false, preview: nil, finished: false
+            )
+            if !showText, case .tools(let id, let steps, let messageIds) = body.last {
+                body[body.count - 1] = .tools(id: id, steps: steps + [step], messageIds: messageIds)
+            } else {
+                body.append(.tools(id: run.placeholderId, steps: [step], messageIds: []))
+            }
+        }
+        return body + pending
+    }
+
+    private func aliased(_ aliases: [String: String]) -> ChatItem {
+        guard case .tools(let id, var steps, let messageIds) = self,
+              steps.contains(where: { aliases[$0.id] != nil }) else { return self }
+        let groupId = steps.first.flatMap { aliases[$0.id] } ?? id
+        for i in steps.indices {
+            if let alias = aliases[steps[i].id] { steps[i].id = alias }
+        }
+        return .tools(id: groupId, steps: steps, messageIds: messageIds)
     }
 
     static func build(from messages: [Message]) -> [ChatItem] {

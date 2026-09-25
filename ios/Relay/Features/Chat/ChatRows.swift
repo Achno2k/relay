@@ -69,7 +69,8 @@ struct ToolGroupView: View {
 
     private var title: String {
         if isLive, let current = steps.last(where: { !$0.finished }) ?? steps.last {
-            return "Running \(current.name)…"
+            // The bridge names a tool it can't recognise "Tool".
+            return current.name == "Tool" ? "Running a tool…" : "Running \(current.name)…"
         }
         if let duration { return "Worked for \(RelativeTime.duration(duration))" }
         return steps.count == 1 ? "Used 1 tool" : "Used \(steps.count) tools"
