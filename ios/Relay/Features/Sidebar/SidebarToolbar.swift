@@ -20,8 +20,11 @@ struct SidebarToolbar: View {
                 .glassEffect(.regular.interactive(), in: .capsule)
             }
         }
-        .frame(height: 52)
+        .frame(minHeight: 52)
         .padding(.horizontal, 16)
+        // Like the system bars: the toolbar stops growing at AX1 so the machine name and the Filter/••• pill
+        // keep their room; long-press shows the large content viewer beyond that.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
     private var moreMenu: some View {
@@ -44,6 +47,9 @@ struct SidebarToolbar: View {
                 .contentShape(.rect)
         }
         .tint(.primary)
+        .accessibilityShowsLargeContentViewer {
+            Label("More", systemImage: "ellipsis")
+        }
         .accessibilityLabel("More")
         .accessibilityIdentifier("sidebarMore")
     }
@@ -80,6 +86,7 @@ private struct MachineMenu: View {
                 Text(name)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
@@ -91,6 +98,9 @@ private struct MachineMenu: View {
         }
         .tint(.primary)
         .glassEffect(.regular.interactive(), in: .capsule)
+        .accessibilityShowsLargeContentViewer {
+            Label(name, systemImage: "desktopcomputer")
+        }
         .accessibilityLabel("Machine: \(name)")
         .accessibilityValue(connected ? "Connected" : "Reconnecting")
         .accessibilityIdentifier("sidebarMachineMenu")

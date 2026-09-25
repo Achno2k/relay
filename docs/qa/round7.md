@@ -20,15 +20,15 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 |---|---|---|---|---|
 | R7-1 | P2 | sidebar-lists | fixed (lists, verify) | AX3: chat titles are `lineLimit(1)` and truncate to ~9 characters ("Weekly re…") |
 | R7-2 | P2 | sidebar-lists | fixed (lists, verify) | AX3: "2 completed" hyphenates over three lines ("2 / complet- / ed"); the all-in-Now row hyphenates "run-ning" |
-| R7-3 | P2 | sidebar-shell | open | AX3: New chat wraps to two lines, the machine name truncates to "Mock…", Filter and ••• crowd the pill |
-| R7-4 | P2 | sidebar-shell | verify | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
-| R7-13 | P2 | sidebar-shell | open | Scrolled: rows stay legible behind the status bar and just under the toolbar; the top edge barely fades |
+| R7-3 | P2 | sidebar-shell | fixed (shell) | AX3: New chat wraps to two lines, the machine name truncates to "Mock…", Filter and ••• crowd the pill |
+| R7-4 | P2 | sidebar-shell | fixed (shell), verify on device | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
+| R7-13 | P2 | sidebar-shell | fixed (shell) | Scrolled: rows stay legible behind the status bar and just under the toolbar; the top edge barely fades |
 | R7-5 | P3 | sidebar-lists | fixed (lists, verify) | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
 | R7-6 | P3 | sidebar-lists | fixed (lists, verify) | Row separators are 1 pt (3 px), design 0.5 pt |
 | R7-7 | P3 | sidebar-lists | fixed (lists, verify) | Now rows: title-to-subtitle gap about 3 pt wider than the design (SwiftUI line heights) |
 | R7-8 | P3 | filter-menu | verified (b7900b8, device) | The needs-input dot on Filter renders grey, design is label colour |
 | R7-9 | P3 | filter-menu | accepted (lead) | Native menu differs from the mockup: it grows over the Filter button, rows are 42 pt, and there is no veil or blur behind it |
-| R7-10 | P3 | sidebar-shell, sidebar-lists | open; lists half fixed | Reduce Motion: a few `.smooth` animations ignore it |
+| R7-10 | P3 | sidebar-shell, sidebar-lists | fixed (both halves) | Reduce Motion: a few `.smooth` animations ignore it |
 | R7-11 | P3 | herd-native (design call) | accepted (lead) | Light mode: secondary text contrast is 3.4 to 3.8:1, under AA 4.5:1 |
 | R7-12 | P3 | sidebar-shell | accepted (lead) | The bottom scroll-edge fade is softer than the design; rows stay legible under the bar |
 
@@ -45,16 +45,27 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 ### R7-3: toolbar and bottom bar at AX3
 - New chat: `SidebarBottomBar.swift` `newChatButton`. Add `.lineLimit(1)`.
 - Cap both bars the way system bars do: `.dynamicTypeSize(...DynamicTypeSize.accessibility1)` on `SidebarToolbar` and `SidebarBottomBar`. The list keeps full Dynamic Type.
+- Fixed (sidebar-shell):
+  - Both bars stop growing at AX1.
+  - From AX3 up, New chat shows only its compose icon: one line, 50 pt tall, VoiceOver label "New chat". The decision uses the real text size, not the capped one.
+  - The machine name is one line with `minimumScaleFactor(0.8)`, and truncates only after that ("Mock MacB…" at AX1+). Machine and ••• show the large content viewer on long press.
+  - The Filter/••• pill keeps two 44 pt buttons inside the sidebar.
+  - `SidebarShellUITests.testAccessibilitySizes` checks AX3 and AX5.
 
 ### R7-4: VoiceOver order (verify on device)
 - `app.debugDescription` lists: title, Now, rows…, search, New chat, then machine menu, Filter, More.
 - Cause: both bars are `safeAreaBar`s declared after the `List`, so they come later in the tree.
 - If VoiceOver reads it that way on device, give the toolbar `.accessibilitySortPriority(1)` (or put the list and bars in an `accessibilityElement(children: .contain)` with the toolbar sorted first).
+- Fixed (sidebar-shell):
+  - `accessibilitySortPriority` did not change the tree, so the toolbar is no longer a `safeAreaBar`. It now sits above the `List` in a `VStack`.
+  - Tree order is now machine menu, Filter, More, list, search, New chat.
+  - `SidebarShellUITests.testAccessibilityOrder` checks the order. Still worth a pass with VoiceOver on device.
 
 ### R7-13: top scroll edge
 - Screenshot: `round7-after-dark-scrolled.png`. After scrolling, "Speed up image loading" and "Refresh push tokens" read clearly behind "9:41" and the toolbar's glass.
 - Cause: `.scrollEdgeEffectStyle(.soft, for: .all)`; the soft effect barely dims the status-bar strip.
 - The mockup has no scrolled state, but its toolbar sits on the grouped ground. Try `.hard` for `.top`, or a grouped-colour gradient behind the toolbar like the bottom fade. Needs a look on device.
+- Fixed (sidebar-shell): with the toolbar above the `List` (see R7-4), rows stop at the toolbar's bottom edge with the list's soft top edge, and nothing shows behind the status bar. The bottom keeps the soft fade (R7-12 accepted).
 
 ### R7-5: section gap
 - `SidebarSectionHeader` has `minHeight: 36`, but the `newChat-<project>` button is 44×44, so the header is 44.
@@ -86,6 +97,7 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 - `SessionRow.swift:94`: archive `withAnimation(.smooth)`.
 - Show all, completed and project folds already honour it.
 - Lists half fixed (sidebar-lists): archive/unarchive in `SessionRow` uses no animation under Reduce Motion. Shell items still open.
+- Shell half fixed (sidebar-shell): under Reduce Motion, the search circle and field swap without the glass morph, and switching filter or search changes the list without animation.
 
 ### R7-11: light-mode secondary text contrast
 - Design `label2` light = rgba(60,60,67,0.64): 3.8:1 on white, 3.6:1 on #F2F2F7. The build uses system `.secondary` (0.6): 3.4:1.

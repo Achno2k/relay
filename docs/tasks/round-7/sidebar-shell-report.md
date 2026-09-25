@@ -54,3 +54,14 @@ The container for design B · Grouped. It composes the views from sidebar-lists 
 ## Notes for others
 - XCUITest taps an element's centre, and most of the peek is off screen. Tap `sidebarPeek` with `coordinate(withNormalizedOffset: (0.05, 0.5))`.
 - `NSPredicate("frame.minX < 0")` never matches on XCUIElement. Poll `frame` instead, as `SidebarMotionUITests` does.
+
+## QA fixes (docs/qa/round7.md)
+- R7-3, Dynamic Type:
+  - Toolbar and bottom bar stop growing at AX1.
+  - From AX3, New chat is icon only (label "New chat").
+  - The machine name scales to 0.8 before it truncates. Machine and ••• get the large content viewer.
+- R7-4, VoiceOver order: the toolbar now sits above the List in a `VStack`, since sort priority didn't change the order. The tree reads toolbar, list, bottom bar.
+- R7-13, top edge: the same change fixes it. Rows no longer scroll behind the status bar or the toolbar.
+- R7-10, Reduce Motion: the search morph and the filter/search list animations are off.
+- New tests: `SidebarShellUITests.testAccessibilityOrder` and `testAccessibilitySizes` (AX3, AX5).
+- 20 sidebar, Round2, Mock and NewChat UI tests pass on my simulator.

@@ -71,6 +71,46 @@ final class SidebarShellUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["New chat"].waitForExistence(timeout: 5))
     }
 
+    /// VoiceOver order: toolbar, then the list, then the bottom bar (R7-4).
+    func testAccessibilityOrder() throws {
+        let tree = app.debugDescription
+        if let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] {
+            try? tree.write(toFile: dir + "/shell-a11y-tree.txt", atomically: true, encoding: .utf8)
+        }
+        func position(_ id: String) -> String.Index {
+            guard let r = tree.range(of: "'\(id)'") else {
+                XCTFail("\(id) not in the accessibility tree"); return tree.endIndex
+            }
+            return r.lowerBound
+        }
+        let machine = position("sidebarMachineMenu"), more = position("sidebarMore")
+        let row = tree.range(of: "Weekly report export")?.lowerBound ?? tree.endIndex
+        let search = position("sidebarSearch"), newChat = position("sidebarNewChat")
+        XCTAssertLessThan(machine, row, "toolbar should come before the list")
+        XCTAssertLessThan(more, row, "toolbar should come before the list")
+        XCTAssertLessThan(row, search, "list should come before the bottom bar")
+        XCTAssertLessThan(row, newChat, "list should come before the bottom bar")
+    }
+
+    /// At AX3 and above New chat is one line (icon only, still labelled), and the toolbar fits the sidebar (R7-3).
+    func testAccessibilitySizes() throws {
+        for size in ["UICTContentSizeCategoryAccessibilityXL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            app.terminate()
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName", size]
+            app.launch()
+            let machine = app.buttons["sidebarMachineMenu"], more = app.buttons["sidebarMore"]
+            XCTAssertTrue(machine.waitForExistence(timeout: 10))
+            let newChat = app.buttons["sidebarNewChat"]
+            XCTAssertEqual(newChat.label, "New chat")
+            XCTAssertLessThanOrEqual(newChat.frame.height, 60, "New chat wrapped at \(size)")
+            XCTAssertGreaterThanOrEqual(machine.frame.minX, 0)
+            XCTAssertLessThanOrEqual(machine.frame.maxX, more.frame.minX, "machine menu runs into the pill at \(size)")
+            XCTAssertLessThanOrEqual(more.frame.maxX, 342, "pill spills out of the sidebar at \(size)")
+            XCTAssertGreaterThanOrEqual(more.frame.width, 44)
+            shot("shell-\(size)")
+        }
+    }
+
     /// Saved to `RELAY_SHOTS` when set (pass it as `TEST_RUNNER_RELAY_SHOTS`).
     private func shot(_ name: String) {
         guard let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] else { return }

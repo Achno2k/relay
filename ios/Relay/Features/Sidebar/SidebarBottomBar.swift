@@ -6,9 +6,16 @@ struct SidebarBottomBar: View {
     @Binding var query: String
     @Binding var searching: Bool
     var searchFocused: FocusState<Bool>.Binding
+    /// New chat shows only its compose icon (from AX3 up the title no longer fits beside search on one line).
+    /// Passed in because the bar caps its own type size at AX1.
+    var iconOnly = false
     let onNewChat: () -> Void
 
     @Namespace private var glass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Reduce Motion: the circle swaps for the field without the glass morph.
+    private var morph: Animation? { reduceMotion ? nil : .smooth }
 
     var body: some View {
         GlassEffectContainer(spacing: 12) {
@@ -34,7 +41,7 @@ struct SidebarBottomBar: View {
                 .submitLabel(.search)
                 .accessibilityIdentifier("sidebarSearchField")
             Button {
-                withAnimation(.smooth) {
+                withAnimation(morph) {
                     query = ""
                     searching = false
                     searchFocused.wrappedValue = false
@@ -57,7 +64,7 @@ struct SidebarBottomBar: View {
 
     private var searchButton: some View {
         Button {
-            withAnimation(.smooth) { searching = true }
+            withAnimation(morph) { searching = true }
             searchFocused.wrappedValue = true
         } label: {
             Image(systemName: "magnifyingglass")
@@ -76,13 +83,15 @@ struct SidebarBottomBar: View {
         Button(action: onNewChat) {
             Label("New chat", systemImage: "square.and.pencil")
                 .font(.body.weight(.semibold))
-                .labelStyle(NewChatLabelStyle())
+                .lineLimit(1)
+                .labelStyle(NewChatLabelStyle(iconOnly: iconOnly))
                 .foregroundStyle(Color(.systemBackground))
-                .padding(.leading, 18)
-                .padding(.trailing, 22)
+                .padding(.leading, iconOnly ? 20 : 18)
+                .padding(.trailing, iconOnly ? 20 : 22)
                 .frame(minHeight: 50)
                 .contentShape(.capsule)
         }
+        .accessibilityLabel("New chat")
         .buttonStyle(.plain)
         .glassEffect(.regular.tint(.primary).interactive(), in: .capsule)
         .glassEffectID("new", in: glass)
@@ -92,10 +101,12 @@ struct SidebarBottomBar: View {
 
 /// Icon and title 8 pt apart, as in the mockup (the default label spacing is wider).
 private struct NewChatLabelStyle: LabelStyle {
+    var iconOnly = false
+
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 8) {
             configuration.icon
-            configuration.title
+            if !iconOnly { configuration.title }
         }
     }
 }

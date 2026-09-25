@@ -15,10 +15,25 @@ struct SidebarView: View {
     @State private var query = ""
     @State private var searching = false
     @FocusState private var searchFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        // The toolbar sits above the list rather than floating over it: scrolled rows never show through the
+        // status bar or the toolbar (R7-13), and VoiceOver reads toolbar, list, bottom bar in that order (R7-4).
+        VStack(spacing: 0) {
+            SidebarToolbar(store: store, onUnpair: onUnpair, onUsage: onUsage)
+            list
+        }
+        .background(Color(.systemGroupedBackground))
+        // Reduce Motion: switching filter or search swaps the list without rows sliding around.
+        .animation(reduceMotion ? nil : .smooth, value: store.filter)
+        .animation(reduceMotion ? nil : .smooth, value: isSearching)
+    }
+
+    private var list: some View {
         let sidebar = store.sidebar
-        List {
+        return List {
             title
             if isSearching {
                 SidebarSessionList(
@@ -46,22 +61,22 @@ struct SidebarView: View {
         .environment(\.defaultMinListHeaderHeight, 0)
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
-        .scrollEdgeEffectStyle(.soft, for: .all)
+        // The native version of the mockup's bottom fade.
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaBar(edge: .bottom, spacing: 0) {
-            SidebarBottomBar(query: $query, searching: $searching, searchFocused: $searchFocused) {
+            SidebarBottomBar(
+                query: $query, searching: $searching, searchFocused: $searchFocused,
+                iconOnly: typeSize >= .accessibility3
+            ) {
                 onNewChat(store.selectedAgent?.workspaceId)
             }
             .padding(.horizontal, 16)
             // 30 pt above the screen's bottom edge; just clear of the keyboard while typing.
             .padding(.bottom, searchFocused ? 8 : 30)
+            // Like the toolbar: bigger glyphs would only outgrow the 50 pt search circle.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
         .ignoresSafeArea(.container, edges: .bottom)
-        .safeAreaBar(edge: .top, spacing: 0) {
-            SidebarToolbar(store: store, onUnpair: onUnpair, onUsage: onUsage)
-        }
-        .background(Color(.systemGroupedBackground))
-        .animation(.smooth, value: store.filter)
-        .animation(.smooth, value: isSearching)
     }
 
     private var isSearching: Bool {
