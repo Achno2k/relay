@@ -43,3 +43,10 @@
 ## Notes for others
 - design-qa: menu items are addressable by label (All, Needs input, Ready for review, Working, Completed, Archived). Row height and width are system-defined (see Decisions).
 - `project.pbxproj` is committed by sidebar-shell after all files land.
+
+## Integrated check (shared tree, before the shell commit)
+- `SidebarFilterMenuUITests`: pass.
+- `Round2UITests.testFilterMenuShowsFlatSessions`: pass.
+- `Round2UITests.testArchiveAndUnarchive`: **fail**.
+  - After the left swipe, the row isn't on screen and there is no Archive action.
+  - Owned by the SessionRow / Round2 edits; reported to sidebar-shell and sidebar-lists.
