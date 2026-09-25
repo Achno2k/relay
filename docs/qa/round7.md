@@ -18,27 +18,29 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 
 | id | sev | owner | status | finding |
 |---|---|---|---|---|
-| R7-1 | P2 | sidebar-lists | open | AX3: chat titles are `lineLimit(1)` and truncate to ~9 characters ("Weekly re…") |
-| R7-2 | P2 | sidebar-lists | open | AX3: "2 completed" hyphenates over three lines ("2 / complet- / ed"); the all-in-Now row hyphenates "run-ning" |
+| R7-1 | P2 | sidebar-lists | fixed (lists, verify) | AX3: chat titles are `lineLimit(1)` and truncate to ~9 characters ("Weekly re…") |
+| R7-2 | P2 | sidebar-lists | fixed (lists, verify) | AX3: "2 completed" hyphenates over three lines ("2 / complet- / ed"); the all-in-Now row hyphenates "run-ning" |
 | R7-3 | P2 | sidebar-shell | open | AX3: New chat wraps to two lines, the machine name truncates to "Mock…", Filter and ••• crowd the pill |
 | R7-4 | P2 | sidebar-shell | verify | VoiceOver order: the toolbar comes after the whole list and the bottom bar in the accessibility tree |
 | R7-13 | P2 | sidebar-shell | open | Scrolled: rows stay legible behind the status bar and just under the toolbar; the top edge barely fades |
-| R7-5 | P3 | sidebar-lists | open | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
-| R7-6 | P3 | sidebar-lists | open | Row separators are 1 pt (3 px), design 0.5 pt |
-| R7-7 | P3 | sidebar-lists | open | Now rows: title-to-subtitle gap about 3 pt wider than the design (SwiftUI line heights) |
-| R7-8 | P3 | filter-menu | fixed | The needs-input dot on Filter renders grey, design is label colour |
+| R7-5 | P3 | sidebar-lists | fixed (lists, verify) | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
+| R7-6 | P3 | sidebar-lists | fixed (lists, verify) | Row separators are 1 pt (3 px), design 0.5 pt |
+| R7-7 | P3 | sidebar-lists | fixed (lists, verify) | Now rows: title-to-subtitle gap about 3 pt wider than the design (SwiftUI line heights) |
+| R7-8 | P3 | filter-menu | verified (b7900b8, device) | The needs-input dot on Filter renders grey, design is label colour |
 | R7-9 | P3 | filter-menu | accepted (lead) | Native menu differs from the mockup: it grows over the Filter button, rows are 42 pt, and there is no veil or blur behind it |
-| R7-10 | P3 | sidebar-shell, sidebar-lists | open | Reduce Motion: a few `.smooth` animations ignore it |
+| R7-10 | P3 | sidebar-shell, sidebar-lists | open; lists half fixed | Reduce Motion: a few `.smooth` animations ignore it |
 | R7-11 | P3 | herd-native (design call) | accepted (lead) | Light mode: secondary text contrast is 3.4 to 3.8:1, under AA 4.5:1 |
 | R7-12 | P3 | sidebar-shell | accepted (lead) | The bottom scroll-edge fade is softer than the design; rows stay legible under the bar |
 
 ### R7-1: titles truncate at AX3
 - Where: `SessionRow.swift:56,76` (`.lineLimit(1)`).
 - Fix: `.lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)` or `lineLimit(1...2)` at accessibility sizes. Default size stays one line as designed.
+- Fixed (sidebar-lists): titles take up to 3 lines at accessibility sizes, subtitles 2; 1 line at standard sizes. Rows pad 8 pt vertically so wrapped text clears the card. Test: `SidebarListsUITests.testAccessibilitySizesWrap`. Shot: `docs/screenshots/round7-lists-ax3-now.png`.
 
 ### R7-2: completed and all-in-Now labels hyphenate at AX3
 - Where: `SidebarProjectSection.swift` completed row (~l.132) and the all-in-Now row (~l.105).
 - Fix: `lineLimit(1)` + `minimumScaleFactor(0.8)` on the count text, or `ViewThatFits` to drop the trailing text under the title.
+- Fixed (sidebar-lists): at accessibility sizes the completed row drops its check glyph, so "completed" fits on one line; the all-in-Now row stacks the name over "N running" (count is `fixedSize`, never hyphenated). Shot: `docs/screenshots/round7-lists-ax3-folds.png`.
 
 ### R7-3: toolbar and bottom bar at AX3
 - New chat: `SidebarBottomBar.swift` `newChatButton`. Add `.lineLimit(1)`.
@@ -57,13 +59,16 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 ### R7-5: section gap
 - `SidebarSectionHeader` has `minHeight: 36`, but the `newChat-<project>` button is 44×44, so the header is 44.
 - Fix: keep the 44 pt target and let it overflow, as the mockup does (`margin-right: -12px`, height 44 in a 36 row): e.g. `.padding(.vertical, -4)` on the `+` button.
+- Fixed (sidebar-lists): the `+` (and the opened all-in-Now name button) keep 44 pt targets with `.padding(.vertical, -4)`. The inset-grouped list also adds about 3 pt above and 2.3 pt below every header; `SidebarSectionHeader` subtracts that. Measured gap between cards: 62.0 pt (design 62). The all-in-Now spacer is compensated the same way.
 
 ### R7-6: separator thickness
 - Measured 3 px (1 pt) in dark (rgb 56,56,59) and light (232). Mockup 0.5 pt (`t.sep`).
+- Fixed (sidebar-lists): list separators hidden; each card row draws its own `1 / displayScale` hairline in `Color(.separator)`, from the text to the card edge. Measured 1 px at 3×. The last row in a card has none.
 
 ### R7-7: Now row text spacing
 - Title glyphs 231→247, subtitle 256→269 (after), vs 221→237 and 242→253 (mockup). Gap 8.4 pt vs 5.3 pt.
 - Cause: SwiftUI body/subheadline line heights (22/20 pt) vs the HTML defaults. `VStack(spacing: -2)` would match. Cosmetic.
+- Fixed (sidebar-lists): `VStack(spacing: -2)` (was 1), 3 pt tighter.
 
 ### R7-8: needs-input dot is grey
 - `SidebarFilterMenu.swift:28` uses `.fill(.primary)`; inside a `Menu` label that dims to grey.
@@ -80,6 +85,7 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 - `SidebarView.swift`: `.animation(.smooth, value: store.filter)` and `value: isSearching`.
 - `SessionRow.swift:94`: archive `withAnimation(.smooth)`.
 - Show all, completed and project folds already honour it.
+- Lists half fixed (sidebar-lists): archive/unarchive in `SessionRow` uses no animation under Reduce Motion. Shell items still open.
 
 ### R7-11: light-mode secondary text contrast
 - Design `label2` light = rgba(60,60,67,0.64): 3.8:1 on white, 3.6:1 on #F2F2F7. The build uses system `.secondary` (0.6): 3.4:1.
@@ -103,3 +109,10 @@ In `docs/screenshots/` (mock data only; mockup renders stay local because they h
 - Before (`830b8be`): `round7-before-dark.png`, `round7-before-light.png`, `round7-before-filter-dark.png`.
 - After (`3478dd7`): `round7-after-{dark,light}-default.png`, `-dark-showall`, `-{dark,light}-completed`, `-{dark,light}-filter`, `-light-filter-needsinput`, `-light-search`, `-dark-scrolled`, `-ax3-default`, `-ax3-scrolled`.
 - Regenerate: `TEST_RUNNER_RELAY_SHOTS=<dir> xcodebuild test -scheme Relay -destination 'id=<sim>' -only-testing:RelayUITests/DesignQAShots`.
+
+## Device run (iPhone 13, iOS 26.5.2)
+- Build: clean worktree of master `77c8d00` (includes the R7-8 fix; the other fixes weren't committed yet).
+- UI tests on device: 32/32 pass (all mock suites; Live* excluded). Unit tests: 121/121 on the simulator. On device the fixture-reading unit tests can't reach `docs/fixtures` (host `#filePath`); that's a harness limit.
+- The device renders match the simulator: same layout, glass and glyphs. R7-1 to R7-3 reproduce on device (`round7-device-ax3-*.png`); at AX3 the Filter and ••• glyphs also overlap inside the pill.
+- R7-8 verified: the dot is white in dark and black in light (`round7-device-dark-default.png`, `round7-device-light-default.png`).
+- Manual VoiceOver swipe not done (no hands on the phone). The on-device tree and audit match the simulator's. R7-4 still needs a person to swipe through with VoiceOver.
