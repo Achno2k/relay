@@ -3,7 +3,7 @@
 | id | severity | owner | status | title |
 |---|---|---|---|---|
 | QA-1 | P3 | ios-polish | closed (no repro) | Sidebar filter menu: picker items don't show up within timeout after tapping Filter (was sim contention) |
-| QA-2 | P3 | bridge-harden | open | Attachment filename sanitizing drops everything before a `/` instead of replacing it with `-` |
+| QA-2 | P3 | tests-cleanup | fixed (round 6) | Attachment filename sanitizing drops everything before a `/` instead of replacing it with `-` |
 
 Details below, one section per bug.
 
@@ -33,4 +33,4 @@ Details below, one section per bug.
 - Expected (per `docs/api.md` Attachments § Name sanitising): "characters outside `A-Z a-z 0-9 . _ -` become `-`" — so `a/b.txt` should sanitize to `a-b.txt`.
 - Actual: returns `name: "b.txt"` — the `/` is treated as a real path separator (lastPathComponent-style) and everything before it is silently dropped, not replaced with `-`.
 - Security check done as part of this: tried `X-Filename: ../../../../tmp/relay_traversal_marker.txt` — resolves to `relay_traversal_marker.txt` with no file written outside the uploads dir. **No path traversal**; the lastPathComponent-style handling is actually safe, just undocumented/inconsistent with the stated sanitizing rule. Recommend either fixing the code to match the doc (replace `/` with `-` before sanitizing further) or updating `docs/api.md` to describe the actual (safe) behavior.
-- Not re-tested after fix.
+- Fixed (round 6, tests-cleanup): the code now matches api.md. `UploadStore.sanitize` no longer takes `lastPathComponent` first; `/` becomes `-` like any other disallowed character, so `a/b.txt` is `a-b.txt` and `../../etc/passwd` is `etc-passwd`. The traversal guarantee holds because only `A-Z a-z 0-9 . _ -` survive, leading/trailing `.`/`-` are trimmed, and the stored name is `<16-hex id>-<name>`. Tests: new `UploadsTests.sanitize` cases for `/`, `\`, `/` alone and `../..`; `slashNamesStayInsideTheUploadFolder` saves real files for traversal-style names and checks they land directly in the agent's upload folder; the existing 1000-name fuzz (`uploadNameSanitizeIsAlwaysSafe`) still passes. Not re-tested against the live bridge (tests-cleanup doesn't redeploy it); it ships with live-tool-bridge's next rebuild.

@@ -42,9 +42,10 @@ public struct UploadStore: Sendable {
 
     /// Keeps `A-Z a-z 0-9 . _ -`, turns the rest into `-`, collapses runs, cuts the stem to 80.
     public static func sanitize(_ raw: String) -> String {
-        let base = (raw as NSString).lastPathComponent
+        // `/` is just another disallowed character (api.md), not a path separator: "a/b.txt" is
+        // "a-b.txt". Only `A-Z a-z 0-9 . _ -` survive, so no separator can reach the file name.
         var out = ""
-        for u in base.unicodeScalars {
+        for u in raw.unicodeScalars {
             let ok = (u.isASCII && (CharacterSet.alphanumerics.contains(u) || u == "." || u == "_" || u == "-"))
             let c: Character = ok ? Character(u) : "-"
             if c == "-" && out.hasSuffix("-") { continue }

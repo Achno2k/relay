@@ -10,7 +10,13 @@ import Testing
     @Test(arguments: [
         ("photo.jpg", "photo.jpg"),
         ("My Screen Shot 2026-09-24 at 10.00.00.png", "My-Screen-Shot-2026-09-24-at-10.00.00.png"),
-        ("../../etc/passwd", "passwd"),
+        ("../../etc/passwd", "etc-passwd"),
+        ("a/b.txt", "a-b.txt"),
+        ("dir/sub/file.png", "dir-sub-file.png"),
+        ("a\\b.txt", "a-b.txt"),
+        ("/", "file"),
+        ("../..", "file"),
+        ("x/../../y.txt", "x-..-..-y.txt"),
         ("résumé ✓.pdf", "r-sum.pdf"),
         ("", "file"),
         ("✓✓✓", "file"),
@@ -19,6 +25,20 @@ import Testing
     ])
     func sanitize(raw: String, expected: String) {
         #expect(UploadStore.sanitize(raw) == expected)
+    }
+
+    /// QA-2: `/` is sanitised like any other character, and the stored file still lands directly
+    /// inside the agent's upload folder.
+    @Test(arguments: ["a/b.txt", "../../../../tmp/relay_traversal_marker.txt", "/etc/passwd", "../..", "..\\..\\x"])
+    func slashNamesStayInsideTheUploadFolder(raw: String) throws {
+        let store = tempStore()
+        defer { try? FileManager.default.removeItem(at: store.root) }
+        let a = try store.save(paneId: "w1:p1", data: Data("x".utf8), filename: raw)
+        let url = try #require(store.find(a.id))
+        #expect(url.deletingLastPathComponent().standardizedFileURL.path
+                == store.root.appendingPathComponent(UploadStore.paneDir("w1:p1")).standardizedFileURL.path)
+        #expect(url.lastPathComponent == "\(a.id)-\(a.name)")
+        #expect(!a.name.contains("/"))
     }
 
     @Test func kinds() {
