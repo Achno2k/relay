@@ -7,7 +7,7 @@
     - the glass card and the blurred backdrop
     - the checkmark column, then the icon, then the label
   - Order: All, Needs input, Ready for review, Working, Completed, a separator, then Archived.
-  - Needs-input dot: 7 pt, label colour (status is monochrome, as the design specifies; it was orange before).
+  - Needs-input dot: 7 pt, `Color(.label)` (status is monochrome, as the design specifies; it was orange before). `.primary` rendered grey inside the Menu label (QA R7-8).
   - Accessibility unchanged: id `sidebarFilter`, label "Filter: <title>", value "needs input".
 - `ios/RelayUITests/SidebarFilterMenuUITests.swift`. It checks:
   - the menu order and the separator above Archived
@@ -39,6 +39,10 @@
   - `SidebarMotionUITests`: pass.
 - Screenshot compared with `LiveCardsFilter-light.png`: same structure, glyphs, check column and separator.
 - sidebar-shell reports its shell and motion UI tests green with this file in the new toolbar.
+
+## QA
+- R7-8 fixed (dot colour).
+- R7-9 accepted by the lead (native menu).
 
 ## Notes for others
 - design-qa: menu items are addressable by label (All, Needs input, Ready for review, Working, Completed, Archived). Row height and width are system-defined (see Decisions).

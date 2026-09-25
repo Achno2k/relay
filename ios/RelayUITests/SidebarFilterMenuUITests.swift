@@ -22,6 +22,8 @@ final class SidebarFilterMenuUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(filter.frame.width, 44)
         XCTAssertGreaterThanOrEqual(filter.frame.height, 44)
 
+        shot("round7-filter-button")
+
         filter.tap()
         let items = order.map { app.buttons[$0] }
         XCTAssertTrue(items[0].waitForExistence(timeout: 3))

@@ -26,7 +26,7 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 | R7-5 | P3 | sidebar-lists | open | Section gap is 71 pt, design 62 pt: the 44 pt `+` makes project headers 44 pt tall (design 36 pt, the `+` overflows) |
 | R7-6 | P3 | sidebar-lists | open | Row separators are 1 pt (3 px), design 0.5 pt |
 | R7-7 | P3 | sidebar-lists | open | Now rows: title-to-subtitle gap about 3 pt wider than the design (SwiftUI line heights) |
-| R7-8 | P3 | filter-menu | open | The needs-input dot on Filter renders grey, design is label colour |
+| R7-8 | P3 | filter-menu | fixed | The needs-input dot on Filter renders grey, design is label colour |
 | R7-9 | P3 | filter-menu | accepted (lead) | Native menu differs from the mockup: it grows over the Filter button, rows are 42 pt, and there is no veil or blur behind it |
 | R7-10 | P3 | sidebar-shell, sidebar-lists | open | Reduce Motion: a few `.smooth` animations ignore it |
 | R7-11 | P3 | herd-native (design call) | accepted (lead) | Light mode: secondary text contrast is 3.4 to 3.8:1, under AA 4.5:1 |
@@ -68,6 +68,7 @@ How: `DesignQAShots` UI test (`TEST_RUNNER_RELAY_SHOTS=<dir>`), pixel scans of t
 ### R7-8: needs-input dot is grey
 - `SidebarFilterMenu.swift:28` uses `.fill(.primary)`; inside a `Menu` label that dims to grey.
 - sidebar-shell hit the same thing with the machine dot and used `Color(.label)` (`SidebarToolbar.swift` `MachineMenu`). Do the same here.
+- Fixed (filter-menu): `.fill(Color(.label))`; checked in the `round7-filter-button` shot of `SidebarFilterMenuUITests`.
 
 ### R7-9: native filter menu vs the mockup
 - Mockup: glass card 256 wide at (70, 112), 48 pt rows, content behind gets a veil + 3 pt blur.

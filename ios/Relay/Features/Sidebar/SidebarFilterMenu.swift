@@ -24,7 +24,7 @@ struct SidebarFilterMenu: View {
                 .contentShape(.rect)
                 .overlay(alignment: .topTrailing) {
                     if needsInput {
-                        Circle().fill(.primary).frame(width: 7, height: 7).offset(x: -9, y: 9)
+                        Circle().fill(Color(.label)).frame(width: 7, height: 7).offset(x: -9, y: 9)
                     }
                 }
         }
