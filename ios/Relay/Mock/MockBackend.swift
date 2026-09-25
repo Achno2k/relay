@@ -22,8 +22,9 @@ actor MockBackend: Backend {
 
     init(replayInterval: Duration? = .seconds(4)) {
         let fixtures = Fixtures()
-        agentList = MockControls.extraAgents(fixtures.agents)
-        workspaceList = fixtures.workspaces
+        agentList = MockControls.extraAgents(fixtures.agents) + MockSidebar.agents()
+        workspaceList = fixtures.workspaces + MockSidebar.workspaces
+        MockSidebar.markCompletedSeen(agentList)
         approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
         replay = fixtures.events
         catalog = fixtures.controls

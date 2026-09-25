@@ -28,13 +28,22 @@ final class MockUITests: XCTestCase {
         XCTAssertFalse(scrollToBottom.exists, "opened scrolled up")
 
         app.buttons["Open sidebar"].tap()
-        expand("project-shop-api")
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Refactor auth middleware'")).firstMatch.tap()
+        // The oldest of 7 running chats: behind Now's "Show all".
+        let showAll = app.buttons["nowShowAll"]
+        XCTAssertTrue(showAll.waitForExistence(timeout: 5))
+        if showAll.value as? String != "expanded" { showAll.tap() }
+        let refactor = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Refactor auth middleware'")).firstMatch
+        XCTAssertTrue(refactor.waitForExistence(timeout: 5), "not in Now after Show all")
+        refactor.tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Option 2'")).firstMatch.waitForExistence(timeout: 10))
 
         app.buttons["Open sidebar"].tap()
-        expand("project-website")
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Landing page hero redesign'")).firstMatch.tap()
+        let landing = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Landing page hero redesign'")).firstMatch
+        for _ in 0..<8 where !(landing.exists && landing.isHittable) {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.75))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.45)))
+        }
+        landing.tap()
         XCTAssertTrue(app.staticTexts["Done"].waitForExistence(timeout: 10), "latest message not visible after switching")
         sleep(1)
         XCTAssertFalse(scrollToBottom.exists, "switched chat opened scrolled up")
@@ -147,12 +156,6 @@ final class MockUITests: XCTestCase {
     }
 
     /// Sidebar folders start collapsed.
-    private func expand(_ project: String) {
-        let row = app.buttons[project]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
-        if row.value as? String != "expanded" { row.tap() }
-    }
-
     private func waitForIdle() {
         let idle = expectation(for: NSPredicate(format: "value == 'idle'"), evaluatedWith: app.buttons["titleMenu"])
         wait(for: [idle], timeout: 10)

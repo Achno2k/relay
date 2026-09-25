@@ -24,7 +24,8 @@ final class NewChatUITests: XCTestCase {
     func testCodexWithModelAndEffort() throws {
         openSheet()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'website,'")).firstMatch.tap()
-        app.buttons["Codex"].tap()
+        // Not the sidebar's "Codex" chat row behind the sheet.
+        app.buttons.matching(NSPredicate(format: "label == 'Codex' AND NOT (identifier BEGINSWITH 'session-')")).firstMatch.tap()
         let model = app.buttons["newChatModel"]
         XCTAssertTrue(model.waitForExistence(timeout: 5))
         XCTAssertTrue(model.label.contains("Default (GPT-5.6-Terra)"), "model reads \(model.label)")

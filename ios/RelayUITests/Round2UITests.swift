@@ -35,19 +35,13 @@ final class Round2UITests: XCTestCase {
         XCTAssertTrue(lastCode.isHittable, "the last message isn't on screen after tapping ↓")
     }
 
-    // MARK: 3. Sidebar tree
+    // MARK: 3. Sidebar tree (design B: grouped cards, see SidebarListsUITests)
 
-    func testProjectsTreeAndNewChatInFolder() throws {
+    func testProjectCardsAndNewChatInFolder() throws {
         launch("-agent", "w1:p1")
         openSidebar()
-        let shop = app.buttons["project-shop-api"]
-        XCTAssertTrue(shop.waitForExistence(timeout: 5))
-        XCTAssertEqual(shop.value as? String, "collapsed", "folders start collapsed")
-        XCTAssertFalse(row("Fix flaky checkout tests").exists)
-
-        shop.tap()
-        XCTAssertTrue(row("Fix flaky checkout tests").waitForExistence(timeout: 3))
-        XCTAssertEqual(shop.value as? String, "expanded")
+        XCTAssertTrue(app.staticTexts["project-shop-api"].waitForExistence(timeout: 5), "project header")
+        XCTAssertTrue(row("Fix flaky checkout tests").exists, "cards are always open")
         shot("round2-sidebar-expanded")
 
         app.buttons["newChat-website"].tap()
@@ -71,9 +65,9 @@ final class Round2UITests: XCTestCase {
 
         let blocked = row("Fix flaky checkout tests")
         XCTAssertTrue(blocked.waitForExistence(timeout: 3))
-        XCTAssertTrue((blocked.value as? String ?? "").hasPrefix("Waiting for you · shop-api"), "flat rows name the folder")
+        XCTAssertTrue((blocked.value as? String ?? "").hasPrefix("Needs input, shop-api"), "flat rows name the folder")
         XCTAssertFalse(row("Refactor auth middleware").exists)
-        XCTAssertFalse(app.buttons["project-shop-api"].exists, "Projects tree is replaced by Sessions")
+        XCTAssertFalse(app.staticTexts["project-shop-api"].exists, "Project cards are replaced by Sessions")
         shot("round2-sessions-needs-input")
 
         filter.tap()
@@ -95,12 +89,13 @@ final class Round2UITests: XCTestCase {
     func testArchiveAndUnarchive() throws {
         launch("-agent", "w1:p1")
         openSidebar()
-        app.buttons["project-website"].tap()
         let landing = row("Landing page hero redesign")
-        XCTAssertTrue(landing.waitForExistence(timeout: 3))
+        scroll(to: landing)
 
         landing.swipeLeft()
-        app.buttons["Archive"].tap()
+        // On a card row the swipe can run to a full swipe, which archives without showing the button.
+        let archive = app.buttons["Archive"]
+        if archive.waitForExistence(timeout: 1) { archive.tap() }
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: landing)
         wait(for: [gone], timeout: 5)
 
@@ -116,7 +111,8 @@ final class Round2UITests: XCTestCase {
 
         app.buttons["sidebarFilter"].tap()
         app.buttons["All"].tap()
-        XCTAssertTrue(landing.waitForExistence(timeout: 3), "unarchived chat is back in its folder")
+        scroll(to: landing)
+        XCTAssertTrue(landing.exists, "unarchived chat is back in its folder")
     }
 
     // MARK: 2. Attachments
@@ -164,6 +160,16 @@ final class Round2UITests: XCTestCase {
 
     private func row(_ title: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
+    }
+
+    /// Drags the sidebar list up until `element` is in the upper two thirds, clear of the floating bottom bar
+    /// (a swipe that starts near it doesn't reach the row).
+    private func scroll(to element: XCUIElement) {
+        for _ in 0..<8 where !(element.exists && element.isHittable && element.frame.midY < app.frame.height * 0.66) {
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.75))
+            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.45)))
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 3) && element.isHittable, "\(element) never scrolled into view")
     }
 
     private func attach(_ item: String) {

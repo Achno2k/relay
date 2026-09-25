@@ -87,16 +87,16 @@ struct SidebarModelTests {
         #expect(m.sessions(.archived).map(\.id).sorted() == ["w1:p2", "w2:p1"])
         #expect(!m.sessions(.all).contains { $0.id == "w1:p2" })
         #expect(m.sessions(.needsInput).isEmpty)
-        #expect(m.projects().flatMap(\.agents).map(\.id).sorted() == ["w1:p1", "w2:p3"])
+        let g = m.grouped()
+        #expect((g.now + g.sections.flatMap { $0.rows + $0.completed }).map(\.id).sorted() == ["w1:p1", "w2:p3"])
         #expect(m.needsInputCount == 0)
     }
 
-    @Test func projectsListEveryFolderWithBadges() throws {
-        let projects = try model(extraWorkspace: true).projects()
-        #expect(projects.map(\.name) == ["shop-api", "website", "empty"])
-        #expect(projects[0].agents.first?.id == "w1:p2", "blocked floats to the top")
-        #expect(projects.map(\.needsInput) == [1, 0, 0])
-        #expect(projects[2].agents.isEmpty)
+    @Test func projectsListEveryFolder() throws {
+        let sections = try model(extraWorkspace: true).grouped().sections
+        #expect(sections.map(\.name) == ["shop-api", "website", "empty"])
+        #expect(sections[0].rows.first?.id == "w1:p2", "blocked sits in its card; the working chat is in Now")
+        #expect(sections[2].isEmpty)
     }
 
     @Test func searchMatchesTitleAndFolder() throws {

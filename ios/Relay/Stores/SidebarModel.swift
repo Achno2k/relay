@@ -32,13 +32,6 @@ enum SessionFilter: String, CaseIterable, Identifiable, Sendable {
 
 /// Pure sidebar logic: which chats show where. Archived chats appear only under `.archived`.
 struct SidebarModel {
-    struct Project: Identifiable, Equatable {
-        var id: String
-        var name: String
-        var agents: [Agent]
-        var needsInput: Int
-    }
-
     var state: RelayState
     var archived: Set<String>
     var isUnseen: (Agent) -> Bool
@@ -57,24 +50,6 @@ struct SidebarModel {
         }
     }
 
-    /// One row per herdr workspace (even empty ones, so "new chat in folder" works), in `/workspaces` order.
-    /// Chats inside: blocked first, then newest.
-    func projects() -> [Project] {
-        let visible = state.agents.filter { matches($0, .all) }
-        let grouped = Dictionary(grouping: visible, by: \.workspaceId)
-        var order = state.workspaces.map { ($0.id, $0.name) }
-        for a in visible where !order.contains(where: { $0.0 == a.workspaceId }) {
-            order.append((a.workspaceId, a.workspaceName))
-        }
-        return order.map { id, name in
-            let agents = (grouped[id] ?? []).sorted { a, b in
-                if (a.status == .blocked) != (b.status == .blocked) { return a.status == .blocked }
-                return a.updatedAt > b.updatedAt
-            }
-            return Project(id: id, name: name, agents: agents, needsInput: agents.filter { $0.status == .blocked }.count)
-        }
-    }
-
     /// Flat "Sessions" list for a filter or a search, newest first.
     func sessions(_ filter: SessionFilter, query: String = "") -> [Agent] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
@@ -90,4 +65,72 @@ struct SidebarModel {
     }
 
     var needsInputCount: Int { state.agents.filter { matches($0, .needsInput) }.count }
+}
+
+// MARK: - Grouped home (design B)
+
+extension SidebarModel {
+    /// One project card. Running chats live in Now, so they never appear here; done chats the person
+    /// has seen fold into the "N completed" row.
+    struct ProjectSection: Identifiable, Equatable {
+        var id: String
+        var name: String
+        /// Needs input, ready for review, idle: needs input first, then ready for review, then newest.
+        var rows: [Agent]
+        /// Done and seen, newest first.
+        var completed: [Agent]
+        /// This project's chats in Now, newest first.
+        var running: [Agent]
+
+        /// Every chat is running, so the whole project is already in Now: one "name · N running" row.
+        var isAllInNow: Bool { rows.isEmpty && completed.isEmpty && !running.isEmpty }
+        var isEmpty: Bool { rows.isEmpty && completed.isEmpty && running.isEmpty }
+    }
+
+    struct Grouped: Equatable {
+        /// Every running chat across projects, newest first. The card shows `nowCap` of them until "Show all".
+        var now: [Agent]
+        /// Every herdr workspace, in `/workspaces` order, including empty ones (for "new chat in project").
+        var sections: [ProjectSection]
+    }
+
+    static let nowCap = 4
+
+    func isCompleted(_ agent: Agent) -> Bool { agent.status == .done && !isUnseen(agent) }
+
+    /// The home screen (filter All). Archived chats are left out, as everywhere but `.archived`.
+    func grouped() -> Grouped {
+        let visible = state.agents.filter { matches($0, .all) }
+        let newestFirst: (Agent, Agent) -> Bool = { $0.updatedAt > $1.updatedAt }
+        let now = visible.filter { $0.status == .working }.sorted(by: newestFirst)
+        let byProject = Dictionary(grouping: visible, by: \.workspaceId)
+        var order = state.workspaces.map { ($0.id, $0.name) }
+        for a in visible where !order.contains(where: { $0.0 == a.workspaceId }) {
+            order.append((a.workspaceId, a.workspaceName))
+        }
+        let sections = order.map { id, name in
+            let agents = byProject[id] ?? []
+            let rows = agents
+                .filter { $0.status != .working && !isCompleted($0) }
+                .sorted { a, b in
+                    let (ra, rb) = (rank(a), rank(b))
+                    return ra != rb ? ra < rb : a.updatedAt > b.updatedAt
+                }
+            return ProjectSection(
+                id: id,
+                name: name,
+                rows: rows,
+                completed: agents.filter(isCompleted).sorted(by: newestFirst),
+                running: agents.filter { $0.status == .working }.sorted(by: newestFirst)
+            )
+        }
+        return Grouped(now: now, sections: sections)
+    }
+
+    /// Order inside a project card: what needs you, then what's new to read, then the rest.
+    private func rank(_ agent: Agent) -> Int {
+        if agent.status == .blocked { return 0 }
+        if agent.status == .done && isUnseen(agent) { return 1 }
+        return 2
+    }
 }
