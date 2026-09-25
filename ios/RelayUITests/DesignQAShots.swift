@@ -58,9 +58,10 @@ final class DesignQAShots: XCTestCase {
             showAll.tap()
         }
 
+        // The list is lazy: the completed row only exists once scrolled into view.
         let completed = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'completed-'")).firstMatch
-        if completed.waitForExistence(timeout: 2) {
-            if !completed.isHittable { app.swipeUp() }
+        for _ in 0..<3 where !(completed.exists && completed.isHittable) { app.swipeUp() }
+        if completed.exists {
             completed.tap()
             shot("\(name)-completed")
             completed.tap()
@@ -86,7 +87,7 @@ final class DesignQAShots: XCTestCase {
         if search.waitForExistence(timeout: 2) {
             search.tap()
             let field = app.textFields["sidebarSearchField"]
-            if field.waitForExistence(timeout: 3) { field.typeText("bot") }
+            if field.waitForExistence(timeout: 3) { field.typeText("tidy") }
             shot("\(name)-search")
         }
     }
