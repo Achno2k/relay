@@ -4,8 +4,13 @@ import Foundation
 final class UnixSocket: @unchecked Sendable {
     private let lock = NSLock()
     private var fd: Int32
+    private var closed = false
+    private var inFlight = 0
     private var buffer = Data()
 
+    /// Failure paths throw without closing `fd`: every stored property is set by then, so Swift
+    /// runs `deinit` (and `close()`) on the half-built socket anyway. Closing here as well used to
+    /// close the fd number twice, and the second close could hit whatever socket reused it.
     init(path: String, readTimeout: TimeInterval?) throws {
         fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw HerdrError.io("socket: \(String(cString: strerror(errno)))") }
@@ -19,10 +24,7 @@ final class UnixSocket: @unchecked Sendable {
         addr.sun_family = sa_family_t(AF_UNIX)
         let bytes = Array(path.utf8)
         let capacity = MemoryLayout.size(ofValue: addr.sun_path)
-        guard bytes.count < capacity else {
-            Darwin.close(fd)
-            throw HerdrError.io("socket path too long")
-        }
+        guard bytes.count < capacity else { throw HerdrError.io("socket path too long") }
         withUnsafeMutableBytes(of: &addr.sun_path) { raw in
             raw.copyBytes(from: bytes)
             raw[bytes.count] = 0
@@ -32,29 +34,45 @@ final class UnixSocket: @unchecked Sendable {
                 connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        guard rc == 0 else {
-            let msg = String(cString: strerror(errno))
-            Darwin.close(fd)
-            throw HerdrError.unavailable("cannot connect to herdr socket: \(msg)")
-        }
+        guard rc == 0 else { throw HerdrError.unavailable("cannot connect to herdr socket: \(String(cString: strerror(errno)))") }
     }
 
     deinit { close() }
 
+    /// Safe from any thread, including while another thread is blocked in `readLine`/`writeLine`
+    /// (that's how `HerdrEventStream` cancels a subscription). `shutdown` wakes the blocked call;
+    /// the fd itself is only closed once no call is using it. Closing it under a reader's feet would
+    /// let that reader's next `read` land on whatever socket the OS hands the fd number to next.
     func close() {
         lock.lock()
         defer { lock.unlock() }
-        if fd >= 0 {
-            Darwin.shutdown(fd, SHUT_RDWR)
-            Darwin.close(fd)
-            fd = -1
-        }
+        guard !closed else { return }
+        closed = true
+        if fd >= 0 { Darwin.shutdown(fd, SHUT_RDWR) }
+        if inFlight == 0 { release() }
     }
 
-    private var currentFD: Int32 {
+    /// Lends the fd to one syscall. It stays open until `end()`, even if `close()` runs meanwhile.
+    private func begin() throws -> Int32 {
         lock.lock()
         defer { lock.unlock() }
+        guard !closed else { throw HerdrError.io("socket closed") }
+        inFlight += 1
         return fd
+    }
+
+    private func end() {
+        lock.lock()
+        defer { lock.unlock() }
+        inFlight -= 1
+        if closed && inFlight == 0 { release() }
+    }
+
+    /// Caller holds `lock`.
+    private func release() {
+        guard fd >= 0 else { return }
+        Darwin.close(fd)
+        fd = -1
     }
 
     func writeLine(_ data: Data) throws {
@@ -63,12 +81,13 @@ final class UnixSocket: @unchecked Sendable {
         try payload.withUnsafeBytes { raw in
             var offset = 0
             while offset < raw.count {
-                let fd = currentFD
-                guard fd >= 0 else { throw HerdrError.io("socket closed") }
+                let fd = try begin()
                 let n = Darwin.write(fd, raw.baseAddress! + offset, raw.count - offset)
+                let err = errno
+                end()
                 if n < 0 {
-                    if errno == EINTR { continue }
-                    throw HerdrError.io("write: \(String(cString: strerror(errno)))")
+                    if err == EINTR { continue }
+                    throw HerdrError.io("write: \(String(cString: strerror(err)))")
                 }
                 offset += n
             }
@@ -84,19 +103,20 @@ final class UnixSocket: @unchecked Sendable {
                 buffer.removeSubrange(buffer.startIndex...nl)
                 return Data(line)
             }
-            let fd = currentFD
-            guard fd >= 0 else { throw HerdrError.io("socket closed") }
+            let fd = try begin()
             let n = Darwin.read(fd, &chunk, chunk.count)
+            let err = errno
+            end()
             if n > 0 {
                 buffer.append(contentsOf: chunk[0..<n])
             } else if n == 0 {
                 throw HerdrError.io("herdr closed the connection")
-            } else if errno == EINTR {
+            } else if err == EINTR {
                 continue
-            } else if errno == EAGAIN || errno == EWOULDBLOCK {
+            } else if err == EAGAIN || err == EWOULDBLOCK {
                 throw HerdrError.timeout
             } else {
-                throw HerdrError.io("read: \(String(cString: strerror(errno)))")
+                throw HerdrError.io("read: \(String(cString: strerror(err)))")
             }
         }
     }
