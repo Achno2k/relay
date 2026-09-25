@@ -59,7 +59,8 @@ Tests:
 
 `docs/qa/bugs.md` marks QA-2 fixed.
 
+Live check, after live-tool-bridge rebuilt and restarted the bridge with these commits: QA-2's curl repro against `w14:p2` returned `a-b.txt`, and `../../../../tmp/relay_traversal_marker.txt` returned `tmp-relay_traversal_marker.txt` with nothing written to `/tmp`. I deleted both test uploads afterwards.
+
 ## Left open
 
-- The live bridge on 7878 still runs the old `UnixSocket` and sanitiser. tests-cleanup doesn't rebuild it. live-tool-bridge has been told and will pick both up on its next rebuild. After that, QA-2's curl repro should return `a-b.txt`.
 - `SocketResilienceTests` and `RoutesTests` are still `.serialized`. Their comments blame fd races that this fix should remove. I left them as they are, since un-serialising them is a separate change with its own risk.
