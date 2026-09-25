@@ -9,6 +9,7 @@ struct SidebarNowCard: View {
 
     @AppStorage("sidebarNowShowAll", store: AppDefaults.standard) private var showAll = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let now = store.sidebar.grouped().now
@@ -27,18 +28,36 @@ struct SidebarNowCard: View {
                 }
             } header: {
                 SidebarSectionHeader(top: 16) {
-                    Text("Now")
-                        .font(.headline)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: 8)
-                    Text("\(now.count) running")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    // At accessibility sizes the count goes under "Now" rather than hyphenating beside it.
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 0) {
+                            nowTitle
+                            runningCount(now.count)
+                        }
+                        Spacer(minLength: 0)
+                    } else {
+                        nowTitle
+                        Spacer(minLength: 8)
+                        runningCount(now.count)
+                    }
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("nowHeader")
             }
         }
+    }
+
+    private var nowTitle: some View {
+        Text("Now")
+            .font(.headline)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func runningCount(_ count: Int) -> some View {
+        Text("\(count) running")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize()
     }
 
     private func showAllRow(count: Int) -> some View {
