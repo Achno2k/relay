@@ -1,0 +1,9 @@
+{"type": "session", "id": "s"}
+{"type": "message", "id": "p1", "timestamp": "2026-09-23T13:00:00Z", "message": {"role": "user", "content": [{"type": "text", "text": "do it in /Users/dev/website/pages"}, {"type": "image"}]}}
+{"type": "message", "id": "p2", "message": {"role": "assistant", "timestamp": 1790000000123, "content": [{"type": "thinking", "thinking": ""}, {"type": "toolCall", "id": "c1", "name": "edit", "arguments": {"path": "/Users/dev/website/pages/a.tsx", "oldText": "a", "newText": "b"}}, {"type": "toolCall", "id": "c2", "name": "find", "arguments": {"pattern": "*.tsx", "path": "/x/y"}}]}}
+{"type": "message", "id": "p3", "message": {"role": "toolResult", "toolCallId": "c1", "isError": true, "content": [{"type": "text", "text": "failed at /Users/dev/website/pages/a.tsx"}]}}
+{"type": "message", "id": "p4", "message": {"role": "toolResult", "toolCallId": "c2", "content": "a.tsx"}}
+{"type": "message", "id": "p5", "message": {"role": "user", "content": "plain"}}
+{"type": "message", "id": "p6", "message": {"role": "toolResult", "toolCallId": "c9", "content": "orphan"}}
+{"type": "message", "id": "p7", "message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}}
+{"type": "message", "id": "p8", "message": {"role": "system", "content": "x"}}

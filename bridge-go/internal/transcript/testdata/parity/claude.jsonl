@@ -1,0 +1,25 @@
+{"type": "user", "uuid": "u1", "timestamp": "2026-09-23T13:00:00.123Z", "message": {"content": "Look at /Users/dev/shop-api/src/a.py and ~/notes/todo.md"}}
+{"type": "assistant", "uuid": "a1", "timestamp": "2026-09-23T13:00:01+05:30", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Grep", "input": {"pattern": "TODO", "-n": true, "-A": 2, "output_mode": "content", "path": "/Users/dev/shop-api/src", "Z": 1, "head_limit": 1.5, "big": 1e+300, "neg": -0.0, "arr": [1, "x", null, {"b": 1, "a": []}]}}]}}
+{"type": "user", "uuid": "r1", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "is_error": 1, "content": [{"type": "text", "text": "src/a.py:1: TODO"}, {"type": "image", "source": {}}, {"type": "other"}]}]}}
+{"type": "user", "uuid": "r2", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": [{"type": "text", "text": "x"}, "notobj"]}]}}
+{"type": "assistant", "uuid": "a2", "message": {"content": [{"type": "text", "text": ""}, {"type": "thinking", "thinking": "hmm /private/tmp/x/y.txt"}, {"type": "tool_use", "name": "WeirdTool", "input": "notadict"}, {"type": "tool_use", "id": "t3", "name": "mcp__srv__do", "input": {"URL": "https://a.b/c", "query": "q", "filePath": "/etc/x/y", "file_path": "/Users/dev/shop-api/z"}}]}}
+{"type": "assistant", "uuid": "a3", "message": {"content": "string content is ignored"}}
+{"type": "user", "uuid": "u2", "timestamp": 1790000000000, "message": {"content": [{"type": "text", "text": "  <system-reminder>drop</system-reminder>"}, {"type": "text", "text": "<pasted_content id=\"1\">\nline a\nline b\n</pasted_content id=\"1\">"}, {"type": "text", "text": "   "}]}}
+{"type": "user", "uuid": "u3", "isMeta": true, "message": {"content": "meta"}}
+{"type": "user", "uuid": "u4", "isSidechain": 1, "message": {"content": "side as 1"}}
+{"type": "user", "uuid": "u5", "isCompactSummary": true, "message": {"content": "summary"}}
+{"type": "assistant", "uuid": "a4", "timestamp": "bogus", "message": {"content": [{"type": "tool_use", "id": "t4", "name": "Bash", "input": {"command": "\n\n  cd /Users/dev/shop-api && make\r\nnext", "timeout": 120000}}, {"type": "tool_use", "id": "t5", "name": "Read", "input": {"file_path": "/Users/dev/shop-api"}}, {"type": "tool_use", "id": "t6", "name": "Task", "input": {"description": "Explore 👨‍👩‍👧 éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"}}, {"type": "tool_use", "id": "t7", "name": "TodoWrite", "input": {}}, {"type": "tool_use", "id": "t8", "name": "Glob", "input": {"path": "/a/b/c"}}, {"type": "tool_use", "id": "t9", "name": "Skill", "input": {"command": "x"}}, {"type": "tool_use", "id": "t10", "name": "WebFetch", "input": {"url": "https://example.com/a/b/c?x=/y/z"}}]}}
+{"type": "user", "uuid": "r3", "message": {"content": [{"type": "tool_result", "tool_use_id": "t4", "content": "out 😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"}, {"type": "text", "text": "and a user note"}]}}
+{"type": "assistant", "uuid": "a5", "message": {"content": [{"type": "text", "text": "x"}]}, "extra": 1} 
+{"type":"user","uuid":"dup","uuid":"dup2","message":{"content":"dup keys"}}
+{"type":"user","uuid":"u6","message":{"content":"trailing"}} {"x":1}
+[{"type":"user"}]
+{"type": "user", "uuid": "u7", "message": {"content": "Attached files: /tmp/relay/uploads/a/0123456789abcdef-x.png"}}
+{"type":"user","uuid":"tc1","timestamp":"2026-09-23T13:01:00Z","message":{"content":[{"type":"text","text":"trailing commas",},],},}
+﻿{"type":"user","uuid":"bom","timestamp":"2026-09-23T13:01:01Z","message":{"content":"bom line"}}
+{"type":"user","uuid":"inf","timestamp":"2026-09-23T13:01:02Z","n":1e400,"message":{"content":"inf"}}
+{"type":"user","uuid":"lone","timestamp":"2026-09-23T13:01:03Z","message":{"content":"\ud800 lone"}}
+{"type":"user","uuid":"pair","timestamp":"2026-09-23T13:01:04Z","message":{"content":"\ud83d\ude00 pair \u0000 nul \/"}}
+{"type":"user","uuid":"lead0","timestamp":"2026-09-23T13:01:05Z","n":01,"message":{"content":"lead zero"}}
+{"type":"assistant","uuid":"big","timestamp":"2026-09-23T13:01:06Z","message":{"content":[{"type":"tool_use","id":"b1","name":"X","input":{"i":123456789012345678901234567890,"f":1e308,"s":1e-300,"e":2E+3,"m":-12.50}}]}}
+{"type":"user","uuid":"tab","timestamp":"2026-09-23T13:01:07Z","message":{"content":"raw	tab"}}

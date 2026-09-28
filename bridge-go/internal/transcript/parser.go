@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"relay/internal/api"
 )
@@ -64,44 +63,43 @@ func (p *Parser) DropSettled() {
 
 // ConsumeData feeds every line in data. Returns the messages that changed, in order.
 func (p *Parser) ConsumeData(data []byte) []api.Message {
-	var changed []api.Message
+	var order []string
+	latest := map[string]int{} // id → index in p.messages
 	for _, line := range bytes.Split(data, []byte{'\n'}) {
 		if len(line) == 0 {
 			continue
 		}
-		m, ok := p.ConsumeLine(line)
-		if !ok {
+		i := p.consume(line)
+		if i < 0 {
 			continue
 		}
-		replaced := false
-		for i := range changed {
-			if changed[i].ID == m.ID {
-				changed[i] = m
-				replaced = true
-				break
-			}
+		id := p.messages[i].ID
+		if _, seen := latest[id]; !seen {
+			order = append(order, id)
 		}
-		if !replaced {
-			changed = append(changed, m)
-		}
+		latest[id] = i
+	}
+	changed := make([]api.Message, len(order))
+	for k, id := range order {
+		changed[k] = copyMessage(p.messages[latest[id]])
 	}
 	return changed
 }
 
 // ConsumeLine feeds one JSONL line. Returns the message it created or grew, if any.
 func (p *Parser) ConsumeLine(line []byte) (api.Message, bool) {
-	// Foundation rejects invalid UTF-8 where encoding/json would substitute U+FFFD.
-	if !utf8.Valid(line) {
+	i := p.consume(line)
+	if i < 0 {
 		return api.Message{}, false
 	}
-	d := json.NewDecoder(bytes.NewReader(line))
-	d.UseNumber()
-	var o map[string]any
-	if err := d.Decode(&o); err != nil || o == nil {
-		return api.Message{}, false
-	}
-	if len(bytes.Trim(line[d.InputOffset():], " \t\r\n")) > 0 {
-		return api.Message{}, false // trailing data
+	return copyMessage(p.messages[i]), true
+}
+
+// consume feeds one line and returns the index of the message it created or grew, or -1.
+func (p *Parser) consume(line []byte) int {
+	o, ok := readJSONObject(line)
+	if !ok {
+		return -1
 	}
 	var m *api.Message
 	switch p.format {
@@ -113,9 +111,10 @@ func (p *Parser) ConsumeLine(line []byte) (api.Message, bool) {
 		m = p.consumeCodex(o)
 	}
 	if m == nil {
-		return api.Message{}, false
+		return -1
 	}
-	return copyMessage(*m), true
+	// Every builder returns the last message.
+	return len(p.messages) - 1
 }
 
 // A snapshot the caller can keep while the parser grows the original.

@@ -2,6 +2,7 @@ package transcript
 
 import (
 	"encoding/json"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -170,7 +171,7 @@ func writeJSON(b *strings.Builder, v any) bool {
 		for k := range v {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		sort.Slice(keys, func(i, j int) bool { return collateLess(keys[i], keys[j]) })
 		b.WriteByte('{')
 		for i, k := range keys {
 			if i > 0 {
@@ -195,13 +196,18 @@ func writeJSONNumber(b *strings.Builder, n json.Number) {
 		b.WriteString(strconv.FormatInt(i, 10))
 		return
 	}
-	if u, err := strconv.ParseUint(string(n), 10, 64); err == nil {
-		b.WriteString(strconv.FormatUint(u, 10))
+	if !strings.ContainsAny(string(n), ".eE") {
+		// An integer past Int64 is an NSDecimalNumber, written digit for digit.
+		b.WriteString(string(n))
 		return
 	}
 	f, err := n.Float64()
 	if err != nil {
 		b.WriteString("0")
+		return
+	}
+	if f == 0 && math.Signbit(f) {
+		b.WriteString("-0")
 		return
 	}
 	if f == float64(int64(f)) && f > -1e18 && f < 1e18 {

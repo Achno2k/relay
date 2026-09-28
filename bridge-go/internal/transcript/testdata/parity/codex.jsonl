@@ -1,0 +1,20 @@
+{"timestamp": "2026-09-24T14:00:00Z", "type": "session_meta", "payload": {"id": "x", "cwd": "/Users/dev/project"}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "UserMessage", "id": "u1", "content": [{"type": "text", "text": "first"}, {"type": "text", "text": "second"}, {"type": "image"}]}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "AgentMessage", "id": "m1", "content": [{"type": "text", "text": ""}]}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Reasoning", "id": "r1", "summary_text": ["a", "b"]}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Reasoning", "id": "r2", "summary_text": ["a", 1]}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "CommandExecution", "id": "e1", "command": ["bash", "-c", "echo hi\nmore"], "cwd": "file:///Users/dev/project/sub", "exit_code": 0, "stdout": "hi", "stderr": "warn"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "CommandExecution", "id": "e2", "command": ["ls", "-la", "/Users/dev/project"], "exit_code": 2.0, "aggregated_output": "no"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "CommandExecution", "id": "e3", "command": ["x", 1], "status": "failed"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "FileChange", "id": "f1", "changes": {"/Users/dev/project/b.py": {"type": "add", "content": "print()"}, "/Users/dev/project/a.py": {"unified_diff": "@@"}, "/Users/dev/project/B.py": {"type": "delete"}, "/Users/dev/project/c.py": "bad"}}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "FileChange", "id": "f2", "changes": {}}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "McpToolCall", "id": "m2", "tool": "only", "arguments": null, "result": {"content": [{"type": "text", "text": "r"}], "isError": true}}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "McpToolCall", "id": "m3", "arguments": "str"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Extension", "id": "x1", "kind": "web.search", "action": {"queries": ["q1", "q2"]}, "results": [{"domain": "a.com"}, {"domain": "b.com"}]}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Extension", "id": "x2", "kind": "other.kind", "query": "zz"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Extension", "id": "x3"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "ImageView", "id": "i1", "path": "file:///Users/dev/project/img/a.png"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Unknown", "id": "n1"}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "UserMessage", "id": "u2", "content": []}}}
+{"timestamp": "2026-09-24T14:00:05.5Z", "type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "UserMessage", "id": "u3", "content": [{"type": "text", "text": "<local-command>x"}]}}}
+{"timestamp": "2026-09-24T14:00:09Z", "type": "response_item", "payload": {"type": "message"}}
