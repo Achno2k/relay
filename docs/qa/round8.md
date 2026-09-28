@@ -30,10 +30,11 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-22 | P2 | go-live | fixed 352be0c (package tests); not reproduced live | Claude tool output whose header scrolled off leaks into `reply.live` (as text, or as a junk `Tool`) |
 | R8-23 | P3 | go-live | fixed 352be0c (package tests); not reproduced live | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
 | R8-24 | P3 | go-live | verified (Go, 7880): tool `Read`, summary `Read qa-read-r8.txt` | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
+| R8-25 | P2 | go-server | open | Go `/ws` never pings: a phone that vanishes without a FIN stays a client; found by go-parity |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
-Checked and fine (no bug): WS auto-ping is on (Hummingbird default 30 s), so dead clients don't keep usage polling alive. Body cap `413`, bad JSON `400`, unknown agent/message `404`, key validation, 10-attachment cap, 20 MB upload cap, empty upload, upload name sanitising (`../../etc/pa ss✓wd` → `etc-pa-ss-wd`), attachment id lookup rejects non-ids.
+Checked and fine (no bug) in Swift: WS auto-ping is on (Hummingbird default 30 s), so dead clients don't keep usage polling alive. The Go port lost it; see R8-25. Body cap `413`, bad JSON `400`, unknown agent/message `404`, key validation, 10-attachment cap, 20 MB upload cap, empty upload, upload name sanitising (`../../etc/pa ss✓wd` → `etc-pa-ss-wd`), attachment id lookup rejects non-ids.
 
 ### R8-1: Claude usage card stale for days
 - Repro: `GET /usage`. The `claude` provider has `stale: true`, `unavailableReason: "claude -p /usage didn't return usage data"`, and `updatedAt` three days old. `POST /usage/refresh` doesn't fix it.
@@ -156,6 +157,14 @@ Checked and fine (no bug): WS auto-ping is on (Hummingbird default 30 s), so dea
 - Cause: the grouped-label pattern (`claudeGroup` in Go, `LiveReplyParser` in Swift) needs a count (`Reading 2 files`); the single-file form has none.
 - Expected (api.md Live reply): name `Read`, summary `Read qa-note-r8.txt` (same as the transcript's `toolCall`).
 - Fix: accept `Reading|Read <path>` (and likely `Writing`, `Editing`, `Searching for <pattern>` without a count) and map them like the grouped labels. Add a parser test.
+
+### R8-25: Go `/ws` never pings (go-parity)
+- Found by go-parity reviewing the Go code. Swift drops a dead client within 30 to 60 s because Hummingbird's WS server pings every 30 s by default (`WebSocketServerConfiguration` `autoPing: .enabled(timePeriod: .seconds(30))`).
+- `bridge-go/internal/server/ws.go` has no `Ping`. The read goroutine only ends on a TCP error, and writes to a peer that vanished without a FIN (network switch, sleep, airplane mode) sit in the kernel buffer for minutes.
+- Effect: `Hub.Count()` stays above 0 for a ghost client, so usage polling (it spends the subscription's rate limit) and live screen polling keep running.
+- Expected: same as Swift, a dead client is dropped within about a minute.
+- Fix: a ticker goroutine per connection calls `c.Ping(ctx)` every 30 s with a timeout and closes the connection on failure.
+- Test: a client that never answers pings is dropped and `Hub.Count()` goes back to 0.
 
 ## iOS
 
