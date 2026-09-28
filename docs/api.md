@@ -220,7 +220,7 @@ AgentControls {
   "efforts": [ { "id": "off", "label": "Off" }, … ],                              // for the agent's current model
   "modes":   [ { "id": "ask", "label": "Ask for approval" }, … ],                  // [] when the kind has none
   "supports": { "model": true, "effort": true, "mode": false, "compact": true, "clear": true },
-  // Optional (always sent by GET /controls?kind=…; may be absent on /agents/:id/controls):
+  // Optional (sent by GET /controls?kind=… when the agent has a saved default; may be absent on /agents/:id/controls):
   "defaultModel": "openai-codex/gpt-5.6-sol",   // the agent's saved default (what it starts with if you pick nothing)
   "defaultEffort": "high",
   "effortsByModel": { "openai-codex/gpt-5.6-sol": [ { "id": "off", "label": "Off" }, … ], … }  // pi and codex; for claude all models share `efforts`
