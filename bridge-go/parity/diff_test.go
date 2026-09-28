@@ -138,3 +138,15 @@ func TestLiveFrames(t *testing.T) {
 		t.Errorf("want seq, key and tools diffs, got %q", d)
 	}
 }
+
+func TestRepeatsFullText(t *testing.T) {
+	long := strings.Repeat("a", 200)
+	fs := []frame{
+		{v: map[string]any{"text": long, "tool": nil}},
+		{v: map[string]any{"text": long + "b", "tool": nil}},
+		{v: map[string]any{"text": long + "b", "tool": nil}},
+	}
+	if n := repeats(fs); n != 1 {
+		t.Errorf("repeats = %d, want 1", n)
+	}
+}

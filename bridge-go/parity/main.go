@@ -133,6 +133,7 @@ type runner struct {
 	retries    int
 	rep        *report
 	base       []rule
+	dump       string
 }
 
 func (rn *runner) pair(ctx context.Context, p probe) (reply, reply) {
@@ -515,6 +516,7 @@ func main() {
 	wsSeconds := flag.Int("ws-seconds", 20, "seconds to watch both /ws streams passively (0 skips)")
 	e2e := flag.String("e2e", "", "comma-separated e2e agent ids to prompt through both bridges, e.g. w14:p2,w14:p4,w14:p5 (reserve them with qa-bridge first)")
 	verbose := flag.Bool("v", false, "print passing probes too")
+	dump := flag.String("dump", "", "directory to write each WS window's raw frames to (local only: they hold real transcript text)")
 	flag.Parse()
 
 	if *goToken == "" {
@@ -530,6 +532,7 @@ func main() {
 		swift:   &bridge{name: "swift", base: strings.TrimRight(*swiftURL, "/"), token: readToken(*swiftToken), hc: hc},
 		gov:     &bridge{name: "go", base: strings.TrimRight(*goURL, "/"), token: readToken(*goToken), hc: hc},
 		retries: max(1, *retries),
+		dump:    *dump,
 		rep:     &report{verbose: *verbose},
 	}
 	ctx := context.Background()

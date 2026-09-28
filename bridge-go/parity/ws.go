@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -128,6 +130,11 @@ func (rn *runner) finishWS(w *wsWatch) {
 func (rn *runner) compareStreams(name string, w *wsWatch, focus *string, strictLive bool) {
 	fa, fb := w.swift.snapshot(), w.gov.snapshot()
 	res := result{name: name}
+	if rn.dump != "" {
+		if err := dumpFrames(rn.dump, name, w.started, fa, fb); err != nil {
+			res.warns = append(res.warns, "dump: "+err.Error())
+		}
+	}
 	for _, s := range []*stream{w.swift, w.gov} {
 		if s.err != nil {
 			res.diffs = append(res.diffs, fmt.Sprintf("%s stream ended early: %v", s.name, s.err))
@@ -173,6 +180,30 @@ func fixFrames(fs []frame) []frame {
 		out = append(out, f)
 	}
 	return out
+}
+
+// dumpFrames writes <dir>/<name>.swift.jsonl and .go.jsonl, one {"t": ms since start, "frame": …}
+// per line.
+func dumpFrames(dir, name string, start time.Time, fa, fb []frame) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	base := strings.Map(func(r rune) rune {
+		if r == ' ' || r == ':' || r == '/' {
+			return '_'
+		}
+		return r
+	}, name)
+	for side, fs := range map[string][]frame{"swift": fa, "go": fb} {
+		var sb strings.Builder
+		for _, f := range fs {
+			fmt.Fprintf(&sb, "{\"t\":%d,\"frame\":%s}\n", f.at.Sub(start).Milliseconds(), f.raw)
+		}
+		if err := os.WriteFile(filepath.Join(dir, base+"."+side+".jsonl"), []byte(sb.String()), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type group struct {
@@ -497,7 +528,7 @@ func liveTexts(fs []frame) string {
 func repeats(fs []frame) int {
 	n := 0
 	for i := 1; i < len(fs); i++ {
-		if show(fs[i].v["text"]) == show(fs[i-1].v["text"]) && show(fs[i].v["tool"]) == show(fs[i-1].v["tool"]) {
+		if equalJSON(fs[i].v["text"], fs[i-1].v["text"]) && equalJSON(fs[i].v["tool"], fs[i-1].v["tool"]) {
 			n++
 		}
 	}
