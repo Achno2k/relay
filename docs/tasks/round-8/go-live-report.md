@@ -54,10 +54,9 @@ Notes:
 
 ## What's left
 - qa-bridge verified R8-10 and R8-14 live. R8-22, R8-23 and R8-24 are waiting on its re-check.
-- go-parity saw fewer `reply.live` frames from Go than from Swift (22 vs 75 in 40 s).
-  - Read speed is the same (13 ms either way).
-  - My guess is the junk frames Go no longer sends: R8-22's ticking tool timers, the banner, R8-23 and dialog footers.
-  - go-parity is confirming with controlled e2e turns.
+- go-parity saw fewer `reply.live` frames from Go than from Swift (22 vs 75 in 40 s). It then ran controlled e2e turns (claude, pi and codex) and found nothing missing.
+  - The claude turn's frames were identical to Swift's, in the same order.
+  - Swift's extra frames were R8-22's per-second timer text, which Go no longer sends.
 - The banner's default colour covers Claude's dark themes only. Other themes rely on an intact "Update available" somewhere on screen to learn the colour.
 - Known Swift-vs-Go gaps, all in inputs herdr doesn't produce:
   - ICU `$` also matches before a trailing `\r`; RE2's doesn't.
