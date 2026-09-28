@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // decode parses JSON keeping number literals (json.Number) so 11 vs 11.0 or 1e3 vs 1000 counts as
@@ -25,13 +26,15 @@ func decode(b []byte) (any, error) {
 	return v, nil
 }
 
-// verdict is what a rule says about two differing values.
-type verdict int
+// verdict is what a rule says about two differing values: reject (still a difference), accept
+// (legitimately different), or any other value, a warning labelled with it: different for a known
+// reason worth seeing (a fixed bug id like "R8-8"), but not a failure.
+type verdict string
 
 const (
-	reject verdict = iota // not this rule's business: still a difference
-	accept                // legitimately different
-	warn                  // different for a known reason worth seeing, but not a failure
+	reject verdict = ""
+	accept verdict = "accept"
+	warn   verdict = "warn"
 )
 
 // absent stands in for a key one side doesn't send, so rules can tell "missing" from null.
@@ -62,11 +65,12 @@ func (d *differ) add(path []string, format string, args ...any) {
 // judged records a warning when a rule asks for one, and reports whether the pair is settled.
 func (d *differ) judged(path []string, parent map[string]any, a, b any) bool {
 	for _, r := range d.rules {
-		switch r(path, parent, a, b) {
+		switch v := r(path, parent, a, b); v {
+		case reject:
 		case accept:
 			return true
-		case warn:
-			d.warns = append(d.warns, pathString(path)+": swift="+show(a)+" go="+show(b))
+		default:
+			d.warns = append(d.warns, pathString(path)+": "+string(v)+": swift="+show(a)+" go="+show(b))
 			return true
 		}
 	}
@@ -124,7 +128,39 @@ func (d *differ) leaf(path []string, parent map[string]any, a, b any) {
 	if equalJSON(a, b) || d.judged(path, parent, a, b) {
 		return
 	}
+	if sa, ok := a.(string); ok {
+		if sb, ok := b.(string); ok {
+			d.add(path, "%s", stringDiff(sa, sb))
+			return
+		}
+	}
 	d.add(path, "swift=%s go=%s", show(a), show(b))
+}
+
+// stringDiff shows two long strings around the first place they differ.
+func stringDiff(a, b string) string {
+	if len(a) <= 120 && len(b) <= 120 {
+		return fmt.Sprintf("swift=%s go=%s", show(a), show(b))
+	}
+	i := 0
+	for i < len(a) && i < len(b) && a[i] == b[i] {
+		i++
+	}
+	from := max(0, i-40)
+	for from > 0 && from < len(a) && !utf8.RuneStart(a[from]) {
+		from--
+	}
+	snip := func(s string) string {
+		if from >= len(s) {
+			return `""`
+		}
+		end := min(len(s), i+80)
+		for end < len(s) && !utf8.RuneStart(s[end]) {
+			end++
+		}
+		return show(s[from:end])
+	}
+	return fmt.Sprintf("differ at byte %d (lengths %d/%d): swift=…%s… go=…%s…", i, len(a), len(b), snip(a), snip(b))
 }
 
 func equalJSON(a, b any) bool {
@@ -267,7 +303,7 @@ func clockRule(goStart time.Time) rule {
 		if ta.After(tb) || !tb.Before(goStart.Add(-2*time.Second)) {
 			return accept
 		}
-		return warn
+		return "R8-13"
 	}
 }
 

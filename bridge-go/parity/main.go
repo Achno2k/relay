@@ -183,6 +183,10 @@ func (rn *runner) compare(p probe, a, b reply) result {
 		}
 		return res
 	}
+	if ok, diffs, warns := r818(p, a, b); ok {
+		res.diffs, res.warns = diffs, warns
+		return res
+	}
 	if a.status != b.status {
 		res.diffs = append(res.diffs, fmt.Sprintf("status swift=%d go=%d", a.status, b.status))
 	}
@@ -191,13 +195,13 @@ func (rn *runner) compare(p probe, a, b reply) result {
 			res.diffs = append(res.diffs, fmt.Sprintf("header %s swift=%q go=%q", h, x, y))
 		}
 	}
-	res.diffs = append(res.diffs, rn.bodyDiffs(a.body, b.body, append(rn.base, p.rules...), &res.warns)...)
+	res.diffs = append(res.diffs, rn.bodyDiffs(p.path, a.body, b.body, append(rn.base, p.rules...), &res.warns)...)
 	return res
 }
 
 // bodyDiffs compares two bodies: JSON structurally, anything else byte for byte. An error's
 // message text is only a warning; its code and status must match.
-func (rn *runner) bodyDiffs(a, b []byte, rules []rule, warns *[]string) []string {
+func (rn *runner) bodyDiffs(path string, a, b []byte, rules []rule, warns *[]string) []string {
 	if len(a) == 0 || len(b) == 0 {
 		if len(a) != len(b) {
 			return []string{fmt.Sprintf("body length swift=%d go=%d (go=%q)", len(a), len(b), clip(b))}
@@ -217,9 +221,13 @@ func (rn *runner) bodyDiffs(a, b []byte, rules []rule, warns *[]string) []string
 	}
 	ja, jb, extra := alignProviders(ja, jb)
 	*warns = append(*warns, extra...)
+	if strings.Contains(path, "/messages") {
+		ja, jb, extra = fixPage(ja, jb)
+		*warns = append(*warns, extra...)
+	}
 	d := &differ{rules: rules, max: 25}
 	d.walk(nil, ja, jb)
-	*warns = append(*warns, d.warns...)
+	*warns = append(*warns, summarize(d.warns)...)
 	var out []string
 	for _, x := range d.diffs {
 		if strings.HasPrefix(x, "$.error.message:") {
@@ -284,6 +292,29 @@ func orEmpty(v []any) []any {
 		return []any{}
 	}
 	return v
+}
+
+// summarize folds repeated known-fix warnings ("R8-8 ...") into one line per fix.
+func summarize(ws []string) []string {
+	var out []string
+	count := map[string]int{}
+	var order []string
+	for _, w := range ws {
+		if i := strings.Index(w, ": R8-"); i >= 0 {
+			id := w[i+2:]
+			id = id[:strings.IndexAny(id+":", " :")]
+			if count[id] == 0 {
+				order = append(order, id)
+			}
+			count[id]++
+			continue
+		}
+		out = append(out, w)
+	}
+	for _, id := range order {
+		out = append(out, fmt.Sprintf("%s: %d value(s) accepted as the known fix", id, count[id]))
+	}
+	return out
 }
 
 func clip(b []byte) string {
@@ -504,7 +535,7 @@ func main() {
 	ctx := context.Background()
 	began := time.Now()
 	rn.goStart = rn.startTime(ctx)
-	rn.base = []rule{uptimeRule, clockRule(rn.goStart), usageRule, historyRule}
+	rn.base = []rule{uptimeRule, clockRule(rn.goStart), usageRule, historyRule, r88Rule}
 	fmt.Printf("parity: swift %s vs go %s (go up since %s)\n", rn.swift.base, rn.gov.base, rn.goStart.UTC().Format(time.RFC3339))
 
 	only := map[string]bool{}

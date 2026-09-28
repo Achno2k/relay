@@ -153,10 +153,26 @@ func (rn *runner) compareStreams(name string, w *wsWatch, focus *string, strictL
 	// Frames near the window edges may have landed on one side only.
 	edge := 2 * time.Second
 	start, end := w.started.Add(edge), time.Now().Add(-5*time.Second)
-	ga, gb := groupFrames(fa, focus), groupFrames(fb, focus)
+	ga, gb := groupFrames(fixFrames(fa), focus), groupFrames(fb, focus)
 	res.diffs = append(res.diffs, rn.diffGroups(ga, gb, start, end, strictLive, &res.warns)...)
 	res.warns = append(res.warns, fmt.Sprintf("frames swift=%d go=%d (%s)", len(fa), len(fb), countTypes(fa, fb)))
 	rn.rep.add(res)
+}
+
+// fixFrames applies the known fixes to swift's frames (R8-9: injected user messages).
+func fixFrames(fs []frame) []frame {
+	var out []frame
+	for _, f := range fs {
+		if f.v != nil && f.v["type"] == "message.upserted" {
+			v := fixUpserted(f.v)
+			if v == nil {
+				continue
+			}
+			f.v = v
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 type group struct {
@@ -241,7 +257,7 @@ func (rn *runner) diffGroups(ga, gb map[string]*group, start, end time.Time, str
 			}
 			// usage polls run on each bridge's own timer; a lone clearing reply.live ends a preview
 			// that started before the window.
-			if typ == "usage.updated" || (typ == "reply.live" && allCleared(g.frames)) {
+			if typ == "usage.updated" || (typ == "reply.live" && (allCleared(g.frames) || !strictLive)) {
 				*warns = append(*warns, fmt.Sprintf("%s: only %s sent it", k, only))
 				continue
 			}
@@ -370,6 +386,14 @@ func diffLive(k string, fa, fb []frame, strict bool, warns *[]string) []string {
 				diffs = append(diffs, fmt.Sprintf("%s: %s seq went %d -> %d", k, side.n, prev, seq))
 			}
 			prev = seq
+			if t, ok := f.v["text"].(string); ok && t == "" {
+				msg := fmt.Sprintf("%s: %s sent an empty text (want null): %s", k, side.n, clip(f.raw))
+				if side.n == "go" {
+					diffs = append(diffs, msg)
+				} else {
+					*warns = append(*warns, msg)
+				}
+			}
 			if t, ok := f.v["tool"].(map[string]any); ok {
 				for _, key := range []string{"name", "summary", "state"} {
 					if _, ok := t[key].(string); !ok {
@@ -378,6 +402,13 @@ func diffLive(k string, fa, fb []frame, strict bool, warns *[]string) []string {
 				}
 			}
 		}
+	}
+	// "only when text or tool actually changed" (api.md Live reply).
+	if n := repeats(fb); n > 0 {
+		diffs = append(diffs, fmt.Sprintf("%s: go sent %d frame(s) identical to the one before", k, n))
+	}
+	if n := repeats(fa); n > 0 {
+		*warns = append(*warns, fmt.Sprintf("%s: swift sent %d frame(s) identical to the one before", k, n))
 	}
 	ta, tb := liveTools(fa), liveTools(fb)
 	ta, tb = dropPartial(ta, tb), dropPartial(tb, ta)
@@ -460,6 +491,17 @@ func liveTexts(fs []frame) string {
 		}
 	}
 	return last
+}
+
+// repeats counts frames whose text and tool equal the previous frame's.
+func repeats(fs []frame) int {
+	n := 0
+	for i := 1; i < len(fs); i++ {
+		if show(fs[i].v["text"]) == show(fs[i-1].v["text"]) && show(fs[i].v["tool"]) == show(fs[i-1].v["tool"]) {
+			n++
+		}
+	}
+	return n
 }
 
 func allCleared(fs []frame) bool {
