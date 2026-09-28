@@ -1,0 +1,6 @@
+  1 background terminal running · /ps to view · /stop to close
+
+
+› Ask Codex to do anything
+
+  GPT-6-Luna xhigh · ~/dev/project                          ⚠ 3 warnings · f2 to view

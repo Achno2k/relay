@@ -40,5 +40,7 @@ func TestInputBoxNeverCrashesOnRandomScreens(t *testing.T) {
 		s := randomScreen(400)
 		_, _ = InputBoxContent(s)
 		_, _ = LastPromptLine(s)
+		_, _ = InputFor("pi", s, "")
+		_, _ = InputFor("codex", s, randomScreen(400))
 	}
 }
