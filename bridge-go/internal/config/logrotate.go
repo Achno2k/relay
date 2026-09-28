@@ -50,3 +50,8 @@ func (r *LogRotator) RotateIfNeeded() bool {
 	}
 	return true
 }
+
+// RunLogRotator runs a rotator on path over stdout/stderr until ctx ends.
+func RunLogRotator(ctx context.Context, path string, maxBytes int64, interval time.Duration) {
+	(&LogRotator{Path: path, MaxBytes: maxBytes, Interval: interval, FDs: []int{1, 2}}).Run(ctx)
+}
