@@ -30,7 +30,7 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-22 | P2 | go-live | fixed 352be0c (package tests); not reproduced live | Claude tool output whose header scrolled off leaks into `reply.live` (as text, or as a junk `Tool`) |
 | R8-23 | P3 | go-live | fixed 352be0c (package tests); not reproduced live | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
 | R8-24 | P3 | go-live | verified (Go, 7880): tool `Read`, summary `Read qa-read-r8.txt` | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
-| R8-25 | P2 | go-server | open | Go `/ws` never pings: a phone that vanishes without a FIN stays a client; found by go-parity |
+| R8-25 | P2 | go-server | verified (Go 0149e14, 7892): silent client dropped at 45 s, answering client kept | Go `/ws` never pings: a phone that vanishes without a FIN stays a client; found by go-parity |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
@@ -165,6 +165,7 @@ Checked and fine (no bug) in Swift: WS auto-ping is on (Hummingbird default 30 s
 - Expected: same as Swift, a dead client is dropped within about a minute.
 - Fix: a ticker goroutine per connection calls `c.Ping(ctx)` every 30 s with a timeout and closes the connection on failure.
 - Test: a client that never answers pings is dropped and `Hub.Count()` goes back to 0.
+- Verified (0149e14, own build on 7892, fake herdr): a raw-socket client that reads but never answers pings got its ping at 30.0 s and was closed at 45.0 s. A normal client that answers pings stayed connected for its whole 80 s window.
 
 ## iOS
 
