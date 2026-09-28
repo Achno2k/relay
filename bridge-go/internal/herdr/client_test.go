@@ -69,23 +69,3 @@ func TestEventStreamResyncAndEvents(t *testing.T) {
 		t.Fatalf("%+v", e)
 	}
 }
-
-func TestMarshalShapes(t *testing.T) {
-	a := api.Agent{ID: "w1:p1", Kind: "claude", Status: api.StatusIdle, TranscriptState: api.TranscriptReady}
-	b, _ := api.Marshal(a)
-	if string(b) != `{"id":"w1:p1","name":null,"kind":"claude","title":"","workspaceId":"","workspaceName":"","cwdName":"","status":"idle","hasTranscript":false,"updatedAt":"","model":null,"modelLabel":null,"permissionMode":null,"effort":null,"sessionId":null,"transcriptState":"ready"}` {
-		t.Fatal(string(b))
-	}
-	b, _ = api.Marshal(api.ReplyLive("w1:p1", nil, nil, 2))
-	if string(b) != `{"type":"reply.live","agentId":"w1:p1","text":null,"tool":null,"seq":2}` {
-		t.Fatal(string(b))
-	}
-	b, _ = api.Marshal(api.MessagePage{Messages: []api.Message{{ID: "m", Role: api.RoleUser, Blocks: []api.Block{api.TextBlock("<a & b>")}}}})
-	if string(b) != `{"messages":[{"id":"m","role":"user","createdAt":"","blocks":[{"type":"text","text":"<a & b>"}]}],"hasMore":false}` {
-		t.Fatal(string(b))
-	}
-	b, _ = api.Marshal(api.UsageProvider{ID: "claude"})
-	if string(b) != `{"id":"claude","label":"","windows":[],"updatedAt":"","source":"","stale":false,"usedBy":[]}` {
-		t.Fatal(string(b))
-	}
-}

@@ -1,6 +1,9 @@
 package api
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type EventType string
 
@@ -80,4 +83,28 @@ func (e ServerEvent) MarshalJSON() ([]byte, error) {
 		}{e.Type, e.Provider})
 	}
 	return nil, fmt.Errorf("unknown event type %q", e.Type)
+}
+
+// UnmarshalJSON reads a frame back (clients, parity tool, tests).
+func (e *ServerEvent) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Type     EventType      `json:"type"`
+		Agent    *Agent         `json:"agent"`
+		AgentID  string         `json:"agentId"`
+		Message  *Message       `json:"message"`
+		Text     *string        `json:"text"`
+		Tool     *LiveTool      `json:"tool"`
+		Seq      int            `json:"seq"`
+		Provider *UsageProvider `json:"provider"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	switch raw.Type {
+	case EventHello, EventAgentUpdated, EventAgentCreated, EventAgentClosed, EventMessageUpserted, EventReplyLive, EventUsageUpdated:
+	default:
+		return fmt.Errorf("unknown event type %q", raw.Type)
+	}
+	*e = ServerEvent(raw)
+	return nil
 }
