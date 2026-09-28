@@ -27,7 +27,7 @@ func Parse(screen, agentID string, sc transcript.Scrubber, cwdName, kind string)
 		return codex(screen, agentID, sc)
 	}
 	lines := frameLines(screen)
-	if a := numbered(lines, agentID, sc); a != nil {
+	if a := numbered(lines, measure(screen), agentID, sc); a != nil {
 		return a
 	}
 	return cursorMenu(lines, agentID, sc, cwdName)
@@ -64,7 +64,7 @@ type row struct {
 	cursor bool
 }
 
-func numbered(lines []string, agentID string, sc transcript.Scrubber) *api.Approval {
+func numbered(lines []string, m widths, agentID string, sc transcript.Scrubber) *api.Approval {
 	var parsed []row
 	for i, line := range lines {
 		m := optionRow.FindStringSubmatchIndex(line)
@@ -96,9 +96,13 @@ func numbered(lines []string, agentID string, sc transcript.Scrubber) *api.Appro
 	slices.Reverse(run)
 	cursor := slices.IndexFunc(run, func(r row) bool { return r.cursor })
 
+	rows := map[int]bool{}
+	for _, o := range parsed {
+		rows[o.line] = true
+	}
 	options := []api.ApprovalOption{}
 	for idx, o := range run {
-		label, escHint := stripHint(o.label)
+		label, escHint := stripHint(wrappedLabel(o, lines, rows, m))
 		if label == FreeTextLabel && cursor >= 0 {
 			// Selecting it by number would also type the digit into the field.
 			keys := arrows(cursor, idx)
@@ -120,6 +124,67 @@ func numbered(lines []string, agentID string, sc transcript.Scrubber) *api.Appro
 		options = append(options, opt)
 	}
 	return &api.Approval{AgentID: agentID, Question: sc.Scrub(question(run[0].line, lines)), Options: options}
+}
+
+// wrappedLabel is the option's label with the lines it wrapped onto (R8-14). Descriptions under
+// an AskUserQuestion option sit at the same indent as a wrapped label, so a line only continues
+// the label when the line before it couldn't have fit its first word (the terminal wrapped it),
+// or when it ends with the hint the label is missing (`… (shift+tab)`).
+func wrappedLabel(o row, lines []string, rows map[int]bool, m widths) string {
+	label := o.label
+	for i := o.line + 1; i < len(lines); i++ {
+		next := lines[i]
+		if next == "" || rows[i] || allIn(next, ruleChars) || isFooter(next) || isTabBar(next) {
+			break
+		}
+		word, _, _ := strings.Cut(next, " ")
+		wrapped := m.lens[i-1]+1+len([]rune(word)) > m.width-wrapMargin
+		if !wrapped && !(hasHint(next) && !hasHint(label)) {
+			break
+		}
+		label += " " + next
+	}
+	return label
+}
+
+// wrapMargin allows for the dialog's own padding inside the terminal's width.
+const wrapMargin = 2
+
+func hasHint(s string) bool { return hint.MatchString(s) }
+
+// widths: the width the screen's text wraps at (its widest line; a box's inner width when the
+// menu is boxed), and each line's length measured the same way.
+type widths struct {
+	width int
+	lens  []int
+}
+
+func measure(screen string) widths {
+	raw := strings.Split(screen, "\n")
+	boxed := false
+	for _, l := range raw {
+		if lt := trimWS(l); strings.HasPrefix(lt, "│") || strings.HasPrefix(lt, "╭") {
+			boxed = true
+			break
+		}
+	}
+	m := widths{lens: make([]int, len(raw))}
+	for i, l := range raw {
+		t := strings.TrimRightFunc(l, isWS)
+		full := len([]rune(t))
+		m.width = max(m.width, full)
+		if boxed {
+			// `│ text   │`: the text, without the frame and its padding.
+			content := strings.TrimRightFunc(strings.TrimRight(t, frameChars), isWS)
+			m.lens[i] = max(len([]rune(content))-2, 0)
+		} else {
+			m.lens[i] = full
+		}
+	}
+	if boxed {
+		m.width -= 4
+	}
+	return m
 }
 
 // MARK: codex

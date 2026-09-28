@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"relay/internal/api"
@@ -210,4 +211,55 @@ func TestDecodesContractFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectEqual(t, a.Options[len(a.Options)-1].Keys, []string{"esc"})
+}
+
+// MARK: Round 8 fixes
+
+func claudeWriteDialog(option2 ...string) string {
+	lines := []string{
+		strings.Repeat("─", 80),
+		" Create file",
+		" answer.txt",
+		" Do you want to create answer.txt?",
+		" ❯ 1. Yes",
+	}
+	lines = append(lines, option2...)
+	lines = append(lines, "   3. No, and tell Claude what to do differently (esc)", "", " Esc to cancel · Tab to amend")
+	return strings.Join(lines, "\n")
+}
+
+func TestWrappedLabelJoinsTheLineItWrappedOnto(t *testing.T) {
+	// R8-14: the row filled the width, so the next line is the rest of its label.
+	a := must(t, Parse(claudeWriteDialog(
+		"   2. Yes, and switch to accept edits for this session; Yes, and also let me",
+		"      always allow access to this folder for this session",
+	), "x", none, "", ""))
+	expectEqual(t, labels(a), []string{"Yes", "Yes, and switch to accept edits for this session; Yes, and also let me always allow access to this folder for this session", "No, and tell Claude what to do differently"})
+	expectEqual(t, keys(a), [][]string{{"1"}, {"2"}, {"esc"}})
+}
+
+func TestWrappedLabelEndingInTheHintIsJoinedAndScrubbed(t *testing.T) {
+	// R8-14 as filed: the continuation holds the cwd and the `(shift+tab)` hint.
+	a := must(t, Parse(claudeWriteDialog(
+		"   2. Yes, and always allow access to",
+		"      /Users/dev/shop-api for this session (shift+tab)",
+	), "x", transcript.NewScrubber("/Users/dev/shop-api"), "", ""))
+	expectEqual(t, a.Options[1], opt("Yes, and always allow access to . for this session", "2"))
+}
+
+func TestWrappedLabelInABox(t *testing.T) {
+	box := func(s string) string { return "│ " + s + strings.Repeat(" ", 58-len([]rune(s))) + " │" }
+	screen := strings.Join([]string{
+		"╭" + strings.Repeat("─", 60) + "╮",
+		box("Bash command"),
+		box(""),
+		box("Do you want to proceed?"),
+		box("❯ 1. Yes"),
+		box("  2. Yes, and don't ask again for npm test commands in the"),
+		box("     shop-api folder"),
+		box("  3. No, tell Claude what to do differently (esc)"),
+		"╰" + strings.Repeat("─", 60) + "╯",
+	}, "\n")
+	a := must(t, Parse(screen, "x", none, "", ""))
+	expectEqual(t, labels(a), []string{"Yes", "Yes, and don't ask again for npm test commands in the shop-api folder", "No, tell Claude what to do differently"})
 }
