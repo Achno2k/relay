@@ -39,9 +39,11 @@ func isStop(r rune) bool {
 	return unicode.In(r, unicode.Z)
 }
 
-// A character that makes a leading `/` part of a URL, a relative path or a word.
+// A character that makes a leading `/` part of a relative path or a word. `:` doesn't: an
+// `scp host:/path` or `PATH=a:/path` path is still a path, and a URL's `://` never matches
+// because a component can't be empty.
 func blocksPath(r rune) bool {
-	return isWordChar(r) || r == '~' || r == '/' || r == ':' || r == '@'
+	return isWordChar(r) || r == '~' || r == '/' || r == '@'
 }
 
 // [A-Za-z0-9_.\-]
@@ -50,6 +52,10 @@ func isWordChar(r rune) bool {
 }
 
 func (s Scrubber) Scrub(text string) string {
+	// `file:///abs/path` is the path itself (codex writes these in messages and tool output).
+	if strings.Contains(text, "file:///") {
+		text = strings.ReplaceAll(text, "file:///", "/")
+	}
 	if s.cwd != "" && strings.Contains(text, s.cwd) {
 		// `<cwd>/x` -> `x`, then bare `<cwd>` -> `.`
 		text = replaceCwd(text, s.cwd+"/", "", func(next rune, ok bool) bool { return ok && !isStop(next) })

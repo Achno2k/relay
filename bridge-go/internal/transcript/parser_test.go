@@ -236,3 +236,19 @@ func TestInputStringKeyOrderMatchesFoundation(t *testing.T) {
 		expectEqual(t, got.String(), "{"+strings.Join(parts, ",")+"}")
 	}
 }
+
+// Go-only (R8-9): lines Claude Code injects are not user bubbles; shell mode shows as typed.
+func TestTranscriptParser_injectedLines(t *testing.T) {
+	lines := strings.Join([]string{
+		`{"type":"user","uuid":"n1","message":{"content":"<task-notification>\n<task-id>b1</task-id>\n<summary>done</summary>\n</task-notification>"}}`,
+		`{"type":"user","uuid":"s1","message":{"content":"<bash-input>ls /Users/dev/shop-api/src</bash-input>"}}`,
+		`{"type":"user","uuid":"o1","message":{"content":"<bash-stdout>a.py</bash-stdout><bash-stderr></bash-stderr>"}}`,
+		`{"type":"user","uuid":"o2","message":{"content":"<bash-stderr>boom</bash-stderr>"}}`,
+		`{"type":"user","uuid":"n2","message":{"content":[{"type":"text","text":"  <task-notification>x</task-notification>"}]}}`,
+		`{"type":"user","uuid":"u1","message":{"content":"a real prompt mentioning <task-notification>"}}`,
+	}, "\n")
+	ms := Parse([]byte(lines), FormatClaude, claudeCwd, nil)
+	expectEqual(t, ids(ms), []string{"s1", "u1"})
+	expectEqual(t, ms[0].Blocks, []api.Block{api.TextBlock("! ls src")})
+	expectEqual(t, ms[1].Blocks, []api.Block{api.TextBlock("a real prompt mentioning <task-notification>")})
+}

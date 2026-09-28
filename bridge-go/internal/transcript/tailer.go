@@ -77,8 +77,11 @@ func (t *Tailer) Start() {
 	t.startOnce.Do(t.start)
 }
 
-// For tests: force the polling fallback.
-var noWatcher = false
+// For tests: force the polling fallback; run something between the seed and the loop.
+var (
+	noWatcher = false
+	afterSeed func()
+)
 
 func (t *Tailer) start() {
 	f, err := os.Open(t.ref.Path)
@@ -88,7 +91,8 @@ func (t *Tailer) start() {
 		return
 	}
 	t.file = f
-	t.seed()
+	// Watch first, then seed (R8-16): bytes written after the watch took raise an event even if
+	// the seed already read them, so nothing waits for the agent's next write.
 	w, err := fsnotify.NewWatcher()
 	if noWatcher && err == nil {
 		w.Close()
@@ -101,6 +105,10 @@ func (t *Tailer) start() {
 		}
 	} else {
 		w = nil
+	}
+	t.seed()
+	if afterSeed != nil {
+		afterSeed()
 	}
 	go t.loop(w)
 }

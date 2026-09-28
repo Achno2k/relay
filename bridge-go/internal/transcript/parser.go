@@ -20,7 +20,21 @@ const (
 	FormatCodex  Format = "codex"
 )
 
-var droppedUserPrefixes = []string{"<command-", "<local-command", "<system-reminder"}
+// User lines Claude Code injects that the user never typed (api.md transcript rules).
+var droppedUserPrefixes = []string{
+	"<command-", "<local-command", "<system-reminder",
+	"<task-notification", "<bash-stdout>", "<bash-stderr>",
+}
+
+// shellInput is the command of a shell-mode (`!`) line, `<bash-input>cmd</bash-input>`.
+func shellInput(trimmed string) (string, bool) {
+	rest, ok := strings.CutPrefix(trimmed, "<bash-input>")
+	if !ok {
+		return "", false
+	}
+	cmd, _, _ := strings.Cut(rest, "</bash-input>")
+	return cmd, true
+}
 
 // Parser turns agent JSONL into messages, one line at a time.
 //
@@ -617,6 +631,10 @@ func (p *Parser) appendUser(id, at string, texts []string) *api.Message {
 		}
 	}
 	for _, t := range kept {
+		if cmd, ok := shellInput(strings.TrimSpace(t)); ok {
+			blocks = append(blocks, api.TextBlock(p.scrubber.Scrub("! "+cmd)))
+			continue
+		}
 		// What the bridge sent, even though Claude Code rewrote the text.
 		if p.uploads != nil {
 			if sent, ok := p.uploads.LookupSent(t, p.currentDate); ok {

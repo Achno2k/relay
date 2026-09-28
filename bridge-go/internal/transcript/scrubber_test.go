@@ -54,7 +54,7 @@ func TestPathScrubber_lookaroundEdges(t *testing.T) {
 	s := NewScrubber("/Users/dev/shop-api")
 	cases := []struct{ input, expected string }{
 		{"a~/x/y", "a~/x/y"},
-		{"user@host:/var/log/x", "user@host:/var/log/x"},
+		{"user@host:/var/log/x", "user@host:x"}, // R8-8
 		{"/a/b /c/d", "b d"},
 		{"(/tmp/a/b)", "(b)"},
 		{"/Users/dev/shop-api", "."},
@@ -70,7 +70,7 @@ func TestPathScrubber_lookaroundEdges(t *testing.T) {
 		{"~/a/b", "b"},
 		{"//a//b//", "//a//b//"},
 		{"/a/b/c/d:/e/f", "f"},
-		{"file:///tmp/a/b", "file:///tmp/a/b"},
+		{"file:///tmp/a/b", "b"}, // R8-8
 		{"/Users/dev/shop-api/Users/dev/shop-api/x", "Users/dev/shop-api/x"},
 		{"/Users/dev/shop-api.bak/a", "a"},
 		{"😀/tmp/x/y", "😀y"},
@@ -84,8 +84,30 @@ func TestPathScrubber_lookaroundEdges(t *testing.T) {
 	}
 }
 
+// Go-only (R8-8): `file://` URLs and `host:/path` are paths too. The Swift bridge left them whole.
+func TestPathScrubber_fileURLsAndHostPaths(t *testing.T) {
+	s := NewScrubber("/Users/dev/proj")
+	cases := []struct{ input, expected string }{
+		{"open file:///Users/dev/Downloads/secret.pdf", "open secret.pdf"},
+		{"scp host:/Users/dev/notes/a.txt .", "scp host:a.txt ."},
+		{"see file:///Users/dev/proj/src/a.py", "see src/a.py"},
+		{"[doc](file:///Users/dev/proj/docs/x.md)", "[doc](docs/x.md)"},
+		{"https://example.com/a/b/c", "https://example.com/a/b/c"},
+		{"http://h:8080/a/b", "http://h:8080/a/b"},
+		{"PATH=/usr/bin:/Users/dev/.local/bin", "PATH=bin"},
+		{"--dir=/Users/dev/x/y", "--dir=y"},
+	}
+	for _, c := range cases {
+		if got := s.Scrub(c.input); got != c.expected {
+			t.Errorf("Scrub(%q) = %q, want %q", c.input, got, c.expected)
+		}
+	}
+}
+
 // Go-only: random strings scrubbed by the Swift PathScrubber and cut by ToolSummary.truncate /
-// firstLine (testdata/swift-golden.json), so Go matches Foundation/ICU byte for byte.
+// firstLine (testdata/swift-golden.json), so Go matches Foundation/ICU byte for byte. The scrub
+// outputs come from the Swift code with the R8-8 fix applied (`:` no longer blocks a path,
+// `file:///` becomes `/`).
 func TestSwiftGolden(t *testing.T) {
 	data, err := os.ReadFile("testdata/swift-golden.json")
 	if err != nil {
@@ -115,6 +137,11 @@ func TestSwiftGolden(t *testing.T) {
 		}
 		if got := FirstLine(c[0]); got != c[3] {
 			t.Errorf("FirstLine(%q) = %q, want %q", c[0], got, c[3])
+		}
+	}
+	for _, c := range g["edges"] {
+		if got := s.Scrub(c[0]); got != c[1] {
+			t.Errorf("Scrub(%q) = %q, want %q", c[0], got, c[1])
 		}
 	}
 	if len(g["scrub"]) < 100 || len(g["truncate"]) < 100 {

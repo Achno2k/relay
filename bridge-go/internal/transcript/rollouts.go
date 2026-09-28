@@ -81,7 +81,7 @@ func (c *CodexRollouts) Find(sessionID string) string {
 			if strings.HasPrefix(f, "rollout-") && strings.HasSuffix(f, sessionID+".jsonl") {
 				path := filepath.Join(d, f)
 				c.mu.Lock()
-				c.byID[sessionID] = path
+				remember(c.byID, sessionID, path)
 				c.mu.Unlock()
 				return path
 			}

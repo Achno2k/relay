@@ -250,3 +250,21 @@ func TestTailer_seedsFromTheTailOfAHugeFile(t *testing.T) {
 	expectEqual(t, c.get()[0].ID, "a1")
 	expectEqual(t, c.get()[0].Blocks, []api.Block{api.TextBlock("tail"), api.TextBlock("grew")})
 }
+
+// Go-only (R8-16): a line written right after the seed read is emitted from its own write
+// event, not only once the agent writes again (or the safety poll runs).
+func TestTailer_writeBetweenSeedAndWatchIsNotLost(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tail.jsonl")
+	if err := os.WriteFile(path, []byte(userLine("u1", "hello")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldPoll := safetyPoll
+	safetyPoll = time.Hour
+	afterSeed = func() { appendFile(t, path, assistantLine("a1", "fast")+"\n") }
+	defer func() { safetyPoll, afterSeed = oldPoll, nil }()
+
+	var c collector
+	startTailer(t, path, &c)
+	waitUntil(t, func() bool { return c.count() == 1 })
+	expectEqual(t, c.get()[0].Blocks, []api.Block{api.TextBlock("fast")})
+}

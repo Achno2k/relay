@@ -46,6 +46,25 @@ func homeDir() string {
 	return h
 }
 
+// maxCached bounds the session id → path caches (R8-19). They only save a directory scan.
+const maxCached = 256
+
+// remember caches path under key, first dropping entries whose file is gone and, if the cache
+// is still full, everything.
+func remember(cache map[string]string, key, path string) {
+	if len(cache) >= maxCached {
+		for k, p := range cache {
+			if !exists(p) {
+				delete(cache, k)
+			}
+		}
+		if len(cache) >= maxCached {
+			clear(cache)
+		}
+	}
+	cache[key] = path
+}
+
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
@@ -129,7 +148,7 @@ func (l *Locator) Locate(a herdr.Agent, notBefore time.Time) *Ref {
 		path := filepath.Join(l.ClaudeProjects, e.Name(), file)
 		if exists(path) {
 			l.mu.Lock()
-			l.found[session.Value] = path
+			remember(l.found, session.Value, path)
 			l.mu.Unlock()
 			return &Ref{Path: path, Format: FormatClaude, Cwd: cwd}
 		}
