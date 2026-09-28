@@ -441,4 +441,3 @@ func TestAlternatingGlitchReadsNeverFlipTheText(t *testing.T) {
 	}
 	expectEqual(t, texts, words)
 }
-

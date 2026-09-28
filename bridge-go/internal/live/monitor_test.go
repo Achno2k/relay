@@ -18,7 +18,7 @@ type testHub struct {
 	events chan api.ServerEvent
 }
 
-func newTestHub() *testHub                     { return &testHub{events: make(chan api.ServerEvent, 256)} }
+func newTestHub() *testHub                      { return &testHub{events: make(chan api.ServerEvent, 256)} }
 func (h *testHub) Broadcast(ev api.ServerEvent) { h.events <- ev }
 func (h *testHub) Count() int                   { return 1 }
 
