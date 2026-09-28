@@ -125,6 +125,21 @@ All runs are against the live Swift bridge (7878).
 | 11:51 | e2e claude, pi, codex | 0 real diffs. The one failure was a harness bug: the repeat check compared truncated text. Fixed. |
 | 11:56 | all agents + 60 s WS | 0 failed |
 | 11:57 | edge probes (HEAD, OPTIONS, slashes, auth variants) | 0 failed |
+| 12:10 | iOS Live* UI suite on the Go bridge (7880) | 11/11 pass |
+
+iOS live UI tests (ios-bugs, simulator, e2e agents, app at master 3391a48). The same 11 tests ran against each bridge:
+
+| Test | Swift 7878 | Go 7880 |
+|---|---|---|
+| LiveE2ETests testControls, testFreeTextAnswer, testImageAttachment, testMultipleQuestions, testPDFAttachment, testPromptApproveAndStop | pass | pass |
+| LiveKindControlsTests testCodexApproval, testCodexModelAndEffort, testPiModelAndEffort | pass | pass |
+| LiveNewChatTests testCreateClaudeWithModelAndEffortOpensEmptyChat | pass on rerun (menu taps didn't land the first time) | pass |
+| LiveReplyUITests testGrowingTextBeforeTranscriptMessageLands | pass | pass |
+| LiveToolE2ETests testSlowBashShowsRunningRowWithoutToolText | pass | pass |
+
+Totals: 11/11 on Swift and 11/11 on Go, all first try on Go.
+
+ios-bugs also noticed that `GET /controls?kind=claude` has no `defaultModel` when `~/.claude/settings.json` has no `model`. Go matches Swift (the key is absent on both), so it's a contract gap with api.md's "always sent" wording, not a regression. Sent to qa-bridge to file.
 
 What the e2e turns showed:
 - The claude turn's `reply.live` frames are identical in content and order on both bridges: generic `Ran a command`, then `Ran echo parity-…`, then cleared. `message.upserted` and the status trails match for all three kinds, and so do the stop via Go and the uploads.
