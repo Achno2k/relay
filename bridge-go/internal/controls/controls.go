@@ -29,6 +29,9 @@ var (
 
 const controlTailBytes = 1 << 20
 
+// maxControlCache bounds the per-transcript control cache (R8-19).
+const maxControlCache = 256
+
 // Deps is what the service passes in, so controls never imports it.
 type Deps struct {
 	Herdr    herdr.Client
@@ -37,7 +40,8 @@ type Deps struct {
 	// Kind is herdr's kind, else the kind POST /agents just started; "" = unknown.
 	Kind   func(herdr.Agent) string
 	Locate func(herdr.Agent) *transcript.Ref
-	// ClearInput empties Claude's input box (service.clearInput); claude's slash commands use it.
+	// ClearInput empties the agent's input box (service.clearInput) before every slash command, so
+	// a command never glues onto leftover text.
 	ClearInput func(ctx context.Context, id string, wait time.Duration) error
 	// OnChange runs after a control applied, so the monitor can push agent.updated at once.
 	OnChange func()
@@ -233,6 +237,15 @@ func (c *Controls) Hold(paneID string, s State) {
 	c.confirmed[paneID] = held{merged, time.Now().Add(15 * time.Second)}
 }
 
+// Forget drops everything kept for a closed pane (pane ids are never reused).
+func (c *Controls) Forget(paneID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.confirmed, paneID)
+	delete(c.last, paneID)
+	delete(c.sticky, paneID)
+}
+
 func (c *Controls) dropConfirmed(paneID string) {
 	c.mu.Lock()
 	delete(c.confirmed, paneID)
@@ -291,6 +304,10 @@ func (c *Controls) transcriptControls(ref *transcript.Ref) State {
 	data, _ := io.ReadAll(io.NewSectionReader(f, start, info.Size()-start))
 	state := ScanClaude(data)
 	c.mu.Lock()
+	if _, ok := c.controlCache[ref.Path]; !ok && len(c.controlCache) >= maxControlCache {
+		// Transcripts of closed agents and old sessions: start over rather than grow forever.
+		clear(c.controlCache)
+	}
 	c.controlCache[ref.Path] = cachedControls{info.Size(), info.ModTime(), state}
 	c.mu.Unlock()
 	return state
@@ -488,9 +505,19 @@ func (c *Controls) screen(ctx context.Context, a herdr.Agent) (string, error) {
 	return r.Text, err
 }
 
-// submit sends a slash command to a non-Claude agent (no input clearing needed: they start empty).
+// submit sends a slash command to a pi or codex agent. The input box is emptied first, so the
+// command never glues onto text left there (R8-11).
 func (c *Controls) submit(ctx context.Context, a herdr.Agent, command string) error {
+	if err := c.d.ClearInput(ctx, a.PaneID, 0); err != nil {
+		return err
+	}
 	return c.herdr.Prompt(ctx, a.PaneID, command)
+}
+
+// controlFailed is 502 control_failed quoting the agent's own error line, with paths made
+// cwd-relative like everywhere else (R8-3).
+func controlFailed(a herdr.Agent, line string) error {
+	return api.NewError(http.StatusBadGateway, "control_failed", transcript.NewScrubber(a.CwdOrForeground()).Scrub(line))
 }
 
 func (c *Controls) keys(ctx context.Context, a herdr.Agent, keys ...string) error {
@@ -520,7 +547,7 @@ func (c *Controls) waitForScreen(ctx context.Context, a herdr.Agent, before stri
 		}
 		if count("■ Error", s) > errorsBefore {
 			if line, ok := lastLineContaining(s, "■ Error"); ok {
-				return false, api.NewError(http.StatusBadGateway, "control_failed", strings.Trim(line, "■ "))
+				return false, controlFailed(a, strings.Trim(line, "■ "))
 			}
 		}
 		return done(s), nil

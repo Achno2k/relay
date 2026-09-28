@@ -330,7 +330,7 @@ func (d piDriver) apply(ctx context.Context, r api.ControlRequest, a herdr.Agent
 			}
 			if count(failed, s) > count(failed, before) {
 				if line, ok := lastLineContaining(s, failed); ok {
-					return false, api.NewError(http.StatusBadGateway, "control_failed", trimBlank(line))
+					return false, controlFailed(a, trimBlank(line))
 				}
 			}
 			return false, nil

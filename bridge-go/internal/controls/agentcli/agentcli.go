@@ -4,6 +4,7 @@
 package agentcli
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"os"
@@ -105,6 +106,45 @@ func Output(ctx context.Context, args []string, dir string, timeout time.Duratio
 	err := cmd.Run()
 	if requireSuccess && err != nil {
 		return nil
+	}
+	if out.Len() == 0 {
+		return nil
+	}
+	return out.Bytes()
+}
+
+// OutputUntil runs args and reads stdout line by line. It returns everything read up to and
+// including the first line stop accepts, then stops the child without waiting for it to finish.
+// If stdout ends (or the timeout hits) first, it returns what was read, or nil if nothing was.
+func OutputUntil(ctx context.Context, args []string, dir string, timeout time.Duration, stop func(line []byte) bool) []byte {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	cmd, ok := Command(ctx, dir, nil, args...)
+	if !ok {
+		return nil
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil
+	}
+	if cmd.Start() != nil {
+		return nil
+	}
+	defer func() {
+		cancel()
+		_ = cmd.Wait()
+	}()
+	var out bytes.Buffer
+	r := bufio.NewReader(stdout)
+	for {
+		line, err := r.ReadBytes('\n')
+		out.Write(line)
+		if len(line) > 0 && stop(bytes.TrimRight(line, "\r\n")) {
+			break
+		}
+		if err != nil {
+			break
+		}
 	}
 	if out.Len() == 0 {
 		return nil

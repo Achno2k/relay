@@ -424,9 +424,10 @@ type tui struct {
 	session string
 	status  string
 	// pi
-	piModel    string
-	piThinking string
-	piRejects  []string
+	piModel      string
+	piThinking   string
+	piRejects    []string
+	compactFails bool
 	// codex
 	model        string
 	effort       string
@@ -487,6 +488,8 @@ func (u *tui) prompt(text string) {
 	case u.kind == "pi" && parts[0] == "/thinking":
 		u.piThinking = parts[1]
 		u.lines = append(u.lines, " Thinking level: "+parts[1])
+	case u.kind == "pi" && parts[0] == "/compact" && u.compactFails:
+		u.lines = append(u.lines, " Compaction failed: nothing to compact in /Users/dev/p/src (session too small)")
 	case u.kind == "pi" && parts[0] == "/new":
 		n, _ := strconv.Atoi(u.session[1:])
 		u.session = "s" + strconv.Itoa(n+1)
@@ -807,5 +810,53 @@ func TestCodexNoPickerLeftOpenOnFailure(t *testing.T) {
 	expectCode(t, err, "unsupported", 400)
 	if u.picker != nil || u.savedDefault {
 		t.Errorf("picker %+v saved %v", u.picker, u.savedDefault)
+	}
+}
+
+// R8-11: pi and codex slash commands clear the input box first, like Claude's.
+func TestSlashCommandsClearTheInputFirst(t *testing.T) {
+	u := newTUI("pi")
+	c := withTUI(t, u)
+	var mu sync.Mutex
+	var cleared []string
+	c.d.ClearInput = func(_ context.Context, id string, _ time.Duration) error {
+		mu.Lock()
+		cleared = append(cleared, id)
+		mu.Unlock()
+		return nil
+	}
+	mustControl(t, c, "w14:p9", api.ControlEffort, "low")
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Equal(cleared, []string{"w14:p9"}) {
+		t.Errorf("cleared %v", cleared)
+	}
+}
+
+// R8-3: a control_failed quote has the agent's cwd made relative.
+func TestControlFailedIsScrubbed(t *testing.T) {
+	u := newTUI("pi")
+	u.compactFails = true
+	c := withTUI(t, u)
+	_, err := control(t, c, "w14:p9", api.ControlCompact, "")
+	expectCode(t, err, "control_failed", 502)
+	var e *api.Error
+	errors.As(err, &e)
+	if strings.Contains(e.Message, "/Users/") || !strings.Contains(e.Message, "Compaction failed") {
+		t.Errorf("message %q", e.Message)
+	}
+}
+
+// R8-19: Forget drops a closed pane's held values and last-known controls.
+func TestForgetDropsPaneState(t *testing.T) {
+	u := newTUI("pi")
+	c := withTUI(t, u)
+	c.Hold("w14:p9", st("x/y", "low", ""))
+	agentView(t, c, "w14:p9")
+	c.Forget("w14:p9")
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.confirmed)+len(c.last)+len(c.sticky) != 0 {
+		t.Errorf("left %d %d %d", len(c.confirmed), len(c.last), len(c.sticky))
 	}
 }

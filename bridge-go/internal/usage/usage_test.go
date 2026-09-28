@@ -358,3 +358,38 @@ func TestRunStopsDuringAProbe(t *testing.T) {
 		t.Error("recorded a cancelled probe")
 	}
 }
+
+// R8-2: GET /usage serves the cache at once while a slow probe runs.
+func TestSnapshotNeverWaitsOnAProbe(t *testing.T) {
+	release := make(chan struct{})
+	started := make(chan struct{})
+	m := monitor(t, &fakeHub{}, probes{}, Options{Codex: func(context.Context) []byte {
+		close(started)
+		<-release
+		return nil
+	}})
+	m.RequestRefresh()
+	<-started
+	begin := time.Now()
+	m.Snapshot()
+	if d := time.Since(begin); d > 100*time.Millisecond {
+		t.Errorf("Snapshot took %v during a probe", d)
+	}
+	close(release)
+	m.bg.Wait()
+}
+
+// R8-1 live: the real claude usage probe returns a usage_report well inside its timeout.
+// RELAY_LIVE_USAGE=1 only (it spends a /usage call).
+func TestLiveClaudeUsageProbe(t *testing.T) {
+	if os.Getenv("RELAY_LIVE_USAGE") == "" {
+		t.Skip("set RELAY_LIVE_USAGE=1")
+	}
+	start := time.Now()
+	out := LiveClaudeUsage(context.Background(), t.TempDir())
+	p := ParseClaude(out, nil, time.Now(), false)
+	if p == nil || len(p.Windows) == 0 {
+		t.Fatalf("no usage after %v: %.300s", time.Since(start), out)
+	}
+	t.Logf("usage_report after %v", time.Since(start))
+}

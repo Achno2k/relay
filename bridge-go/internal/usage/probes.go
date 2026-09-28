@@ -2,6 +2,7 @@ package usage
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"path/filepath"
@@ -71,10 +72,19 @@ func LiveCodex(ctx context.Context) []byte {
 }
 
 // LiveClaudeUsage runs `claude -p "/usage"` (structured usage_report) from dir.
+// `--strict-mcp-config` skips the user's MCP servers, which otherwise start first and push the
+// assistant line past any sane timeout (R8-1: 8 to 37 s without it, ~4 to 7 s with it). stdout is
+// read line by line and the probe stops at the first line carrying usage_report; 45 s is only a
+// backstop.
 func LiveClaudeUsage(ctx context.Context, dir string) []byte {
-	return agentcli.Output(ctx, []string{"claude", "-p", "/usage", "--output-format", "stream-json", "--verbose", "--no-session-persistence"},
-		dir, 20*time.Second, false)
+	return agentcli.OutputUntil(ctx, ClaudeUsageArgs, dir, 45*time.Second, func(line []byte) bool {
+		return bytes.Contains(line, []byte(`"usage_report"`))
+	})
 }
+
+// ClaudeUsageArgs is the usage probe's command line.
+var ClaudeUsageArgs = []string{"claude", "-p", "/usage", "--output-format", "stream-json", "--verbose",
+	"--no-session-persistence", "--strict-mcp-config"}
 
 // LiveClaudeAuth runs `claude auth status --json` (plan name).
 func LiveClaudeAuth(ctx context.Context) []byte {

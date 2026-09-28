@@ -367,3 +367,31 @@ func TestContractFixturesDecode(t *testing.T) {
 		t.Errorf("agents %+v %v", agents, err)
 	}
 }
+
+// R8-17: with no settings file before the command, the one Claude creates for /model is removed.
+func TestSettingsGuardRemovesAFileThatDidNotExist(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	g := &SettingsGuard{Path: path}
+	snap := g.Snapshot()
+	os.WriteFile(path, []byte(`{"model":"sonnet"}`), 0o600)
+	if !g.Restore(snap) {
+		t.Error("nothing restored")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("file kept: %v", err)
+	}
+	if g.Restore(snap) {
+		t.Error("restored twice")
+	}
+}
+
+// R8-17 end to end: a /model switch on a machine without ~/.claude/settings.json leaves none behind.
+func TestModelSwitchWithoutSettingsFile(t *testing.T) {
+	f := newFakeClaude(t)
+	os.Remove(f.settings)
+	c, _ := withClaude(t, f)
+	mustControl(t, c, "w14:p2", api.ControlModel, "sonnet")
+	if _, err := os.Stat(f.settings); !os.IsNotExist(err) {
+		t.Errorf("settings file left behind: %v", err)
+	}
+}

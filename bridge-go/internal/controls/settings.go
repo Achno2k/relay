@@ -2,6 +2,8 @@ package controls
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -19,24 +21,37 @@ func NewSettingsGuard() *SettingsGuard {
 	return &SettingsGuard{Path: filepath.Join(home, ".claude/settings.json")}
 }
 
-// Snapshot is the file's bytes; nil if it couldn't be read.
-type Snapshot struct{ data []byte }
+// Snapshot is the file's bytes (nil if it couldn't be read), or that it didn't exist.
+type Snapshot struct {
+	data   []byte
+	absent bool
+}
 
 func (g *SettingsGuard) Snapshot() Snapshot {
 	if g.Path == "" {
 		return Snapshot{}
 	}
 	data, err := os.ReadFile(g.Path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return Snapshot{absent: true}
+	}
 	if err != nil {
 		return Snapshot{}
 	}
-	return Snapshot{data}
+	return Snapshot{data: data}
 }
 
 // Restore writes the snapshot back if the file changed, in place so it keeps its inode and 0600
-// permissions. Returns true if it restored something.
+// permissions. A file that didn't exist before is removed again, or Claude's /model would become
+// the saved default (R8-17). Returns true if it restored something.
 func (g *SettingsGuard) Restore(s Snapshot) bool {
-	if g.Path == "" || s.data == nil {
+	if g.Path == "" {
+		return false
+	}
+	if s.absent {
+		return os.Remove(g.Path) == nil
+	}
+	if s.data == nil {
 		return false
 	}
 	now, err := os.ReadFile(g.Path)

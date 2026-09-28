@@ -56,3 +56,18 @@ func TestSearchPathFindsUserInstalls(t *testing.T) {
 		t.Errorf("search path %s", sp)
 	}
 }
+
+// R8-1: the probe returns at the first matching line instead of waiting for the CLI to exit.
+func TestOutputUntilStopsAtTheLine(t *testing.T) {
+	start := time.Now()
+	out := OutputUntil(context.Background(), []string{"sh", "-c", "echo one; echo 'x usage_report y'; sleep 30"}, "", time.Minute,
+		func(l []byte) bool { return strings.Contains(string(l), "usage_report") })
+	if string(out) != "one\nx usage_report y\n" || time.Since(start) > 3*time.Second {
+		t.Errorf("out %q after %v", out, time.Since(start))
+	}
+	// No match: everything up to EOF.
+	if out := OutputUntil(context.Background(), []string{"sh", "-c", "echo a; echo b"}, "", time.Minute,
+		func([]byte) bool { return false }); string(out) != "a\nb\n" {
+		t.Errorf("out %q", out)
+	}
+}
