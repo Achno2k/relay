@@ -70,7 +70,9 @@ func TestLocator_codexNotBeforeSkipsOlderRollouts(t *testing.T) {
 	day := filepath.Join(root, "2026", "09", "24")
 	path := filepath.Join(day, "rollout-2026-09-24T14-00-00-abc.jsonl")
 	touch(t, path)
-	if err := os.WriteFile(path, []byte(`{"timestamp":"2026-09-24T14:00:00Z","type":"session_meta","payload":{"cwd":"/Users/dev/p"}}`+"\n"), 0o644); err != nil {
+	// Created now: the file's birth time on macOS, the session_meta timestamp on Linux.
+	meta := `{"timestamp":"` + time.Now().UTC().Format(time.RFC3339) + `","type":"session_meta","payload":{"cwd":"/Users/dev/p"}}`
+	if err := os.WriteFile(path, []byte(meta+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	r := NewCodexRollouts(root)
