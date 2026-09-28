@@ -1,0 +1,4608 @@
+{
+"scrub": [
+[
+"a~/x/y",
+"a~/x/y"
+],
+[
+"user@host:/var/log/x",
+"user@host:/var/log/x"
+],
+[
+"/a/b /c/d",
+"b d"
+],
+[
+"(/tmp/a/b)",
+"(b)"
+],
+[
+"/Users/dev/shop-api",
+"."
+],
+[
+"/Users/dev/shop-api/",
+"./"
+],
+[
+"/Users/dev/shop-api/ x",
+"./ x"
+],
+[
+"x/Users/dev/shop-api/a",
+"xa"
+],
+[
+"/Users/dev/shop-apiX/y",
+"y"
+],
+[
+"/Users/dev/shop-api/a /Users/dev/shop-api",
+"a ."
+],
+[
+"é/tmp/a/b",
+"éb"
+],
+[
+" /tmp/a/b",
+" b"
+],
+[
+"/tmp/a b/c",
+"a b/c"
+],
+[
+"~/a",
+"~/a"
+],
+[
+"~/a/b",
+"b"
+],
+[
+"//a//b//",
+"//a//b//"
+],
+[
+"/a/b/c/d:/e/f",
+"f"
+],
+[
+"file:///tmp/a/b",
+"file:///tmp/a/b"
+],
+[
+"/Users/dev/shop-api/Users/dev/shop-api/x",
+"Users/dev/shop-api/x"
+],
+[
+"/Users/dev/shop-api.bak/a",
+"a"
+],
+[
+"😀/tmp/x/y",
+"😀y"
+],
+[
+"/tmp/😀/y",
+"y"
+],
+[
+"/Users/dev/shop-api/ ",
+"./ "
+],
+[
+"(),/Users/dev/shop-apic>/Users/dev/shop-api~ i\\s/`~;",
+"(),shop-apic>.~ i\\s/`~;"
+],
+[
+"}/😀)p/p-_a/Users/dev/shop-api}e/Users/dev/shop-api:| \n'/Users/dev/shop-apip😀//Users/dev/shop-api_e\te}>./\ns o d)>\"|.|//Users/dev/shop-api@;",
+"}/😀)p/p-_a.}e.:| \n'shop-apip😀/Users/dev/shop-api_e\te}>./\ns o d)>\"|.|/.@;"
+],
+[
+"e<hd,-d}|/Users/dev/shop-api/Users/dev/shop-apib)/U;a",
+"e<hd,-d}|Users/dev/shop-apib)/U;a"
+],
+[
+"",
+""
+],
+[
+"/Users/dev/shop-apiU/Users/dev/shop-api'ih]\t{/Users/dev/shop-api,oi",
+"shop-apiU.'ih]\t{.,oi"
+],
+[
+"b}\nc>ibpv/Users/dev/shop-api)\"sp)/Users/dev/shop-api]/Users/dev/shop-api-/Users/dev/shop-api/c@~U\"",
+"b}\nc>ibpv.)\"sp).]shop-api-c@~U\""
+],
+[
+"e~po/\\ia/Users/dev/shop-apic;s`.",
+"e~po/\\ia/Users/dev/shop-apic;s`."
+],
+[
+"-<-/Users/dev/shop-api/Users/dev/shop-api/.ss_\no: / @/",
+"-<-Users/dev/shop-api/.ss_\no: / @/"
+],
+[
+":siU/<d",
+":siU/<d"
+],
+[
+"-@a/}s;/s}hip\\o//ro~/c 😀r_}[ééd:'d s/Users/dev/shop-api;a)\\||| \"p,(<s",
+"-@a/}s;/s}hip\\o//ro~/c 😀r_}[ééd:'d s.;a)\\||| \"p,(<s"
+],
+[
+"/Users/dev/shop-api\\.p\"/Users/dev/shop-api`>/Users/dev/shop-apiéU)e\néa'>,/](😀 p,/Users/dev/shop-api-.-cs_/Users/dev/shop-api@@\";] h-}/a si/Users/dev/shop-api]_~e",
+".\\.p\".`>.éU)e\néa'>,/](😀 p,shop-api-.-cs_.@@\";] h-}/a si.]_~e"
+],
+[
+"se/\t@s/Users/dev/shop-api😀]/rsb/bo/a-e_/Users/dev/shop-apia:e(s/ (oe\" \t'/",
+"se/\t@s.😀]shop-apia:e(s/ (oe\" \t'/"
+],
+[
+");",
+");"
+],
+[
+"ep/Users/dev/shop-api\\😀ev[ @pé( drsio/Users/dev/shop-api`(_\"<:e~a [v/Users/dev/shop-apio😀e((>)o@;/Users/dev/shop-api)😀 p/\"",
+"ep.\\😀ev[ @pé( drsio.`(_\"<:e~a [v/Users/dev/shop-apio😀e((>)o@;.)😀 p/\""
+],
+[
+"/[~ <{>d .c;",
+"/[~ <{>d .c;"
+],
+[
+"\\/hp.\nvd",
+"\\/hp.\nvd"
+],
+[
+"[~c😀_>>\tees(o;-e|/Users/dev/shop-api://Users/dev/shop-api/eé:>\ni_pe;v",
+"[~c😀_>>\tees(o;-e|.:/eé:>\ni_pe;v"
+],
+[
+"\"/ii'<v/Users/dev/shop-api-a😀/-a),r a/Users/dev/shop-api/Users/dev/shop-api\ns😀",
+"\"/ii'<v/Users/dev/shop-api-a😀/-a),r aUsers/dev/shop-api\ns😀"
+],
+[
+"p'/Users/dev/shop-apia< . -a-d_oa:bb/Users/dev/shop-api.eé/Users/dev/shop-api}e/Users/dev/shop-api}@_<-/[/~c]\"e<s{b||p _p|",
+"p'shop-apia< . -a-d_oa:bb/Users/dev/shop-api.eé.}e.}@_<-/[/~c]\"e<s{b||p _p|"
+],
+[
+"a///Users/dev/shop-apie/Users/dev/shop-api\n>-/(@<|/",
+"a///Users/dev/shop-apie.\n>-/(@<|/"
+],
+[
+",`,ce\"c,()s] ,]|/>a/`/Users/dev/shop-apip[U/Users/dev/shop-api//e,é/Users/dev/shop-apiUs(')_/Users/dev/shop-api/Users/dev/shop-apié/Users/dev/shop-api_\n>U",
+",`,ce\"c,()s] ,]|/>a/`shop-apip[U.//e,éshop-apiUs(')_Users/dev/shop-apiéshop-api_\n>U"
+],
+[
+"i-/Users/dev/shop-api\np<@ [a😀' ./:a{~d[-\"{/Users/dev/shop-api re/Users/dev/shop-apih//Users/dev/shop-api\"",
+"i-.\np<@ [a😀' ./:a{~d[-\"{. re/Users/dev/shop-apih/.\""
+],
+[
+"e a-é >;//{,./Users/dev/shop-api/Users/dev/shop-api\\vr> <.i}>/Users/dev/shop-apihs)",
+"e a-é >;//{,.Users/dev/shop-api\\vr> <.i}>shop-apihs)"
+],
+[
+"/Users/dev/shop-api😀/\",séU~ /  ",
+".😀/\",séU~ /  "
+],
+[
+">@/ |e\np-re😀o~oi{/:'/Users/dev/shop-api,[p)/Users/dev/shop-api-arb/Users/dev/shop-api_s",
+">@/ |e\np-re😀o~oi{/:'.,[p)shop-api_s"
+],
+[
+"/cUce/Users/dev/shop-api/Users/dev/shop-apic'~,,s-b-[|@-h-'r/Users/dev/shop-apio😀c`-a( >U/`v|",
+"shop-apic'~,,s-b-[|@-h-'r/Users/dev/shop-apio😀c`-a( >U/`v|"
+],
+[
+",/Users/dev/shop-api[v/Users/dev/shop-api<': (@esa:/Users/dev/shop-apid/Users/dev/shop-api)'/Users/dev/shop-apic@//Users/dev/shop-apie/Users/dev/shop-api😀a|)é|v'//Users/dev/shop-api,|'e dp]\"(/Users/dev/shop-api_é|~es>p cs/Users/dev/shop-api",
+",.[v.<': (@esa:/Users/dev/shop-apid.)'shop-apic@/Users/dev/shop-apie.😀a|)é|v'/.,|'e dp]\"(shop-api_é|~es>p cs."
+],
+[
+"`\t_'>\\>(ih/)`@[o\\sé\"]\\😀r/é/Users/dev/shop-apib😀p,\n'\tisop_{ ./pd",
+"`\t_'>\\>(ih/)`@[o\\sé\"]\\😀r/éshop-apib😀p,\n'\tisop_{ ./pd"
+],
+[
+"} d]\tb'[ dse\"d,-U,a/`)eb/vdé/Users/dev/shop-api\n{r/Users/dev/shop-api.<|-eepr/Users/dev/shop-apié@r>U//Users/dev/shop-apis]de\n\n|s",
+"} d]\tb'[ dse\"d,-U,a/`)eb/vdé.\n{r/Users/dev/shop-api.<|-eepr.é@r>U//Users/dev/shop-apis]de\n\n|s"
+],
+[
+"\"csaU a>'<dpe\\ ([\n /\t/;/e\n_oU:/o\tUe/r/Users/dev/shop-api/Users/dev/shop-api|@:😀~Uba/Users/dev/shop-api",
+"\"csaU a>'<dpe\\ ([\n /\t/;/e\n_oU:/o\tUe/rUsers/dev/shop-api|@:😀~Uba."
+],
+[
+"a/Users/dev/shop-api/e\th;_dsad@{😀avs;| /Users/dev/shop-api-~U>r'/\\\"😀r`/`-/Users/dev/shop-api;//b_sé\"`- 😀\\é\ta`a/o",
+"ae\th;_dsad@{😀avs;| shop-api-~U>r'/\\\"😀r`/`-.;//b_sé\"`- 😀\\é\ta`a/o"
+],
+[
+",ia😀v/c/é/Users/dev/shop-apipc/Users/dev/shop-api\n:/Users/dev/shop-apisr/Users/dev/shop-api<é[_</Users/dev/shop-api;/)oe/Users/dev/shop-api😀/h._`prU/]---.(/`abs.",
+",ia😀v/c/éshop-apipc.\n:/Users/dev/shop-apisr.<é[_<.;/)oe.😀/h._`prU/]---.(/`abs."
+],
+[
+"e\\UsU/o,\t/sc]",
+"e\\UsU/o,\t/sc]"
+],
+[
+"/Users/dev/shop-apis/.é';a/Users/dev/shop-api\n>,e]pv/Users/dev/shop-api>/Users/dev/shop-api'/),://Users/dev/shop-apivb~(s;",
+".é';a.\n>,e]pv.>.'/),://Users/dev/shop-apivb~(s;"
+],
+[
+"/`>/a",
+"/`>/a"
+],
+[
+")~e[ /Users/dev/shop-api)e😀o\\s/ /Users/dev/shop-apipp@v[d- \t~\"{p<s(c)'d.]/Users/dev/shop-api}/Users/dev/shop-apio<sd",
+")~e[ .)e😀o\\s/ shop-apipp@v[d- \t~\"{p<s(c)'d.].}shop-apio<sd"
+],
+[
+"i\\ah]\\\\//Users/dev/shop-api/\th<r )v'p,s`e\t😀/Users/dev/shop-api;>.p|e-.{s",
+"i\\ah]\\\\.\th<r )v'p,s`e\t😀.;>.p|e-.{s"
+],
+[
+">v/Users/dev/shop-api\n_e/-/Users/dev/shop-apir` /]/s}//Users/dev/shop-api, s//`/-,\\s{p,p,/,[} \t-U [s./Users/dev/shop-api`s]/Users/dev/shop-api",
+">v.\n_e/-/Users/dev/shop-apir` /]/s}/., s//`/-,\\s{p,p,/,[} \t-U [s..`s]."
+],
+[
+"avebv /U]h/ /vc\t\"  vs.  >di-`/Users/dev/shop-api /Users/dev/shop-api/s.~)p",
+"avebv /U]h/ /vc\t\"  vs.  >di-`. s.~)p"
+],
+[
+"/Users/dev/shop-api}i/",
+".}i/"
+],
+[
+"v;h,/Users/dev/shop-apie/Users/dev/shop-apip-sca/Users/dev/shop-api/Users/dev/shop-apip\"\tso//::cs\té(//Users/dev/shop-api'é\n",
+"v;h,shop-apip\"\tso//::cs\té(/.'é\n"
+],
+[
+")/h/Users/dev/shop-api\n\n/Users/dev/shop-api;'/~-s-😀a}/@d-oée/ia/[dovUs)/ {'|\"p/Users/dev/shop-api-/Users/dev/shop-api/Users/dev/shop-apic)\\/a~s@c)a] i",
+")/h.\n\n.;'/~-s-😀a}ia[dovUs)/ {'|\"p/Users/dev/shop-api-Users/dev/shop-apic)\\/a~s@c)a] i"
+],
+[
+"/Users/dev/shop-api|\t(/😀_e:/h😀p/h-/😀<e\ts>s",
+".|\t(😀<e\ts>s"
+],
+[
+"ds/Users/dev/shop-apid~/~~cd]e/Users/dev/shop-apiv-\n😀//.;/Users/dev/shop-apiavp|)c:'o<o~/Uo/v |@a}db",
+"ds/Users/dev/shop-apid~/~~cd]e/Users/dev/shop-apiv-\n😀//.;shop-apiavp|)c:'o<o~/Uo/v |@a}db"
+],
+[
+"//Users/dev/shop-api d-; p 'o;(/Users/dev/shop-apii'\n-@_\nde/<[ v_\tb)\t~s;éss/U😀~, /Users/dev/shop-api-si>:[a`/o-e,",
+"/. d-; p 'o;(shop-apii'\n-@_\nde/<[ v_\tb)\t~s;éss/U😀~, shop-api-si>:[a`/o-e,"
+],
+[
+"@/:@_/@/\\c</Users/dev/shop-api,,-é/s{,s;;_[//h/`😀:;}bc\" ;//{_(\n)😀`hsav /é",
+"@/:@_/@/\\c<.,,-é/s{,s;;_[//h/`😀:;}bc\" ;//{_(\n)😀`hsav /é"
+],
+[
+"😀`'/Users/dev/shop-api'/\"vp/.😀]/<s,\n;;/e` -|/Users/dev/shop-api/Users/dev/shop-api}@:\\>U/Users/dev/shop-api<",
+"😀`'.'/\"vp/.😀]/<s,\n;;/e` -|Users/dev/shop-api}@:\\>U.<"
+],
+[
+"~\ne;/Users/dev/shop-api/(/cs_[s){",
+"~\ne;./(/cs_[s){"
+],
+[
+".h (//Users/dev/shop-apié ",
+".h (/.é "
+],
+[
+"/ `\"/\"r s@-ib]\ne/(.-['( o[>sd.ié/-'a/ve o]brU[pseav-[",
+"/ `\"/\"r s@-ib]\ne/(.-['( o[>sd.ié/-'a/ve o]brU[pseav-["
+],
+[
+",]|😀/Users/dev/shop-api'};ac/Users/dev/shop-api/di>~-bar;-)o/Users/dev/shop-api`|/Users/dev/shop-api<@<c@s~😀\t@U{",
+",]|😀.'};acdi>~-bar;-)o.`|.<@<c@s~😀\t@U{"
+],
+[
+"é/😀._i( cU v \\p' c)\tpé@",
+"é/😀._i( cU v \\p' c)\tpé@"
+],
+[
+"/Users/dev/shop-api/Users/dev/shop-api\"ds~~;/Users/dev/shop-apiv)'-//||/Users/dev/shop-apiU]s\t\\",
+"Users/dev/shop-api\"ds~~;shop-apiv)'-//||shop-apiU]s\t\\"
+],
+[
+"aé )ar[\n/Users/dev/shop-api{~,\\.😀s\no{ /Users/dev/shop-api//v,-/Users/dev/shop-api)/Users/dev/shop-api\"/Users/dev/shop-api😀he  },bhr|;s))}|",
+"aé )ar[\n.{~,\\.😀s\no{ .//v,-.).\".😀he  },bhr|;s))}|"
+],
+[
+"_-/Users/dev/shop-api (/Users/dev/shop-api\t/s`\\{,`( /Users/dev/shop-api-{pever\toi~i<)\\e/-",
+"_-. (.\t/s`\\{,`( shop-api-{pever\toi~i<)\\e/-"
+],
+[
+"/-/d @/sv{😀a}c/Users/dev/shop-api/Users/dev/shop-apis,v|~@\\,-r'/Users/dev/shop-api/e.s;\n/;:p@ (/Users/dev/shop-apicU i/Users/dev/shop-api ipa <ra_",
+"d @/sv{😀a}cUsers/dev/shop-apis,v|~@\\,-r'e.s;\n/;:p@ (shop-apicU i. ipa <ra_"
+],
+[
+"h.\t}.,;<a/\n:_/é-);}e,srU: \te,s..\n\té>s\\-bv|/}",
+"h.\t}.,;<a/\n:_/é-);}e,srU: \te,s..\n\té>s\\-bv|/}"
+],
+[
+"\ns|.o/Users/dev/shop-apiibe]\";o.~ss(`d \\\t/Users/dev/shop-api~/assds]/}ssh)cap/]] vs}/e/Users/dev/shop-apicp`:p/Users/dev/shop-api/",
+"\ns|.o/Users/dev/shop-apiibe]\";o.~ss(`d \\\t.~/assds]/}ssh)cap/]] vs}shop-apicp`:p./"
+],
+[
+"U  .s",
+"U  .s"
+],
+[
+"r/Users/dev/shop-api)\"/Users/dev/shop-api\"\ne-esv/sp//'pp_s/i, sp/./Users/dev/shop-api(-\\b /\t-;\\[U<\\_ |(a(.",
+"r.)\".\"\ne-esv/sp//'pp_s/i, sp/..(-\\b /\t-;\\[U<\\_ |(a(."
+],
+[
+"@e<\"/U-/Users/dev/shop-api}/;/Users/dev/shop-api'sa\np/Users/dev/shop-apip, \\a-]@/Users/dev/shop-apio/s//Users/dev/shop-api('h-'U\\/Users/dev/shop-apies/Users/dev/shop-api//spa",
+"@e<\"/U-.}/;.'sa\np/Users/dev/shop-apip, \\a-]@/Users/dev/shop-apio/s/.('h-'U\\shop-apies./spa"
+],
+[
+"|d<<,`s\n>[s|~ sa'",
+"|d<<,`s\n>[s|~ sa'"
+],
+[
+"<}}😀/ri\"/Users/dev/shop-api//Users/dev/shop-apib[\nrb[;v~a,]|oshs,e/ / /Users/dev/shop-api[>a 😀-pcU",
+"<}}😀/ri\".//Users/dev/shop-apib[\nrb[;v~a,]|oshs,e/ / .[>a 😀-pcU"
+],
+[
+"/U//",
+"U/"
+],
+[
+">b/Users/dev/shop-api~`  e-\n(Uis/-p(/>s-)~sp\\\n/i-/Users/dev/shop-api<(v~/Users/dev/shop-api/Users/dev/shop-apive/Users/dev/shop-apihe\t>ac]s/Users/dev/shop-apie/Users/dev/shop-api`d ;U",
+">b.~`  e-\n(Uis/-p(/>s-)~sp\\\n/i-.<(v~Users/dev/shop-apive/Users/dev/shop-apihe\t>ac]s/Users/dev/shop-apie.`d ;U"
+],
+[
+"-,e\\{pp/Users/dev/shop-api",
+"-,e\\{pp."
+],
+[
+" U/Users/dev/shop-api.],assv/Users/dev/shop-apie//Users/dev/shop-api]_hé\">/Users/dev/shop-api/Users/dev/shop-api[s` |</.@\tv",
+" U/Users/dev/shop-api.],assv/Users/dev/shop-apie/.]_hé\">Users/dev/shop-api[s` |</.@\tv"
+],
+[
+"r/Users/dev/shop-api\\p/csUé'i/\\//bspe/a{ v(c~\">hcsse`/Users/dev/shop-api/Users/dev/shop-api-}e",
+"r.\\p/csUé'i/\\//bspe/a{ v(c~\">hcsse`Users/dev/shop-api-}e"
+],
+[
+"hae/v\\'pesh.\\/Users/dev/shop-api/Users/dev/shop-api\no,ee//Users/dev/shop-api/\\/ch, ",
+"hae/v\\'pesh.\\Users/dev/shop-api\no,ee/./\\/ch, "
+],
+[
+"b/Users/dev/shop-api`pp-/Users/dev/shop-api}\"a/Users/dev/shop-api{-s)i/Users/dev/shop-apiias \\: ",
+"b.`pp-.}\"a.{-s)i/Users/dev/shop-apiias \\: "
+],
+[
+"sir 😀e/Users/dev/shop-api_:U",
+"sir 😀e/Users/dev/shop-api_:U"
+],
+[
+"/Users/dev/shop-api-{v",
+"shop-api-{v"
+],
+[
+"\n/(s😀<,///:éd .-/ 😀|.\t'\t/_`/c 😀re>é;;//Users/dev/shop-apics:s  /Users/dev/shop-apir",
+"\n/(s😀<,///:éd .-/ 😀|.\t'\t/_`/c 😀re>é;;//Users/dev/shop-apics:s  shop-apir"
+],
+[
+"/😀@'/Users/dev/shop-api-(s}😀[\\~,-)@@vU,/i /e bp:/Users/dev/shop-api,/Users/dev/shop-api\\;s/Users/dev/shop-api-a:]",
+"/😀@'shop-api-(s}😀[\\~,-)@@vU,/i /e bp:.,.\\;s/Users/dev/shop-api-a:]"
+],
+[
+" ea:pa/Users/dev/shop-api/  ~/Users/dev/shop-apia",
+" ea:pa./  shop-apia"
+],
+[
+"hb(/~/Users/dev/shop-apissv_</Users/dev/shop-apio\"d@)😀;\t/Users/dev/shop-api/Users/dev/shop-api|/ac s-/-/Users/dev/shop-apir/Users/dev/shop-apis(s->'😀p:/Users/dev/shop-api,d(😀[😀s_(s",
+"hb(shop-apissv_<shop-apio\"d@)😀;\tUsers/dev/shop-api|/ac s-/-/Users/dev/shop-apir/Users/dev/shop-apis(s->'😀p:.,d(😀[😀s_(s"
+],
+[
+"_`,/:(s- p",
+"_`,/:(s- p"
+],
+[
+"`\"<:eee-dp,e/_-/Users/dev/shop-api<\\ /|;)><@d/Users/dev/shop-api'U-.U/@/Users/dev/shop-apirap",
+"`\"<:eee-dp,e/_-.<\\ /|;)><@d.'U-.U/@/Users/dev/shop-apirap"
+],
+[
+"/a\"e-@-/s",
+"/a\"e-@-/s"
+],
+[
+"\\\nps😀//<ohbe\ta'v/Users/dev/shop-apipa\\d re/Users/dev/shop-api}{/-",
+"\\\nps😀//<ohbe\ta'v/Users/dev/shop-apipa\\d re.}{/-"
+],
+[
+"U\n /Users/dev/shop-api/-\\rcs>aa,\n.{ ab(_U\\p`\\ ]eas😀\n\t(:/}e~é'/Users/dev/shop-api",
+"U\n -\\rcs>aa,\n.{ ab(_U\\p`\\ ]eas😀\n\t(:/}e~é'."
+],
+[
+"/Users/dev/shop-api",
+"."
+],
+[
+"}Uchh.-{s  \tec;.,[\")}:i/vs.é]/b;/o'(e):é]\";/Users/dev/shop-api-/Users/dev/shop-api/Users/dev/shop-apipp~: >",
+"}Uchh.-{s  \tec;.,[\")}:i/vs.é]/b;/o'(e):é]\";shop-apipp~: >"
+],
+[
+"'sUvc] /U/sc;-`:\t/Users/dev/shop-apia|(/Users/dev/shop-api\n~,\t\n/Users/dev/shop-apis",
+"'sUvc] sc;-`:\tshop-apia|(.\n~,\t\nshop-apis"
+],
+[
+"//|é;\")cs/Users/dev/shop-api/Users/dev/shop-api:😀/~ es,/Users/dev/shop-api😀`sp,p'_)\\<c:`\\\\/Users/dev/shop-api~id😀b//Users/dev/shop-apiha\"p'aU/Users/dev/shop-api[a>cp",
+"//|é;\")csUsers/dev/shop-api:😀/~ es,.😀`sp,p'_)\\<c:`\\\\.~id😀b//Users/dev/shop-apiha\"p'aU.[a>cp"
+],
+[
+".|U>`{' d/Users/dev/shop-apiér/",
+".|U>`{' d.ér/"
+],
+[
+"/@epa/_  r/p}\nopc\néév~",
+"_  r/p}\nopc\néév~"
+],
+[
+"[~sa\"/r.ab/Users/dev/shop-apio//Users/dev/shop-api-].;;- rps \"`i. \"s<c/b /@ \\,\\@;\t)-",
+"[~sa\"shop-apio/Users/dev/shop-api-].;;- rps \"`i. \"s<c/b /@ \\,\\@;\t)-"
+],
+[
+"éo\n/s/ p`]a cacsb(i\"s/~>p{ -U}(_ c(iib{😀[/Users/dev/shop-api'é|.|/~~s/Users/dev/shop-api'</Users/dev/shop-api",
+"éo\ns p`]a cacsb(i\"s/~>p{ -U}(_ c(iib{😀[.'é|.|/~~s.'<."
+],
+[
+" ) -\na😀U o]};ac{../Users/dev/shop-api/:{/Users/dev/shop-api]]){i[{\\/(\"c/Users/dev/shop-apiv/s`@s./ s(|\t/]/so/sr ,r",
+" ) -\na😀U o]};ac{..:{.]]){i[{\\/(\"c/Users/dev/shop-apiv/s`@s./ s(|\t/]sr ,r"
+],
+[
+"`[ @a-c😀-}ss/Users/dev/shop-api-\\/hr.[v ao|`r'sos es >bh;e,;\n",
+"`[ @a-c😀-}ss/Users/dev/shop-api-\\/hr.[v ao|`r'sos es >bh;e,;\n"
+],
+[
+"sae \\_a;s \\éb/,U/\to/Users/dev/shop-api@e/, |_cU-]_s\tp.a<U/bo~/Users/dev/shop-api]p\\e\ta|ss>",
+"sae \\_a;s \\éb/,U/\to.@e/, |_cU-]_s\tp.a<U/bo~.]p\\e\ta|ss>"
+],
+[
+"(~c|\t/Users/dev/shop-api )/d/|b}p ~o\\]//' eépos{/Users/dev/shop-apied-b{éUr]/Users/dev/shop-apis,sa",
+"(~c|\t. )d|b}p ~o\\]//' eépos{shop-apied-b{éUr]shop-apis,sa"
+],
+[
+"/Users/dev/shop-api\"o/pd\\ )c`b>/e/Users/dev/shop-apiri}/Users/dev/shop-api-_:s😀]<{,/Users/dev/shop-api@ses/Users/dev/shop-apis/| /v(\"/",
+".\"o/pd\\ )c`b>shop-apiri}shop-api-_:s😀]<{,.@ses/Users/dev/shop-apis/| /v(\"/"
+],
+[
+"v |srpi",
+"v |srpi"
+],
+[
+"_;  e/Users/dev/shop-api/\\s\t-\\~/Users/dev/shop-api'/sé`b~a, vh|//c-U\"d{'o(|p>/o '-`)|s//Users/dev/shop-apii",
+"_;  e./\\s\t-\\~.'/sé`b~a, vh|//c-U\"d{'o(|p>/o '-`)|s//Users/dev/shop-apii"
+],
+[
+"sh/-',);.';[//s/Users/dev/shop-api (/Users/dev/shop-api@[ h|csab/<rc//Users/dev/shop-apié:b[d:.pvb|p",
+"sh/-',);.';[//s. (.@[ h|csab/<rc/.é:b[d:.pvb|p"
+],
+[
+"/`Ud}</Users/dev/shop-api]/psé\t/~]s~\"s",
+"/`Ud}<.]/psé\t/~]s~\"s"
+],
+[
+"/",
+"/"
+],
+[
+"@{😀/ U\\}s(~|-/:r /U\n/Users/dev/shop-api/(Uss😀/Users/dev/shop-api[ :dr:s~)vo",
+"@{😀/ U\\}s(~|-/:r /U\n./(Uss😀.[ :dr:s~)vo"
+],
+[
+">Uhhd}U/;😀hiv\"v>d@Us/Users/dev/shop-api}{s./~sdri[/Users/dev/shop-api/\n//{~./rs~-'\\p😀",
+">Uhhd}U/;😀hiv\"v>d@Us.}{s./~sdri[./\n//{~./rs~-'\\p😀"
+],
+[
+"s/",
+"s/"
+],
+[
+"/Users/dev/shop-api]p]_b\n:_a sai`ap \"]pd/Users/dev/shop-api\"(-<;-@s\to  /Users/dev/shop-apia//Users/dev/shop-api/Users/dev/shop-api;b\"/a",
+".]p]_b\n:_a sai`ap \"]pd.\"(-<;-@s\to  shop-apia.;b\"/a"
+],
+[
+"]'ir/.c/s/pe/Users/dev/shop-apiaU,ss;séeU/Users/dev/shop-api])ié)\\",
+"]'ir/.c/s/pe/Users/dev/shop-apiaU,ss;séeU.])ié)\\"
+],
+[
+"]soé//Users/dev/shop-api/Users/dev/shop-api😀 >{h/Users/dev/shop-apiie Ur-c@😀({/Users/dev/shop-api)/@/-e/\nUri}a,@'ves/Users/dev/shop-api\"/Users/dev/shop-apihp[/p\"[/",
+"]soé.😀 >{h/Users/dev/shop-apiie Ur-c@😀({.)-e\nUri}a,@'ves.\"shop-apihp[/p\"[/"
+],
+[
+"\\`",
+"\\`"
+],
+[
+"😀@/Users/dev/shop-api ,é>>s/\"spp\"_`-<U\"{ v/Users/dev/shop-api/s/Users/dev/shop-apié/es \n[`s{-\\Ur{{e@pv(;ir))|spcé",
+"😀@. ,é>>s/\"spp\"_`-<U\"{ vs.é/es \n[`s{-\\Ur{{e@pv(;ir))|spcé"
+],
+[
+"",
+""
+],
+[
+"/Users/dev/shop-api vs/Users/dev/shop-api Us.se",
+". vs. Us.se"
+],
+[
+"{é/ié\\d_s s`//e|r/iap/ 😀'<s\n\"\"/Users/dev/shop-api, '\\pr{/éé/ée(-]",
+"{é/ié\\d_s s`//e|r/iap/ 😀'<s\n\"\"., '\\pr{ée(-]"
+],
+[
+"/|/Users/dev/shop-apis_a///Users/dev/shop-api/;[o//Users/dev/shop-apiUasc/Users/dev/shop-api😀;} }~,d{_:@/]d|/Users/dev/shop-api'sp.s_ed:/de<,|-<s|/Users/dev/shop-api",
+"/|shop-apis_a/./;[o//Users/dev/shop-apiUasc.😀;} }~,d{_:@/]d|.'sp.s_ed:/de<,|-<s|."
+],
+[
+"/r@ r_,.ri;` .a}/\\}~h/v'rs/Users/dev/shop-apispd",
+"/r@ r_,.ri;` .a}/\\}~h/v'rs/Users/dev/shop-apispd"
+],
+[
+"@'>//Users/dev/shop-apipv e/Users/dev/shop-api:s{\tr:/'~,:deb/Users/dev/shop-apieeh/Users/dev/shop-api.//Users/dev/shop-apir)>d/vv-cc,s } `>_~s",
+"@'>//Users/dev/shop-apipv e.:s{\tr:/'~,:deb/Users/dev/shop-apieeh/Users/dev/shop-api.//Users/dev/shop-apir)>d/vv-cc,s } `>_~s"
+],
+[
+"@/Users/dev/shop-apid<é] -/\\",
+"@/Users/dev/shop-apid<é] -/\\"
+],
+[
+"(h/_ /vé po(c <;:/i `i;U(//Users/dev/shop-api/Users/dev/shop-api😀 s  <>{ p} __c;/Users/dev/shop-api</_css}d",
+"(h/_ /vé po(c <;:/i `i;U(.😀 s  <>{ p} __c;.</_css}d"
+],
+[
+" ,o / /v/Users/dev/shop-api/Users/dev/shop-api/>]]/Users/dev/shop-api,\n\".//Users/dev/shop-apih\"e😀pi-/\t /Users/dev/shop-api'|é~,",
+" ,o / shop-api>]].,\n\".//Users/dev/shop-apih\"e😀pi-/\t .'|é~,"
+],
+[
+"e\"bos [-/Users/dev/shop-api|v/Users/dev/shop-api:/Users/dev/shop-apis\":/Users/dev/shop-apio</db/Users/dev/shop-api}-rs/\nce/Users/dev/shop-api]_\t`é",
+"e\"bos [-.|v.:/Users/dev/shop-apis\":/Users/dev/shop-apio</db.}-rs/\nce.]_\t`é"
+],
+[
+"",
+""
+],
+[
+"",
+""
+],
+[
+"\\e@i/Users/dev/shop-apiUr/Users/dev/shop-apii😀\trU",
+"\\e@i/Users/dev/shop-apiUr/Users/dev/shop-apii😀\trU"
+],
+[
+"é-e  <vo}): as//,\"e/ba [:\\/opr/) @(c😀i/Users/dev/shop-api",
+"é-e  <vo}): as//,\"e/ba [:\\opr) @(c😀i."
+],
+[
+"e{/ss:r<s\t\"~_\"b|'`ee\t /v/)-\"/`,  s{i|;\td](ac\\>:r😀//Users/dev/shop-apia\t ]r/Users/dev/shop-apip",
+"e{/ss:r<s\t\"~_\"b|'`ee\t v)-\"/`,  s{i|;\td](ac\\>:r😀//Users/dev/shop-apia\t ]r/Users/dev/shop-apip"
+],
+[
+"{':/Users/dev/shop-api>és;>o😀b:h😀/pc",
+"{':.>és;>o😀b:h😀/pc"
+],
+[
+"/a[.'/Users/dev/shop-apioo\"c/pbd`e->/s 😀\\pva b\\}.;>[",
+"/a[.'shop-apioo\"c/pbd`e->/s 😀\\pva b\\}.;>["
+],
+[
+"(d{\"a'}😀/vs_/Users/dev/shop-apii-@-<cp,h/Users/dev/shop-api/Users/dev/shop-apie./@/Users/dev/shop-api/Users/dev/shop-api\nv/{~'b]",
+"(d{\"a'}😀shop-apii-@-<cp,hUsers/dev/shop-apie./@Users/dev/shop-api\nv/{~'b]"
+],
+[
+"v`",
+"v`"
+],
+[
+"/Users/dev/shop-apis/}/\t]Uh/Users/dev/shop-apiec (p/>~[(`/Users/dev/shop-api😀_s.\t~//Users/dev/shop-api`viv-[éo😀",
+"shop-apis}/\t]Uh/Users/dev/shop-apiec (p/>~[(`.😀_s.\t~/.`viv-[éo😀"
+],
+[
+"@hs,/.}-\"U\ts",
+"@hs,/.}-\"U\ts"
+],
+[
+"",
+""
+],
+[
+"vhsh/`v}//U d]é/Users/dev/shop-api,(v/Users/dev/shop-apie~`U`e//Users/dev/shop-api'/Users/dev/shop-api]arirss}\"a\te;e/Ur[\\ro/Users/dev/shop-apir/Users/dev/shop-api\ta/Users/dev/shop-api/Users/dev/shop-api",
+"vhsh/`v}//U d]é.,(v/Users/dev/shop-apie~`U`e/.'.]arirss}\"a\te;e/Ur[\\ro/Users/dev/shop-apir.\taUsers/dev/shop-api"
+],
+[
+"d,,apis;/{|é@>{{/Users/dev/shop-apis}/|</Users/dev/shop-api\nb_/ 😀h)/|\no\"@ a",
+"d,,apis;/{|é@>{{shop-apis}/|<.\nb_/ 😀h)/|\no\"@ a"
+],
+[
+"<d;\"~@<so/Users/dev/shop-api/Users/dev/shop-api~<_\"",
+"<d;\"~@<soUsers/dev/shop-api~<_\""
+],
+[
+"}be<}bh//|h]c;dvé-\n/Users/dev/shop-api😀ocp`/Users/dev/shop-apiv/|`s(hU \tdépa,id/Users/dev/shop-apip/Users/dev/shop-apis.-s `U",
+"}be<}bh//|h]c;dvé-\n.😀ocp`shop-apiv|`s(hU \tdépa,id/Users/dev/shop-apip/Users/dev/shop-apis.-s `U"
+],
+[
+"a /Users/dev/shop-api-'>\"}r-😀és'v{{/'\"/d_/e😀/<-\np` /\n{\"//Users/dev/shop-api/aU ",
+"a shop-api-'>\"}r-😀és'v{{/'\"e😀<-\np` /\n{\"/aU "
+],
+[
+"e\\/Users/dev/shop-apis[U,;/Users/dev/shop-apib/Users/dev/shop-apie<\n/p/Users/dev/shop-api/Users/dev/shop-apib<>U;-ev/Users/dev/shop-api/Users/dev/shop-api|/Users/dev/shop-apip'/ss'/Users/dev/shop-apia/Users/dev/shop-api\"ss[/",
+"e\\shop-apis[U,;shop-apie<\nshop-apib<>U;-evUsers/dev/shop-api|shop-apip'/ss'shop-apia.\"ss[/"
+],
+[
+"r]'h i'] ih@\"|/-:pé/Users/dev/shop-api`;p`/Users/dev/shop-apii~_p ((_ésaabea-p-i/Users/dev/shop-apisr`s[/Users/dev/shop-api:ée,o",
+"r]'h i'] ih@\"|/-:pé.`;p`shop-apii~_p ((_ésaabea-p-i/Users/dev/shop-apisr`s[.:ée,o"
+],
+[
+"i]o/se:@ \\e>\n/Users/dev/shop-apiv}(c U;/sd}/Users/dev/shop-apic\"e//eac{r,dbd;/Users/dev/shop-api\"p/Users/dev/shop-apipp😀_. ",
+"i]o/se:@ \\e>\nshop-apiv}(c U;/sd}shop-apic\"e//eac{r,dbd;.\"p/Users/dev/shop-apipp😀_. "
+],
+[
+" /Users/dev/shop-api: @a/:// `}`/Users/dev/shop-apiU/Users/dev/shop-apie>/[/Users/dev/shop-apira\t'/p)😀/Users/dev/shop-api ]./>hi_;a> /eroe/'e]/>/Users/dev/shop-apiv{",
+" .: @a/:// `}`shop-apie>/[shop-apira\t'/p)😀. ]./>hi_;a> eroe'e]/>shop-apiv{"
+],
+[
+"/Users/dev/shop-api:/Users/dev/shop-api\\/h.\"s/Users/dev/shop-api\"]_ep\na[p~///pU:'",
+".:.\\/h.\"s.\"]_ep\na[p~///pU:'"
+],
+[
+"./Users/dev/shop-api\\beié/Users/dev/shop-api};a`s]:-d,//Users/dev/shop-api[//Users/dev/shop-apis\n)ih_(s;>ar,pv",
+"..\\beié.};a`s]:-d,/.[//Users/dev/shop-apis\n)ih_(s;>ar,pv"
+],
+[
+"./ep/Users/dev/shop-api>-_a/Users/dev/shop-api/Users/dev/shop-api_",
+"./ep.>-_aUsers/dev/shop-api_"
+],
+[
+"\\|ec.@/c~o|i::é/b-/ei/Users/dev/shop-api/U",
+"\\|ec.@/c~o|i::éeiU"
+],
+[
+"/Users/dev/shop-apic-p;\"~ ~/Users/dev/shop-api/😀v;sd|😀[<\\/Users/dev/shop-api];scb}s|/U.",
+"shop-apic-p;\"~ ~😀v;sd|😀[<\\.];scb}s|/U."
+],
+[
+"/c}@e(as,pv/iUo\\o é|_/Users/dev/shop-api \\(/[~i",
+"/c}@e(as,pv/iUo\\o é|_. \\(/[~i"
+],
+[
+"/cs/Users/dev/shop-api///e}\t-)-",
+"cs.//e}\t-)-"
+],
+[
+" /Users/dev/shop-api",
+" ."
+],
+[
+":i.d}a)'~U/Users/dev/shop-api/Users/dev/shop-api\"/.\n/\\b~)@/]hip-;\t//Users/dev/shop-apip/s@h,/`<`eea/;péé;~</oe/",
+":i.d}a)'~UUsers/dev/shop-api\"/.\n/\\b~)@/]hip-;\t//Users/dev/shop-apip/s@h,/`<`eea/;péé;~<oe"
+],
+[
+"😀@\"\\U{",
+"😀@\"\\U{"
+],
+[
+"]/Users/dev/shop-api\"av/Users/dev/shop-apidb\n~ @)`d}\\~/ s/<e<c|a.ao[a/Users/dev/shop-api/Users/dev/shop-api@a|.-\">\n/Users/dev/shop-apis]h///\",\"(|/pU<",
+"].\"av/Users/dev/shop-apidb\n~ @)`d}\\~/ s/<e<c|a.ao[aUsers/dev/shop-api@a|.-\">\nshop-apis]h///\",\"(|/pU<"
+],
+[
+":s\"//Users/dev/shop-api/Users/dev/shop-apiér_.\" /b.e/\\ \n/Users/dev/shop-apiseéa`/a:\nd/Users/dev/shop-api(ec\\;d/Users/dev/shop-api)/d:/<rv/",
+":s\".ér_.\" b.e\\ \nshop-apiseéa`/a:\nd.(ec\\;d.)d:<rv/"
+],
+[
+" \\//[\na;;oU{_\t/Users/dev/shop-api(-~/Users/dev/shop-apia`/Users/dev/shop-api_,'c",
+" \\//[\na;;oU{_\t.(-~/Users/dev/shop-apia`shop-api_,'c"
+],
+[
+"d'/Users/dev/shop-api/Users/dev/shop-api",
+"d'Users/dev/shop-api"
+],
+[
+"/\"\"h/Users/dev/shop-apis/Users/dev/shop-apis-</Users/dev/shop-api~|ees/Users/dev/shop-api;/Users/dev/shop-api/-h/`]'a@a/Users/dev/shop-api-`e ",
+"/\"\"h/Users/dev/shop-apis/Users/dev/shop-apis-<.~|ees.;-h/`]'a@a/Users/dev/shop-api-`e "
+],
+[
+"'/Users/dev/shop-api,-",
+"'.,-"
+],
+[
+"",
+""
+],
+[
+"@\t_c/)dbbv:b/,s.hrspp>\"/Users/dev/shop-api/Users/dev/shop-api|d/Users/dev/shop-apie/Users/dev/shop-api;e/vsc/Users/dev/shop-api/Users/dev/shop-apia; ]dd<",
+"@\t_c/)dbbv:b/,s.hrspp>\"Users/dev/shop-api|d/Users/dev/shop-apie.;e/vscUsers/dev/shop-apia; ]dd<"
+],
+[
+"Us\\/a\"drv]_-<@v/}\"vcesa.:r[a]/oe}- cr aU:./:{p",
+"Us\\/a\"drv]_-<@v/}\"vcesa.:r[a]/oe}- cr aU:./:{p"
+],
+[
+"e h/Users/dev/shop-api-😀/Users/dev/shop-api///\"",
+"e h/Users/dev/shop-api-😀.///\""
+],
+[
+"sc- e/{}b/Users/dev/shop-apibr]s  r\t/Users/dev/shop-api\t;.:d/Users/dev/shop-api/Users/dev/shop-api",
+"sc- e/{}b/Users/dev/shop-apibr]s  r\t.\t;.:dUsers/dev/shop-api"
+],
+[
+"r|\\p`\t  eoU </Users/dev/shop-api)_};/Users/dev/shop-apir\" _/Users/dev/shop-api\n-",
+"r|\\p`\t  eoU <.)_};shop-apir\" _.\n-"
+],
+[
+":db/Users/dev/shop-api \"[/Users/dev/shop-api.😀😀`\np/pih/Users/dev/shop-api/Users/dev/shop-apih\"/{/Users/dev/shop-apib/Users/dev/shop-api\"s//😀/",
+":db. \"[shop-api.😀😀`\np/pihUsers/dev/shop-apih\"/{shop-apib.\"s//😀/"
+],
+[
+">];\ts-iis;\\/Users/dev/shop-api//Users/dev/shop-api@h,~é;opvveéU-<s{///Users/dev/shop-api-|r@bvsp~/",
+">];\ts-iis;\\./.@h,~é;opvveéU-<s{///Users/dev/shop-api-|r@bvsp~/"
+],
+[
+"{p",
+"{p"
+],
+[
+";p\"/Users/dev/shop-apié/|/Users/dev/shop-api]>//}r\\/Users/dev/shop-apip:~/s/Users/dev/shop-api\n/Users/dev/shop-apiss,d)/é~ is|-h\\s@\t\"/a@[<-, /:a:),}e",
+";p\".é/|.]>//}r\\s.\nshop-apiss,d)/é~ is|-h\\s@\t\"/a@[<-, /:a:),}e"
+],
+[
+"  )é>/  /:}>]po/Users/dev/shop-api>h~ e_o[e",
+"  )é>/  /:}>]po.>h~ e_o[e"
+],
+[
+"/Users/dev/shop-apidoi\tébde/Users/dev/shop-api-/ii\\.",
+"shop-apidoi\tébde/Users/dev/shop-api-/ii\\."
+],
+[
+":a|/Users/dev/shop-apih{\ta ~éib|/a`-Ui/>/U)@U-b_\n_eb@ [h-/,r`~@",
+":a|shop-apih{\ta ~éib|/a`-Ui/>/U)@U-b_\n_eb@ [h-/,r`~@"
+],
+[
+"`.@,\top /Users/dev/shop-apib.~}o_~-ap/ i//Users/dev/shop-api/Users/dev/shop-api)/|<",
+"`.@,\top shop-apib.~}o_~-ap/ i.)/|<"
+],
+[
+"~die😀//Users/dev/shop-apioi_,p~ ~@a}/`, :}p>\ta/(,)/Users/dev/shop-apio:,]|sUUa{@/Users/dev/shop-api/\\`;",
+"~die😀//Users/dev/shop-apioi_,p~ ~@a}/`, :}p>\ta/(,)shop-apio:,]|sUUa{@./\\`;"
+],
+[
+"],:\\\n_rs'e-~>//a/[aa.oav-rv>/\n}}:h(}}\"/>r /c",
+"],:\\\n_rs'e-~>//a/[aa.oav-rv>/\n}}:h(}}\"/>r /c"
+],
+[
+"'//v-|(s-{r/Users/dev/shop-api;:/s/.",
+"'//v-|(s-{r.;:/s/."
+],
+[
+"\ts/Users/dev/shop-api/ hp>é> \n{:/a{h",
+"\ts./ hp>é> \n{:/a{h"
+],
+[
+"pd>\t_|o-}v}vovhd/_dep /Users/dev/shop-apipce\n>.U(//Users/dev/shop-api,😀/Users/dev/shop-apivp",
+"pd>\t_|o-}v}vovhd/_dep shop-apipce\n>.U(/.,😀shop-apivp"
+],
+[
+"sh",
+"sh"
+],
+[
+"e:/p./Users/dev/shop-api \t/ 😀pas😀`/s)é_)_|/s.|`v/\n'[[😀;e :'s:}\\",
+"e:/p.. \t/ 😀pas😀`/s)é_)_|/s.|`v/\n'[[😀;e :'s:}\\"
+],
+[
+"<r/Users/dev/shop-api o;/.-p.</s:\\v)_//Users/dev/shop-api{Up`/-,U ;<~},dd></éo/Users/dev/shop-api(s",
+"<r. o;/.-p.</s:\\v)_/.{Up`/-,U ;<~},dd></éo.(s"
+],
+[
+"/Users/dev/shop-apie(}e/\\",
+"shop-apie(}e/\\"
+],
+[
+"-)~ h b@aiv[[:e\"@[>h}/Users/dev/shop-apie (cr.._r/Ucao\t/~/)😀:sseo)paaa/",
+"-)~ h b@aiv[[:e\"@[>h}shop-apie (cr.._r/Ucao\t~)😀:sseo)paaa/"
+],
+[
+"pv scér/./\tbv`U}]/v|/Users/dev/shop-api~Ue.ééoé\t|>d/Users/dev/shop-api-/pr//Users/dev/shop-api/da-'v/Users/dev/shop-api(\n/Users/dev/shop-api~s~/Users/dev/shop-api>_dp",
+"pv scér/./\tbv`U}]/v|.~Ue.ééoé\t|>d/Users/dev/shop-api-/pr/da-'v.(\n.~s~.>_dp"
+],
+[
+"~@p\\r,i///'/}@",
+"~@p\\r,i///'/}@"
+],
+[
+"'` ",
+"'` "
+],
+[
+"é;,:-h.aiée é~`\t(_; hsc. </}e\t'ép-}`{/Users/dev/shop-api\npa",
+"é;,:-h.aiée é~`\t(_; hsc. </}e\t'ép-}`{.\npa"
+],
+[
+"-/(~p/'/s[_i rb/Users/dev/shop-api/\t/Users/dev/shop-apic\\U}ii_`p]r[o]/Users/dev/shop-api/Users/dev/shop-api d(-a{p_do..)(_p..p",
+"-/(~p/'/s[_i rb./\tshop-apic\\U}ii_`p]r[o]Users/dev/shop-api d(-a{p_do..)(_p..p"
+],
+[
+"d e/{s/dea/c>/U/Users/dev/shop-api)oa/Users/dev/shop-api/{~|pp",
+"d e/{s/dea/c>/U.)oa./{~|pp"
+],
+[
+"scc|U/Users/dev/shop-api].~bv,;/(/Users/dev/shop-api/>}{s\t)a",
+"scc|U.].~bv,;/(./>}{s\t)a"
+],
+[
+"):,",
+"):,"
+],
+[
+"oo}sUc>pi s-/;U}v:br/Users/dev/shop-api_/Users/dev/shop-api😀]'  v/\\ ,a'/. p \n\tvbs ",
+"oo}sUc>pi s-/;U}v:br/Users/dev/shop-api_.😀]'  v/\\ ,a'/. p \n\tvbs "
+],
+[
+" /Users/dev/shop-api/,/_/]s-//r<~s/Users/dev/shop-api //a/Users/dev/shop-api-~/:s s'e-U/>`",
+" ./,_]s-//r<~s. //a/Users/dev/shop-api-~/:s s'e-U/>`"
+],
+[
+"`a[}~vh(r(ed/b~",
+"`a[}~vh(r(ed/b~"
+],
+[
+"{ /Users/dev/shop-apid'e >{hdieéd,;>p  -osaa`/Users/dev/shop-apia/ 'ph/Users/dev/shop-api-(vi) d[<d<d v/r->o`i/<é",
+"{ shop-apid'e >{hdieéd,;>p  -osaa`shop-apia 'ph/Users/dev/shop-api-(vi) d[<d<d v/r->o`i/<é"
+],
+[
+"-/Users/dev/shop-api-) a]er`'(😀.\ts[ce//Users/dev/shop-api\\ba/Users/dev/shop-apie~h;e\n_.é~;.ass-/Users/dev/shop-api}cbs.p>sr)",
+"-/Users/dev/shop-api-) a]er`'(😀.\ts[ce/.\\ba/Users/dev/shop-apie~h;e\n_.é~;.ass-.}cbs.p>sr)"
+],
+[
+".b/Users/dev/shop-api/Users/dev/shop-api `'oasé},|i_,`@|/Users/dev/shop-api/Users/dev/shop-api😀s:rs|:/Users/dev/shop-apisa/v/\\;)eer\t-)hp",
+".bUsers/dev/shop-api `'oasé},|i_,`@|Users/dev/shop-api😀s:rs|:/Users/dev/shop-apisa/v/\\;)eer\t-)hp"
+],
+[
+" is\"//😀op'<}\t)si a/Users/dev/shop-apio/o/a/_.-[:. /Users/dev/shop-apibr:``) <a@[ \n]e[p",
+" is\"//😀op'<}\t)si a/Users/dev/shop-apio/o/a/_.-[:. shop-apibr:``) <a@[ \n]e[p"
+],
+[
+"'v/Users/dev/shop-apie(~😀-|/|r</\t|//Users/dev/shop-api;]U} s\\`.~ec'(p/Users/dev/shop-apiU: ie\"a>}",
+"'v/Users/dev/shop-apie(~😀-|/|r</\t|/.;]U} s\\`.~ec'(p/Users/dev/shop-apiU: ie\"a>}"
+],
+[
+"/Users/dev/shop-apib/Users/dev/shop-api😀/Users/dev/shop-apie/)//Users/dev/shop-apiv~(-]p:>[easa .-/Users/dev/shop-api] \\'>,[r-ér ||/Users/dev/shop-api|p",
+"shop-apie)//Users/dev/shop-apiv~(-]p:>[easa .-.] \\'>,[r-ér ||.|p"
+],
+[
+":.hc\t{co",
+":.hc\t{co"
+],
+[
+"s}.i/Users/dev/shop-api/\"p()`/Users/dev/shop-api/Users/dev/shop-api|o`",
+"s}.i./\"p()`Users/dev/shop-api|o`"
+],
+[
+"i/</a|-__\t/aav:\"p'vi/-",
+"i/</a|-__\t/aav:\"p'vi/-"
+],
+[
+"/\\][|ep-@ ,U\n\t/Users/dev/shop-api/Users/dev/shop-api'r\\;,/Users/dev/shop-api/Users/dev/shop-api  é",
+"/\\][|ep-@ ,U\n\tUsers/dev/shop-api'r\\;,Users/dev/shop-api  é"
+],
+[
+"[v-/s\n😀/`\\\">bvr/Users/dev/shop-api/{/Users/dev/shop-api",
+"[v-/s\n😀/`\\\">bvr./{."
+],
+[
+":<s\nb[\t`p./ccs<b`s\" o\\{}/Users/dev/shop-api]e/U-~|,p/Users/dev/shop-apié",
+":<s\nb[\t`p./ccs<b`s\" o\\{}.]e/U-~|,p.é"
+],
+[
+">,/Users/dev/shop-api\\éb//Users/dev/shop-apis",
+">,.\\éb//Users/dev/shop-apis"
+],
+[
+")",
+")"
+],
+[
+"\"p/Users/dev/shop-api.)s-sib~}v😀.a<{.\\b\ne~.\n e|_'  a (s{>r/h.s/[]a/Users/dev/shop-api./)h{,]__e",
+"\"p/Users/dev/shop-api.)s-sib~}v😀.a<{.\\b\ne~.\n e|_'  a (s{>r/h.s/[]a/Users/dev/shop-api./)h{,]__e"
+],
+[
+">\n(U\" 'rp/|aos-php//\t`e<`/e// /:\tr~s`a}|(.-- c\\ov]d[d/Users/dev/shop-apiv",
+">\n(U\" 'rp/|aos-php//\t`e<`e/ /:\tr~s`a}|(.-- c\\ov]d[d/Users/dev/shop-apiv"
+],
+[
+"``|e/d.)/\"[/Users/dev/shop-api/c \\v/h/Users/dev/shop-api._)d/c😀-\"s|/Users/dev/shop-api/\t>`/Users/dev/shop-api)])/Users/dev/shop-api/s(\t/Users/dev/shop-api{U-,sos ee",
+"``|e/d.)/\"[c \\v/h/Users/dev/shop-api._)d/c😀-\"s|./\t>`.)])s(\t.{U-,sos ee"
+],
+[
+" >>[sci/Users/dev/shop-apisv{",
+" >>[sci/Users/dev/shop-apisv{"
+],
+[
+"\\ \t(e\\.-iie~U/,/Users/dev/shop-api{;`\t|/\to'p>",
+"\\ \t(e\\.-iie~U/,.{;`\t|/\to'p>"
+],
+[
+"s)@|~'(\t[;sr\ts:a-sb/Users/dev/shop-api }r/Users/dev/shop-api(/Users/dev/shop-api😀<hdo",
+"s)@|~'(\t[;sr\ts:a-sb. }r.(.😀<hdo"
+],
+[
+"",
+""
+],
+[
+"@é'\\<",
+"@é'\\<"
+],
+[
+"s/[/Users/dev/shop-api/p,aeia😀sc/:/😀@/Users/dev/shop-api|ip/|\naé//a(p.s_\\/sd😀a/Users/dev/shop-api.o</b\\/Users/dev/shop-api: /Users/dev/shop-apihs/Ur",
+"s/[p,aeia😀sc/:/😀@.|ip/|\naé//a(p.s_\\shop-api.o</b\\.: Ur"
+],
+[
+"s>}/][>-o]{/Users/dev/shop-api{\t/spip;'p/Users/dev/shop-apib/e\"}\nr.-~'c\tb-/Users/dev/shop-api-[c-,/ U/Users/dev/shop-api",
+"s>}/][>-o]{.{\t/spip;'p/Users/dev/shop-apib/e\"}\nr.-~'c\tb-/Users/dev/shop-api-[c-,/ U."
+],
+[
+";-<v) |,\t{Ue/Users/dev/shop-api;éea]",
+";-<v) |,\t{Ue.;éea]"
+],
+[
+"\nav\t]bi<p `,/s/Users/dev/shop-api}/'-~ss\tp:d-]e/Users/dev/shop-apiv:/Users/dev/shop-api`</ p) \t|{p/Users/dev/shop-api\t",
+"\nav\t]bi<p `,/s.}/'-~ss\tp:d-]e/Users/dev/shop-apiv:.`</ p) \t|{p.\t"
+],
+[
+"@`aaés(~da svU<'/;-is\" o\\eUpe]@\"oa,>~c😀|}/h\ta/Users/dev/shop-api\"",
+"@`aaés(~da svU<'/;-is\" o\\eUpe]@\"oa,>~c😀|}/h\ta.\""
+],
+[
+"é/ ",
+"é/ "
+],
+[
+"/Users/dev/shop-apio",
+"shop-apio"
+],
+[
+"s} )/}\\/p)o",
+"s} )/}\\/p)o"
+],
+[
+"/i|  c 😀(',/-d/:{😀;/Users/dev/shop-api\\ a]p/",
+"/i|  c 😀(',:{😀;.\\ a]p/"
+],
+[
+"~;{/Users/dev/shop-api/ei é/};,é //Users/dev/shop-apic./\t/Users/dev/shop-api/   ('ve/Users/dev/shop-apie/Users/dev/shop-api.>>(",
+"~;{ei é/};,é //Users/dev/shop-apic./\t./   ('ve/Users/dev/shop-apie/Users/dev/shop-api.>>("
+],
+[
+"-ecs[a/Users/dev/shop-apis/Users/dev/shop-apie/Users/dev/shop-apié:.\\_sé->)>e \"e|.{\n'<\ni 😀}/Users/dev/shop-apisevd\t\"r-/Users/dev/shop-api/Users/dev/shop-apis/\\@|s/Users/dev/shop-api;",
+"-ecs[a/Users/dev/shop-apis/Users/dev/shop-apie.é:.\\_sé->)>e \"e|.{\n'<\ni 😀}shop-apisevd\t\"r-Users/dev/shop-apis/\\@|s.;"
+],
+[
+"😀~v<i/p.",
+"😀~v<i/p."
+],
+[
+"/r<:'}cip/Users/dev/shop-apia}o)/Users/dev/shop-api~r/ e./]r/Users/dev/shop-api~s) >@h",
+"/r<:'}cip/Users/dev/shop-apia}o).~r/ e./]r.~s) >@h"
+],
+[
+".|s /\téo~😀_,p/Users/dev/shop-api/s]/Users/dev/shop-api/v/`.{ep/~",
+".|s /\téo~😀_,ps]v/`.{ep/~"
+],
+[
+"",
+""
+],
+[
+"-/b]/ e v{|:/Users/dev/shop-api/Users/dev/shop-apib></Users/dev/shop-apiU/Users/dev/shop-apiU @/<😀:U U/Users/dev/shop-apie\n/pb//Users/dev/shop-apis(,/}/Users/dev/shop-api/Users/dev/shop-api//~/Users/dev/shop-api/Users/dev/shop-api`é",
+"-/b]/ e v{|:Users/dev/shop-apib><shop-apiU @/<😀:U U/Users/dev/shop-apie\npb/Users/dev/shop-apis(,/}Users/dev/shop-api//~Users/dev/shop-api`é"
+],
+[
+"oes{@o/:`{ [U\t/ '\n\toi:o;-_/Users/dev/shop-api':va/Users/dev/shop-api `@a_/Users/dev/shop-api.s\nd/s/béc",
+"oes{@o/:`{ [U\t/ '\n\toi:o;-_.':va. `@a_/Users/dev/shop-api.s\nd/s/béc"
+],
+[
+"ep . ep-([<er/ c\\|/-re,e-e]`rc`a[.|d/",
+"ep . ep-([<er/ c\\|/-re,e-e]`rc`a[.|d/"
+],
+[
+"/Users/dev/shop-api -ss\"😀b@",
+". -ss\"😀b@"
+],
+[
+";-<~ao_ /Users/dev/shop-api}/'ap ,\t😀|b~\"|hdi😀p,~d`\n`a:a]/}/Users/dev/shop-apiU@@ s /r,.p",
+";-<~ao_ .}/'ap ,\t😀|b~\"|hdi😀p,~d`\n`a:a]/}shop-apiU@@ s /r,.p"
+],
+[
+"/Users/dev/shop-api/svv\ts][/Users/dev/shop-api_s/Users/dev/shop-api/(/Users/dev/shop-api//Users/dev/shop-api /Users/dev/shop-api/😀/Users/dev/shop-api/Users/dev/shop-api:-/Users/dev/shop-api-",
+"svv\ts][shop-api_s.(./. 😀Users/dev/shop-api:-/Users/dev/shop-api-"
+],
+[
+"r/Users/dev/shop-api_]sp/Users/dev/shop-api>d/\tcU'./v>//Users/dev/shop-api) sps'\np/Users/dev/shop-apibeUU,-/Users/dev/shop-api(/Users/dev/shop-api as",
+"r/Users/dev/shop-api_]sp.>d/\tcU'./v>/.) sps'\np/Users/dev/shop-apibeUU,-.(. as"
+],
+[
+"\n\\v| ;d} s ep/Users/dev/shop-api|.{  vésép[~/|/:😀😀',a./s hrp,",
+"\n\\v| ;d} s ep.|.{  vésép[~/|/:😀😀',a./s hrp,"
+],
+[
+"`</;|\tc\\oe/Users/dev/shop-api/Users/dev/shop-api /::->-(ph/Users/dev/shop-api\". d/é,\tUd,.-//d[a/\"a",
+"`</;|\tc\\oeUsers/dev/shop-api /::->-(ph.\". d/é,\tUd,.-//d[a/\"a"
+],
+[
+"😀;o;}@-:d/@c\\ps.[|/b @./ /Users/dev/shop-api,{()@pas>se😀rb@be'-😀/😀)r-\\a{:h/-Ua",
+"😀;o;}@-:d/@c\\ps.[|/b @./ .,{()@pas>se😀rb@be'-😀/😀)r-\\a{:h/-Ua"
+],
+[
+" '|/]'{</ :cs/pa']</Users/dev/shop-apipee-a\n/ /Users/dev/shop-api\\{cs:Ud\\p- 'U/",
+" '|/]'{</ :cs/pa']<shop-apipee-a\n/ .\\{cs:Ud\\p- 'U/"
+],
+[
+"r|p{|;'pp:/}p({/Users/dev/shop-apia[/Users/dev/shop-api-~ao-`s/roas",
+"r|p{|;'pp:/}p({shop-apia[shop-api-~ao-`s/roas"
+],
+[
+"_Ui:,{c\n/Users/dev/shop-apisbb  dc/Users/dev/shop-apii/Users/dev/shop-api.p`/Users/dev/shop-api>\\}. /Users/dev/shop-apis@",
+"_Ui:,{c\nshop-apisbb  dc/Users/dev/shop-apii/Users/dev/shop-api.p`.>\\}. shop-apis@"
+],
+[
+"[é",
+"[é"
+],
+[
+"/~d:<éUa<a`_`\"v'@:> {/-/Users/dev/shop-api/Users/dev/shop-api`sb';c|~s/Users/dev/shop-apis]/Users/dev/shop-api<_> /Users/dev/shop-apia}eoU",
+"/~d:<éUa<a`_`\"v'@:> {shop-api`sb';c|~s/Users/dev/shop-apis].<_> shop-apia}eoU"
+],
+[
+"<}ah~😀p|/Users/dev/shop-api@)\"a<",
+"<}ah~😀p|.@)\"a<"
+],
+[
+";-/Users/dev/shop-api/rss/Users/dev/shop-api{é 😀`d/,/\"\\/Users/dev/shop-apia\t<-s_@/.)h/\\@/ é(.aps@-'s/od)[i",
+";-rss.{é 😀`d/,/\"\\shop-apia\t<-s_@/.)h/\\@/ é(.aps@-'s/od)[i"
+],
+[
+"|-p<c`h_/{sr /Users/dev/shop-api.(-_   ':a\ta\\d>piUv",
+"|-p<c`h_/{sr shop-api.(-_   ':a\ta\\d>piUv"
+],
+[
+"pac;d; \"`/😀aéo\t(e/Users/dev/shop-apisa 😀s/Users/dev/shop-apio\t//Users/dev/shop-api /r/_/Users/dev/shop-api'cre/Users/dev/shop-apiUv-a/Users/dev/shop-apie,é/s./p\"/|",
+"pac;d; \"`/😀aéo\t(e/Users/dev/shop-apisa 😀s/Users/dev/shop-apio\t/. _.'cre/Users/dev/shop-apiUv-a/Users/dev/shop-apie,ép\"/|"
+],
+[
+"😀d'h;@ia/\n>e😀.vdaae}'\">sea/Users/dev/shop-api/Users/dev/shop-api|'ep'~ <//Users/dev/shop-api,/,",
+"😀d'h;@ia/\n>e😀.vdaae}'\">seaUsers/dev/shop-api|'ep'~ </.,/,"
+],
+[
+"/Users/dev/shop-apir/ ",
+"shop-apir "
+],
+[
+"}.//Users/dev/shop-api]/p) e> ",
+"}./.]/p) e> "
+],
+[
+"/c|r\t|/]{/s/Users/dev/shop-api[@",
+"/c|r\t|/]{/s.[@"
+],
+[
+")\t{",
+")\t{"
+],
+[
+"p_\nsb~sas`a//Users/dev/shop-api\"pp/Users/dev/shop-api/Users/dev/shop-apiUep{/:s/ as//p`,p|d/Users/dev/shop-api😀d/pp_a[s}",
+"p_\nsb~sas`a/.\"ppUsers/dev/shop-apiUep{:s as//p`,p|d.😀d/pp_a[s}"
+],
+[
+"Uv]\n-{'d/(rse>ses_é/Users/dev/shop-api",
+"Uv]\n-{'d/(rse>ses_é."
+],
+[
+"/Users/dev/shop-apis>/Users/dev/shop-api]e😀<{/\"`p/Users/dev/shop-apii_e)\n(.e[ro",
+"shop-apis>.]e😀<{/\"`p/Users/dev/shop-apii_e)\n(.e[ro"
+],
+[
+"`~\\/Users/dev/shop-api\"v(b-cs/-_eebpesd",
+"`~\\.\"v(b-cs/-_eebpesd"
+],
+[
+"\ts/Users/dev/shop-api@`'dp-\"://Users/dev/shop-apia/.a",
+"\ts.@`'dp-\"://Users/dev/shop-apia/.a"
+],
+[
+" \\<(.|\\}[/Users/dev/shop-api)U\\~/Users/dev/shop-api[i\t\t,{~pe//Users/dev/shop-api{se|😀s`a</'h`[ov[/Users/dev/shop-api /rs",
+" \\<(.|\\}[.)U\\~.[i\t\t,{~pe/.{se|😀s`a</'h`[ov[. /rs"
+],
+[
+"`sh vo:éa;~-/,|)~e/Users/dev/shop-apip",
+"`sh vo:éa;~-/,|)~e/Users/dev/shop-apip"
+],
+[
+"'\"sh/Users/dev/shop-api\"ed/ s/Users/dev/shop-api/;`eaU\né\\\":ahsesé[/Users/dev/shop-api)[/sc😀]/Users/dev/shop-api/|s`.)[a~><( /Users/dev/shop-apivh/@\t'~",
+"'\"sh.\"ed/ s./;`eaU\né\\\":ahsesé[.)[/sc😀]./|s`.)[a~><( @\t'~"
+],
+[
+"/|//hp/adr' `,\"ie/😀/é).oe{ s U@'\n/d; ",
+"/|//hp/adr' `,\"ie/😀/é).oe{ s U@'\n/d; "
+],
+[
+"//Users/dev/shop-api\"d:\\<e\n'\n.}s-:",
+"/.\"d:\\<e\n'\n.}s-:"
+],
+[
+":./si/~hi,,'/Users/dev/shop-api,/\n/Users/dev/shop-api/c-s: ,\n:`é//i|é'h/ a,\\d a/Users/dev/shop-api/Users/dev/shop-api;'}p],s\"😀h\n",
+":./si/~hi,,'.,/\nc-s: ,\n:`é//i|é'h/ a,\\d aUsers/dev/shop-api;'}p],s\"😀h\n"
+],
+[
+"//;-",
+"//;-"
+],
+[
+"\na[/Users/dev/shop-api/Users/dev/shop-api}/]]😀r'p|}]<coce',~</ éi/ c //;e  /vp\n-._`i>/s/,ah:",
+"\na[Users/dev/shop-api}/]]😀r'p|}]<coce',~</ éi/ c //;e  /vp\n-._`i>s,ah:"
+],
+[
+", esUso\\ d/~\\<<\"_ /Users/dev/shop-api. ' -//v,😀rc\\|<oU",
+", esUso\\ d/~\\<<\"_ shop-api. ' -//v,😀rc\\|<oU"
+],
+[
+"\tép",
+"\tép"
+],
+[
+"\"o/ p` sd>~:",
+"\"o/ p` sd>~:"
+],
+[
+"s/Users/dev/shop-api)\t.-_ ,cp.cre/a😀-  a ;a\n_r/Users/dev/shop-apia",
+"s.)\t.-_ ,cp.cre/a😀-  a ;a\n_r/Users/dev/shop-apia"
+],
+[
+"r\n/Users/dev/shop-apid\t/Users/dev/shop-api,\n` 😀 e/d \"\né [p)s|'e.-v;}",
+"r\nshop-apid\t.,\n` 😀 e/d \"\né [p)s|'e.-v;}"
+],
+[
+" b/Users/dev/shop-api/\nrava\n\\/\n\\\t",
+" b./\nrava\n\\/\n\\\t"
+],
+[
+"/b/",
+"b"
+],
+[
+"<Ué/😀",
+"<Ué/😀"
+],
+[
+"\"d(pb/😀ospvrbs<s;/Users/dev/shop-apis\"|/p-}/:/d/Users/dev/shop-apiih@\\/>-.-{pi_}/Users/dev/shop-api.😀i;es[a -h",
+"\"d(pb/😀ospvrbs<s;shop-apis\"|/p-}shop-apiih@\\/>-.-{pi_}shop-api.😀i;es[a -h"
+],
+[
+"s 😀😀/Users/dev/shop-api@.`i <ov|`'|)v,\tiv/{a{/Users/dev/shop-api..`\\e/e\\U/~'a<:o-e}b",
+"s 😀😀.@.`i <ov|`'|)v,\tiv/{a{shop-api..`\\e/e\\U/~'a<:o-e}b"
+],
+[
+"d]a`-sb-)/e@/Users/dev/shop-api_",
+"d]a`-sb-)shop-api_"
+],
+[
+"hh-.\\_\"p /`rcU\td]",
+"hh-.\\_\"p /`rcU\td]"
+],
+[
+"sd\nr;<\"e \na@{//😀@pbs(}/{:/s /Ua|/Users/dev/shop-apic|😀do'](~s",
+"sd\nr;<\"e \na@{//😀@pbs(}/{:/s /Ua|shop-apic|😀do'](~s"
+],
+[
+"`e|/Users/dev/shop-api\n/ /Users/dev/shop-api\"\t-:-c<b{/é[,sebva/\tddb @/Users/dev/shop-apis>/Users/dev/shop-api",
+"`e|.\n/ .\"\t-:-c<b{/é[,sebva/\tddb @/Users/dev/shop-apis>."
+],
+[
+"/Users/dev/shop-api-/Users/dev/shop-api/Users/dev/shop-api~ esh\" :][a/é/Users/dev/shop-apir/Users/dev/shop-apis)o}😀),c/Users/dev/shop-api./_ v{\n~",
+"shop-api~ esh\" :][a/éshop-apis)o}😀),c/Users/dev/shop-api./_ v{\n~"
+],
+[
+" -;😀c/Users/dev/shop-api's/-/Users/dev/shop-api[\ta /b\\;\n/Users/dev/shop-api{/Users/dev/shop-apié {/Users/dev/shop-api/r/s\"",
+" -;😀c.'s/-.[\ta /b\\;\n.{.é {r/s\""
+],
+[
+"[a_/i",
+"[a_/i"
+],
+[
+"a-p-e- /a-<\\U: b,[ ]/Users/dev/shop-apis\ts-c] U\t",
+"a-p-e- /a-<\\U: b,[ ]shop-apis\ts-c] U\t"
+],
+[
+"/Users/dev/shop-api-U{/-ss@>/Users/dev/shop-api\"[/Users/dev/shop-apiU😀}e\n/d,\t es,o(\néc/Users/dev/shop-api;<@\"pr/Users/dev/shop-apish(\t,p`)e",
+"shop-api-U{/-ss@>.\"[shop-apiU😀}e\n/d,\t es,o(\néc.;<@\"pr/Users/dev/shop-apish(\t,p`)e"
+],
+[
+"@b///@[/d/Users/dev/shop-api(b\tv/Users/dev/shop-api/\tp>ii\t\"o{bp(éU.;h/;`heib@ i)d/\tiad[-|; r\ns}",
+"@b///@[/d.(b\tv./\tp>ii\t\"o{bp(éU.;h/;`heib@ i)d/\tiad[-|; r\ns}"
+],
+[
+"sa\"r\\/Users/dev/shop-api/Users/dev/shop-api /Users/dev/shop-api//Users/dev/shop-api-;a/Users/dev/shop-api{ao @/]vs//a😀😀d/Users/dev/shop-api\tU|s-e/Users/dev/shop-api[ /[/Users/dev/shop-api",
+"sa\"r\\Users/dev/shop-api .//Users/dev/shop-api-;a.{ao @/]vs//a😀😀d.\tU|s-e.[ /[."
+],
+[
+"_{:\"ca:/Users/dev/shop-api}//Users/dev/shop-apipas/Users/dev/shop-api{[p/Users/dev/shop-api_<-/ \"/@'\"cbd/Users/dev/shop-api~r.e>@;i\\ch",
+"_{:\"ca:.}//Users/dev/shop-apipas.{[p/Users/dev/shop-api_<-/ \"/@'\"cbd.~r.e>@;i\\ch"
+],
+[
+"/Users/dev/shop-api</e/;\"\n(/-/Users/dev/shop-api] \n/a'hp[p'i/Users/dev/shop-api sia\"a-p_dU:' _bo:i/'/Users/dev/shop-apis]vrc  d\ta",
+".<e;\"\n(/-.] \n/a'hp[p'i. sia\"a-p_dU:' _bo:i/'shop-apis]vrc  d\ta"
+],
+[
+"<paoi.\t/Users/dev/shop-apii\n./Users/dev/shop-apii]oa-os r`c)e \"/e-é{\"a 😀\n|e /",
+"<paoi.\tshop-apii\n./Users/dev/shop-apii]oa-os r`c)e \"/e-é{\"a 😀\n|e /"
+],
+[
+"a,a/Users/dev/shop-api/Users/dev/shop-apie oppcvs/Users/dev/shop-api)~}>@'s-é(\tb/`r:;'ohhe)paas)'-[/Users/dev/shop-api_ae-r\n\n",
+"a,aUsers/dev/shop-apie oppcvs.)~}>@'s-é(\tb/`r:;'ohhe)paas)'-[shop-api_ae-r\n\n"
+],
+[
+"~\"h>/a@/{d-",
+"~\"h>a@{d-"
+],
+[
+"\tvd\\p;b/Users/dev/shop-apia/Users/dev/shop-apia\no",
+"\tvd\\p;b/Users/dev/shop-apia/Users/dev/shop-apia\no"
+],
+[
+"hs/Users/dev/shop-apipiv/~a///Users/dev/shop-api_/(v(:d",
+"hs/Users/dev/shop-apipiv/~a///Users/dev/shop-api_/(v(:d"
+],
+[
+"\"/Users/dev/shop-api/Users/dev/shop-api;].id@o\"//Users/dev/shop-apie/Users/dev/shop-api:/;'~d /Users/dev/shop-apid\"/Users/dev/shop-api{ csc\\ /so/ ",
+"\"Users/dev/shop-api;].id@o\"//Users/dev/shop-apie.:/;'~d shop-apid\".{ csc\\ so "
+],
+[
+", \"/)(béc/Users/dev/shop-apiU\n\t ><,/o'|ip//Users/dev/shop-api@/Users/dev/shop-apih_{ssaa`e[:s~~-e<\nU@s][~/Users/dev/shop-apid",
+", \"/)(béc/Users/dev/shop-apiU\n\t ><,/o'|ip/.@/Users/dev/shop-apih_{ssaa`e[:s~~-e<\nU@s][shop-apid"
+],
+[
+"`/Users/dev/shop-api/Users/dev/shop-api\\~}}a-\\ .U\no_",
+"`Users/dev/shop-api\\~}}a-\\ .U\no_"
+],
+[
+")/Users/dev/shop-apiér./Users/dev/shop-apiip-{h p\\s\t(_>e/Users/dev/shop-api<< \"b😀./(\"/Users/dev/shop-apipd",
+").ér./Users/dev/shop-apiip-{h p\\s\t(_>e.<< \"b😀./(\"shop-apipd"
+],
+[
+"a]éc//><s`;',~a_-[//iv/Users/dev/shop-apio_U}/Users/dev/shop-apio:\"rrph~//Users/dev/shop-api-/~::>~~-/",
+"a]éc//><s`;',~a_-[//iv/Users/dev/shop-apio_U}shop-apio:\"rrph~//Users/dev/shop-api-/~::>~~-/"
+],
+[
+"/:\t/\n/:rar~(s/} /eia{e/`r,rppa)hs\n]es/Users/dev/shop-apip,h~~/Users/dev/shop-api}'v/a|",
+"/:\t/\n/:rar~(s/} /eia{e/`r,rppa)hs\n]es/Users/dev/shop-apip,h~~.}'v/a|"
+],
+[
+"sao/Users/dev/shop-api<{/\"é\t-{.\")v{v(d}ea/-'😀h /Users/dev/shop-apié/\np;/babps)s\tsa/Users/dev/shop-api`@>e/,@b",
+"sao.<{/\"é\t-{.\")v{v(d}ea/-'😀h .é/\np;/babps)s\tsa.`@>e/,@b"
+],
+[
+";c/Users/dev/shop-api>s|<s_oas\ne,< /Users/dev/shop-api/Users/dev/shop-api.~",
+";c.>s|<s_oas\ne,< Users/dev/shop-api.~"
+],
+[
+"",
+""
+],
+[
+"/é;|\"/{`év i_]svU(;(,/😀U~a c|/v-e/`d~😀re😀v`s:,c/Users/dev/shop-api",
+"/é;|\"/{`év i_]svU(;(,/😀U~a c|v-e`d~😀re😀v`s:,c."
+],
+[
+"//):\n`-",
+"//):\n`-"
+],
+[
+"/s-ssd[Ue\\ //😀e@/Users/dev/shop-apis)hpecoh:  :}e`ea~",
+"/s-ssd[Ue\\ //😀e@/Users/dev/shop-apis)hpecoh:  :}e`ea~"
+],
+[
+" /Users/dev/shop-api{']@é/",
+" .{']@é/"
+],
+[
+"|]e;e\nss@')/{es/h\"{/ihsa\\/>",
+"|]e;e\nss@')/{es/h\"{/ihsa\\/>"
+],
+[
+"\\,\no/(p:>a",
+"\\,\no/(p:>a"
+],
+[
+"p/Users/dev/shop-apie\ts[/Users/dev/shop-api~ ap[/[i)'v/Users/dev/shop-api😀d😀/Users/dev/shop-apid\ts-a/e/,s",
+"p/Users/dev/shop-apie\ts[.~ ap[/[i)'v.😀d😀shop-apid\ts-a/e/,s"
+],
+[
+"/(c)]😀\tv}a-.]h/Users/dev/shop-apis/Users/dev/shop-api/Users/dev/shop-api'}'}i<//Users/dev/shop-api|rvss:s/)\n}/Users/dev/shop-api\"d\ta} ]e-a@i/Users/dev/shop-api",
+"/(c)]😀\tv}a-.]h/Users/dev/shop-apisUsers/dev/shop-api'}'}i</.|rvss:s/)\n}.\"d\ta} ]e-a@i."
+],
+[
+"p/Users/dev/shop-api\t[<>p|>s/d/)e\".s",
+"p.\t[<>p|>s/d/)e\".s"
+],
+[
+"/Users/dev/shop-api/}>ii/Users/dev/shop-apis,/;p-<  p/Users/dev/shop-api)(''é/@ci,){v<b/Users/dev/shop-apipvvU",
+"./}>ii/Users/dev/shop-apis,/;p-<  p.)(''é/@ci,){v<b/Users/dev/shop-apipvvU"
+],
+[
+"i@~<😀c/ |p/Users/dev/shop-api vvi_(/; :c//Users/dev/shop-apis\t~/spes@/Users/dev/shop-api-@//r :a>/bUi",
+"i@~<😀c/ |p. vvi_(/; :c//Users/dev/shop-apis\tshop-api-@/r :a>/bUi"
+],
+[
+"\t}.|e(_se(ép/;/Users/dev/shop-apip]p/Users/dev/shop-api/Users/dev/shop-api[e {p/\t/Users/dev/shop-apiUh><~},(|a'e-p./oh]d( as],r`{|i",
+"\t}.|e(_se(ép/;shop-apip]pUsers/dev/shop-api[e {p/\tshop-apiUh><~},(|a'e-p./oh]d( as],r`{|i"
+],
+[
+"`\t\n;p <_;;;b/Users/dev/shop-api[)a_  rc_-,>ris~c\"-/Users/dev/shop-api\tsi\"\ne;eh],,-' 'd_",
+"`\t\n;p <_;;;b.[)a_  rc_-,>ris~c\"-.\tsi\"\ne;eh],,-' 'd_"
+],
+[
+"'s~.oee[rb\"`>;}<];v'_:-a~b}sa:,c s_-",
+"'s~.oee[rb\"`>;}<];v'_:-a~b}sa:,c s_-"
+],
+[
+"a~/\n/Users/dev/shop-apiv;-pod/Users/dev/shop-api|e>`/Users/dev/shop-api.s// /<[/Users/dev/shop-api@bs~ ;e/_~\"}s'/Users/dev/shop-api/./Users/dev/shop-api(_(/ <\"\tv|é|c./a",
+"a~/\nshop-apiv;-pod.|e>`shop-api.s/ /<[.@bs~ ;e/_~\"}s'..(_(/ <\"\tv|é|c./a"
+],
+[
+"😀}/Users/dev/shop-apiasad>a>,/Users/dev/shop-api))/[-`' pa<-.\nU.-][\"/",
+"😀}shop-apiasad>a>,.))/[-`' pa<-.\nU.-][\"/"
+],
+[
+"",
+""
+],
+[
+"é@(/dsU. (v{< >/Users/dev/shop-api`/ h;od'ps .\n{(a ibabb//Users/dev/shop-api/Users/dev/shop-api/pd\neo",
+"é@(/dsU. (v{< >.`/ h;od'ps .\n{(a ibabb./pd\neo"
+],
+[
+"/p//Users/dev/shop-apiss/Users/dev/shop-api ]~",
+"p/Users/dev/shop-apiss. ]~"
+],
+[
+"(|`av\\[",
+"(|`av\\["
+],
+[
+"[{_)i😀.>s  | /{.\\e/Users/dev/shop-apic",
+"[{_)i😀.>s  | /{.\\e/Users/dev/shop-apic"
+],
+[
+"//_a/\t{U-/\\b/\np/Users/dev/shop-apié_p-| 😀/d/Users/dev/shop-api😀o<{`b-s  sér[/eeUs_.\nsd\"h@/Users/dev/shop-api",
+"//_a/\t{U-/\\b/\np.é_p-| 😀/d.😀o<{`b-s  sér[/eeUs_.\nsd\"h@."
+],
+[
+" '/a{a/ae",
+" '/a{a/ae"
+],
+[
+"\t\"a\n\"| /Users/dev/shop-api-r sas/Users/dev/shop-api\"|)/ ;i\n(o\n /r .sa/Users/dev/shop-api/b/e,:/Users/dev/shop-apio[",
+"\t\"a\n\"| shop-api-r sas.\"|)/ ;i\n(o\n /r .sab/e,:/Users/dev/shop-apio["
+],
+[
+":é/Users/dev/shop-apise< ;{;/Users/dev/shop-api/\na_\n_é\t",
+":éshop-apise< ;{;./\na_\n_é\t"
+],
+[
+"s///Users/dev/shop-apivp/,:/😀d/Users/dev/shop-api/<_>)//Users/dev/shop-apiéa:p},s{]/ /Users/dev/shop-api[ss;}]];p|r>-s\\\n[ sa/Users/dev/shop-api e\tU/Users/dev/shop-api",
+"s///Users/dev/shop-apivp/,:/😀d./<_>)/.éa:p},s{]/ .[ss;}]];p|r>-s\\\n[ sa. e\tU."
+],
+[
+"eh,>s{>@/Users/dev/shop-apid>_b,/Users/dev/shop-apis|,é /ca_io-p}}s{b\"s-/Users/dev/shop-api'ppc{p\t{b,",
+"eh,>s{>@/Users/dev/shop-apid>_b,shop-apis|,é /ca_io-p}}s{b\"s-.'ppc{p\t{b,"
+],
+[
+"v//Users/dev/shop-api.Ud> .,/i;p\n\nsi)@😀/Users/dev/shop-api:s/__",
+"v//Users/dev/shop-api.Ud> .,/i;p\n\nsi)@😀.:s/__"
+],
+[
+"'``/Users/dev/shop-api/ \"b>pps,es😀a\"s_>b } é(/-)/o:/i<)[\"_é\t >~/[)a o.'/",
+"'``./ \"b>pps,es😀a\"s_>b } é(/-)i<)[\"_é\t >~/[)a o.'/"
+],
+[
+"//Users/dev/shop-api/'e//Users/dev/shop-apia;/ haé a\t@-|éh@s\t,c},/Users/dev/shop-api.}e",
+".'e//Users/dev/shop-apia;/ haé a\t@-|éh@s\t,c},shop-api.}e"
+],
+[
+"-e,/Users/dev/shop-api>pi\n\tr :(-/Users/dev/shop-api-/[r:s>/Users/dev/shop-api/r_e[\t_p- /Users/dev/shop-apisb .@U;",
+"-e,.>pi\n\tr :(-/Users/dev/shop-api-/[r:s>r_e[\t_p- shop-apisb .@U;"
+],
+[
+" )-ph /Users/dev/shop-apieh/Users/dev/shop-api< `evos (,rh/",
+" )-ph shop-apieh.< `evos (,rh/"
+],
+[
+"' ;-.éo/dh//`ac_\"r>()d'\t~>r\\\n;[~/Users/dev/shop-api~U.'😀sés//Users/dev/shop-api:",
+"' ;-.éo/dh//`ac_\"r>()d'\t~>r\\\n;[~.~U.'😀sés/.:"
+],
+[
+"p.o /Users/dev/shop-api\n",
+"p.o .\n"
+],
+[
+"~e;/Users/dev/shop-apiU;s/-orsd",
+"~e;shop-apiU;s/-orsd"
+],
+[
+"ai-p>/Users/dev/shop-apic/(/,/Users/dev/shop-api",
+"ai-p>shop-apic(/,."
+],
+[
+"eiU@o/ <(/.\"> /i){/Users/dev/shop-apipr,);-e/é{:p.)c,v \"/é/Users/dev/shop-apiUaU/i;😀\\/i|a{ep",
+"eiU@o/ <(/.\"> /i){shop-apipr,);-e/é{:p.)c,v \"i;😀\\/i|a{ep"
+],
+[
+"/Users/dev/shop-api😀e-e[.'.siscd/pa\n<)",
+".😀e-e[.'.siscd/pa\n<)"
+],
+[
+"s@);c~e-d ,has<U(p/Users/dev/shop-apie p_aé",
+"s@);c~e-d ,has<U(p/Users/dev/shop-apie p_aé"
+],
+[
+"s'/<>>i/,c_e/ |\ti/bb)//o/Users/dev/shop-api-\\/Users/dev/shop-api/Users/dev/shop-api]dss/Users/dev/shop-apiUU",
+"s'/<>>i/,c_e/ |\ti/bb)//o/Users/dev/shop-api-\\Users/dev/shop-api]dss/Users/dev/shop-apiUU"
+],
+[
+"~`ss-_\t-`:;ri/Users/dev/shop-api|'/Users/dev/shop-api\te/b",
+"~`ss-_\t-`:;ri.|'.\te/b"
+],
+[
+"\t/sa/,/Users/dev/shop-apio\t\"a@-};:as/Users/dev/shop-apia/Users/dev/shop-api/Users/dev/shop-api<-a};<v.Usbs'/Users/dev/shop-api",
+"\tsa,shop-apio\t\"a@-};:as/Users/dev/shop-apiaUsers/dev/shop-api<-a};<v.Usbs'."
+],
+[
+"//Users/dev/shop-api\n/i:>]",
+"/.\n/i:>]"
+],
+[
+"s,c\nd\n.[{/Users/dev/shop-api-;e`p]}_d.v-\"-",
+"s,c\nd\n.[{shop-api-;e`p]}_d.v-\"-"
+],
+[
+"//{b@i[o/Users/dev/shop-apips\n\tp//Users/dev/shop-api [a/ééoi",
+"//{b@i[o/Users/dev/shop-apips\n\tp/. [a/ééoi"
+],
+[
+"-`//Users/dev/shop-api s<\t[>/Users/dev/shop-api.>apé/o]r/Users/dev/shop-api--😀<r:/`/c,/Users/dev/shop-api |//Users/dev/shop-api'\ne-/Users/dev/shop-api>r;:r<</Users/dev/shop-api ",
+"-`/. s<\t[>shop-api.>apé/o]r/Users/dev/shop-api--😀<r:/`/c,. |/.'\ne-.>r;:r<<. "
+],
+[
+"-.😀i)ddU\n.ps ,)[/Users/dev/shop-api[,r;`/Users/dev/shop-apih<{< ré>aUdp\n'/>/[[h",
+"-.😀i)ddU\n.ps ,)[.[,r;`shop-apih<{< ré>aUdp\n'/>/[[h"
+],
+[
+"rdp/Users/dev/shop-api@i]:o]'aoh;/_ /ovd>r//Users/dev/shop-api-sa/Users/dev/shop-api`a`a];/Users/dev/shop-apis-:év\\e)[_/Users/dev/shop-apias{}/Users/dev/shop-apid-",
+"rdp.@i]:o]'aoh;/_ /ovd>r//Users/dev/shop-api-sa.`a`a];shop-apis-:év\\e)[_/Users/dev/shop-apias{}shop-apid-"
+],
+[
+"\t/Users/dev/shop-apiaao;ecé\"/_/Users/dev/shop-apihc/Users/dev/shop-api'/Users/dev/shop-api-/Users/dev/shop-api(\n/Users/dev/shop-api</~c`/o(]p//Users/dev/shop-api;'Uass @e-[ ii/}p",
+"\tshop-apiaao;ecé\"shop-apihc.'shop-api-.(\n.</~c`/o(]p/.;'Uass @e-[ ii/}p"
+],
+[
+"\ti/}",
+"\ti/}"
+],
+[
+"aiss\\>`/Users/dev/shop-api@//é/ h s<~\t`/Users/dev/shop-apis}ops@/Users/dev/shop-api/Users/dev/shop-apidp-",
+"aiss\\>`.@//é/ h s<~\t`shop-apis}ops@Users/dev/shop-apidp-"
+],
+[
+"/Users/dev/shop-apie] /",
+"shop-apie] /"
+],
+[
+"`./Users/dev/shop-api'\"'_i[/r/Users/dev/shop-api/pi>),/Users/dev/shop-api é: -/~U)\\",
+"`..'\"'_i[/rpi>),. é: -/~U)\\"
+],
+[
+"{bé>-p",
+"{bé>-p"
+],
+[
+"~<sec/Users/dev/shop-apieo/Users/dev/shop-api/`-a_[ :]\"r`/Users/dev/shop-api-ib//\tv/Users/dev/shop-api<\\~e/Users/dev/shop-apiv.{~Ua/)< s_o\"<(;r😀_",
+"~<sec/Users/dev/shop-apieo./`-a_[ :]\"r`shop-api-ib/\tv.<\\~e/Users/dev/shop-apiv.{~Ua/)< s_o\"<(;r😀_"
+],
+[
+"-/Users/dev/shop-api\\\n`)\")r,de<]a<iad<{(-e@_/@h/Users/dev/shop-api\\[\t}ér@//sh.(@ )v|é}/Users/dev/shop-apisoh|/Users/dev/shop-api\t",
+"-.\\\n`)\")r,de<]a<iad<{(-e@_/@h.\\[\t}ér@//sh.(@ )v|é}shop-apisoh|.\t"
+],
+[
+"",
+""
+],
+[
+"/]v/Users/dev/shop-apia)a/~|/,>v}<-s/ )./Users/dev/shop-apia\n//Users/dev/shop-api/s.\n'{/Users/dev/shop-api`-aUé@/Users/dev/shop-apie.",
+"/]v/Users/dev/shop-apia)a/~|/,>v}<-s/ )./Users/dev/shop-apia\n/s.\n'{.`-aUé@/Users/dev/shop-apie."
+],
+[
+"/sdév😀 é[ a~)~[@~;cp bsc{s(/Users/dev/shop-api\"<-",
+"/sdév😀 é[ a~)~[@~;cp bsc{s(.\"<-"
+],
+[
+"[/Users/dev/shop-apidhr/,/Users/dev/shop-api][|/ ` ",
+"[shop-apidhr,.][|/ ` "
+],
+[
+"p }/Users/dev/shop-api/Users/dev/shop-api  \ti}U/epa }|sp:-~éad[ /Users/dev/shop-apiss(@sh",
+"p }Users/dev/shop-api  \ti}U/epa }|sp:-~éad[ shop-apiss(@sh"
+],
+[
+"caes(,\t/@",
+"caes(,\t/@"
+],
+[
+"U/Users/dev/shop-api\t(@/😀/Users/dev/shop-api--'paa[r/ri~ |p\\-rp,de;,beps:\" /Users/dev/shop-api'ps/Users/dev/shop-api",
+"U.\t(@/😀shop-api--'paa[r/ri~ |p\\-rp,de;,beps:\" .'ps."
+],
+[
+"r)`\\/spa,pé'cd\t\",c\"😀///Users/dev/shop-api opi<ésvsséb-U/{_e[  v;/Users/dev/shop-apip`\thU./",
+"r)`\\/spa,pé'cd\t\",c\"😀//. opi<ésvsséb-U/{_e[  v;shop-apip`\thU./"
+],
+[
+":}p-o  Us\\/ae/Users/dev/shop-api\\':\"U `da:'.~dé[<é]/Users/dev/shop-api</Users/dev/shop-api",
+":}p-o  Us\\/ae.\\':\"U `da:'.~dé[<é].<."
+],
+[
+"/@\t(;Ud)/;aU(@/Users/dev/shop-apiid",
+"/@\t(;Ud)/;aU(@/Users/dev/shop-apiid"
+],
+[
+";-/Users/dev/shop-apiv\\`",
+";-/Users/dev/shop-apiv\\`"
+],
+[
+"-):>,,-a~\t`,>i@\"p_)}h]/Users/dev/shop-apiv",
+"-):>,,-a~\t`,>i@\"p_)}h]shop-apiv"
+],
+[
+"d-vp/Users/dev/shop-apic;dés😀",
+"d-vp/Users/dev/shop-apic;dés😀"
+],
+[
+"v\"-h</h>/][Ua>@/Users/dev/shop-apir)\ni`|😀/Users/dev/shop-api/a/Users/dev/shop-apis,/Users/dev/shop-api> /iv]v(rpss<<esU}(/Users/dev/shop-apiies/Users/dev/shop-api' ",
+"v\"-h</h>/][Ua>@/Users/dev/shop-apir)\ni`|😀a/Users/dev/shop-apis,.> /iv]v(rpss<<esU}(shop-apiies.' "
+],
+[
+"U|/,-\t: /`vb\"/pb;d-|/Users/dev/shop-api\t;i\\\"}aé~|",
+"U|/,-\t: /`vb\"/pb;d-|.\t;i\\\"}aé~|"
+],
+[
+"{rcv.s{a/\n)U]\":/( v/e /~",
+"{rcv.s{a/\n)U]\":/( v/e /~"
+],
+[
+"ea/b/Users/dev/shop-api<\to- [;;s{o]v",
+"ea/b.<\to- [;;s{o]v"
+],
+[
+"['a/'/s`<é/;é{Uéb }\tarc:<\"`<-oi~a/",
+"['a/'/s`<é/;é{Uéb }\tarc:<\"`<-oi~a/"
+],
+[
+"hs/ /Users/dev/shop-apia\"/Users/dev/shop-apive😀h/Users/dev/shop-api><s ésv'/>>p😀e\\.) céc",
+"hs/ shop-apia\"shop-apive😀h.><s ésv'/>>p😀e\\.) céc"
+],
+[
+"",
+""
+],
+[
+"Uéh😀s@<r)'eei",
+"Uéh😀s@<r)'eei"
+]
+],
+"scrubNoCwd": [
+[
+"e<\nsb-<\\dp (p\"_",
+"e<\nsb-<\\dp (p\"_"
+],
+[
+"pa_e,v o a/s\tcU>]\"'[\"  s)\\(siv:b",
+"pa_e,v o a/s\tcU>]\"'[\"  s)\\(siv:b"
+],
+[
+"c-r'as/idéed/}é.o_ss;😀':/d/e.",
+"c-r'as/idéed/}é.o_ss;😀':/d/e."
+],
+[
+")p(p",
+")p(p"
+],
+[
+"aée`hi",
+"aée`hi"
+],
+[
+"a\\dépsi",
+"a\\dépsi"
+],
+[
+"(p",
+"(p"
+],
+[
+"-)d|/}U|i(r@r<'-/_\\};]>/U\n {}}-e _ {.do",
+"-)d|/}U|i(r@r<'-/_\\};]>/U\n {}}-e _ {.do"
+],
+[
+"U\na-rese (-U//éaav@' Us/dc",
+"U\na-rese (-U//éaav@' Us/dc"
+],
+[
+"d|`[)h{//eb([h(c<e -e:]/::)`d~s<e",
+"d|`[)h{//eb([h(c<e -e:]/::)`d~s<e"
+],
+[
+"//<vbv>i/_`-/sU{ap\n<obr:,{s.,)[/-esao.\"",
+"//<vbv>i/_`-/sU{ap\n<obr:,{s.,)[/-esao.\""
+],
+[
+"_par.h[|v a|}](;c~",
+"_par.h[|v a|}](;c~"
+],
+[
+"[`a_-/opb,|;😀<_:/sae<\n@a:",
+"[`a_-/opb,|;😀<_:/sae<\n@a:"
+],
+[
+"/. .'v/-\t,UU😀\n>//  ssh\tp|h/oa'-v~r\"/",
+"/. .'v/-\t,UU😀\n>//  ssh\tp|h/oa'-v~r\"/"
+],
+[
+"hé,~é@\",[vé.abh -e)~`.e",
+"hé,~é@\",[vé.abh -e)~`.e"
+],
+[
+"ph\t<e}:`s/-",
+"ph\t<e}:`s/-"
+],
+[
+"ve/e/dd-e\\.h|",
+"ve/e/dd-e\\.h|"
+],
+[
+"pp>\n:[/\"`}",
+"pp>\n:[/\"`}"
+],
+[
+";-)(o~<]|)é/i(r>\n sh/v\\a\n\",/d]e;( <",
+";-)(o~<]|)é/i(r>\n sh/v\\a\n\",/d]e;( <"
+],
+[
+"\\}-:;;ev~\nb:e;a",
+"\\}-:;;ev~\nb:e;a"
+],
+[
+"/@b",
+"/@b"
+],
+[
+"a/-{pé}e@{;;p/`;U/op'.v/s/,`😀@\"<s\t so/~~",
+"a/-{pé}e@{;;p/`;U/op'.v/s/,`😀@\"<s\t so/~~"
+],
+[
+"r\"|):\n-p,(sb~😀e (d c\\/p_.)pcrop",
+"r\"|):\n-p,(sb~😀e (d c\\/p_.)pcrop"
+],
+[
+"),  @ahad;/-eéa U/[",
+"),  @ahad;/-eéa U/["
+],
+[
+">s\n.U/[[ U\ns/ie\".//{/\\:é`.\"\"\ne}i\t:h😀",
+">s\n.U/[[ U\ns/ie\".//{/\\:é`.\"\"\ne}i\t:h😀"
+],
+[
+"<h<\"heae@r(😀/'/é)a_'dérp\n/\\s\t",
+"<h<\"heae@r(😀/'/é)a_'dérp\n/\\s\t"
+],
+[
+"hcc\t\t[dioU~\tho,Up o/-hsé':",
+"hcc\t\t[dioU~\tho,Up o/-hsé':"
+],
+[
+"e|\\< d-h@oéa}.oU \"-é\téeé]i{p,pese~c;",
+"e|\\< d-h@oéa}.oU \"-é\téeé]i{p,pese~c;"
+],
+[
+" d\np<s{ /r)/);é\"\nvs\n}😀-\t.",
+" d\np<s{ /r)/);é\"\nvs\n}😀-\t."
+],
+[
+"ih-rr😀 \"séha",
+"ih-rr😀 \"séha"
+],
+[
+"]~/ddpv@/b(céda/|\tar/`-Ud\nU/s😀@ b s<e",
+"]b(céda/|\tar/`-Ud\nU/s😀@ b s<e"
+],
+[
+" ",
+" "
+],
+[
+"h(pa\téhdha😀[;|'eUs//;e_",
+"h(pa\téhdha😀[;|'eUs//;e_"
+],
+[
+";'a s\"\\o/",
+";'a s\"\\o/"
+],
+[
+"@;av/raé\"]\t)hb-ée \n/sdacéa",
+"@;av/raé\"]\t)hb-ée \n/sdacéa"
+],
+[
+"e\nd|",
+"e\nd|"
+],
+[
+"@@-[",
+"@@-["
+],
+[
+"<é,\"p]p_>s_`e //'>a'é\\s~r->v\\]a~h_",
+"<é,\"p]p_>s_`e //'>a'é\\s~r->v\\]a~h_"
+],
+[
+"er\\i>_o;](>\no-\\ ae.U`;)cddé",
+"er\\i>_o;](>\no-\\ ae.U`;)cddé"
+],
+[
+"",
+""
+],
+[
+"é_)\t\t😀a/\ni>@;/<h.)sv e[\\ béa,(é~i",
+"é_)\t\t😀a/\ni>@;/<h.)sv e[\\ béa,(é~i"
+],
+[
+"h -\"|)U{\"o~:)/\\@r@e/~])@a.",
+"h -\"|)U{\"o~:)/\\@r@e/~])@a."
+],
+[
+"isss\"a-s~('|\"|a:'e~eUi\\;pe]:`,\né]>/[",
+"isss\"a-s~('|\"|a:'e~eUi\\;pe]:`,\né]>/["
+],
+[
+"d>ir\t/;d]",
+"d>ir\t/;d]"
+],
+[
+" p /{a~)v:_/ /co[,s/)'s/",
+" p /{a~)v:_/ /co[,s/)'s/"
+],
+[
+"des.'ho/ps_@:a",
+"des.'ho/ps_@:a"
+],
+[
+"as\\",
+"as\\"
+],
+[
+"b>a,)ss rc/;_-<}s e/",
+"b>a,)ss rc/;_-<}s e/"
+],
+[
+"s//\n,/{h😀ssdUse /(e",
+"s//\n,/{h😀ssdUse /(e"
+],
+[
+"|;:,{{v\n \\@</😀-ep [-| '|~dp",
+"|;:,{{v\n \\@</😀-ep [-| '|~dp"
+],
+[
+"v U",
+"v U"
+],
+[
+",e/éU\ts_bé,o/ p/\\a/s",
+",e/éU\ts_bé,o/ p/\\a/s"
+],
+[
+") a`",
+") a`"
+],
+[
+"~\t~(.p'ars[  ]'/)>[_'ss~s/\t\nsU/",
+"~\t~(.p'ars[  ]'/)>[_'ss~s/\t\nsU/"
+],
+[
+"-😀/s-/)/",
+"-😀s-)/"
+],
+[
+"@d|~",
+"@d|~"
+],
+[
+"o<;pcs/'|o|]e\" \\i )|\\daU(}v'_`'|",
+"o<;pcs/'|o|]e\" \\i )|\\daU(}v'_`'|"
+],
+[
+"/v;-//U'",
+"/v;-//U'"
+],
+[
+"> [ca@a-/a😀[`/_é.](p/v)/ p\t",
+"> [ca@a-/a😀[`/_é.](p/v)/ p\t"
+],
+[
+">'/'}/\t\n",
+">'/'}/\t\n"
+],
+[
+"/se>[@@b>;{@s<,-;d<",
+"/se>[@@b>;{@s<,-;d<"
+],
+[
+"po\\:<ess-pc@..s/[h,-;/  (",
+"po\\:<ess-pc@..s/[h,-;/  ("
+],
+[
+"(s--_/`,,\tp",
+"(s--_/`,,\tp"
+],
+[
+">`ha[/oU-/~cv]]s/}si@/~e (h\n<",
+">`ha[~cv]]s/}si@/~e (h\n<"
+],
+[
+",; {s",
+",; {s"
+],
+[
+"a<-dsa~",
+"a<-dsa~"
+],
+[
+"// e<e_--Usév",
+"// e<e_--Usév"
+],
+[
+" ] 😀\tp~,s /c  (r<a[\ne>@.h|}:😀oa_s /e[ s/",
+" ] 😀\tp~,s /c  (r<a[\ne>@.h|}:😀oa_s /e[ s/"
+],
+[
+"",
+""
+],
+[
+".p{~;//b-U{}@s|'e[ \t)[\n[cp'/ree\t",
+".p{~;//b-U{}@s|'e[ \t)[\n[cp'/ree\t"
+],
+[
+"sai@p,/(rs;e|}/ ",
+"sai@p,/(rs;e|}/ "
+],
+[
+"`\\b]\nv{<\tvb|/i[/.",
+"`\\b]\nv{<\tvb|/i[/."
+],
+[
+"@\"s,[cé/}>[o/ é😀 p// ér<)",
+"@\"s,[cé/}>[o/ é😀 p// ér<)"
+],
+[
+"'os>s,h-U\n😀",
+"'os>s,h-U\n😀"
+],
+[
+"ph-s\t[/i:-e:;@b😀😀/ao[e",
+"ph-s\t[/i:-e:;@b😀😀/ao[e"
+],
+[
+"sé,\"p` \\rv\\}eUU/e`\t[\n}e",
+"sé,\"p` \\rv\\}eUU/e`\t[\n}e"
+],
+[
+"d",
+"d"
+],
+[
+"{c/{Us ée}es😀b)ireco'`</bi\t(.bo\n",
+"{c/{Us ée}es😀b)ireco'`</bi\t(.bo\n"
+],
+[
+"😀cU-é<😀s~vU|\n;>/ :",
+"😀cU-é<😀s~vU|\n;>/ :"
+],
+[
+";/p ;,;~|",
+";/p ;,;~|"
+],
+[
+"sv{U\\i/😀:.,e\\/@;\\@epr{|[",
+"sv{U\\i/😀:.,e\\/@;\\@epr{|["
+],
+[
+",o rc\"hsb/-\"é:]ap",
+",o rc\"hsb/-\"é:]ap"
+],
+[
+"",
+""
+],
+[
+"{Uo\"e-:s>[p",
+"{Uo\"e-:s>[p"
+],
+[
+" ||@`/s:p{{s-.>|~v /c /\"-é'e:😀p é\\<\n",
+" ||@`/s:p{{s-.>|~v /c /\"-é'e:😀p é\\<\n"
+],
+[
+"p~]ii(]@\\\thi o|b\\",
+"p~]ii(]@\\\thi o|b\\"
+],
+[
+"v(h>e .b}d-'<-i.(`",
+"v(h>e .b}d-'<-i.(`"
+],
+[
+"}-a ",
+"}-a "
+],
+[
+"|\":,déoevh",
+"|\":,déoevh"
+],
+[
+"-r//",
+"-r//"
+],
+[
+"s\n.`r😀c-h U(ve</-/",
+"s\n.`r😀c-h U(ve<-"
+],
+[
+"r\ti)`eea\t]_: \"e\"; . `e)~ >😀--ve\nr",
+"r\ti)`eea\t]_: \"e\"; . `e)~ >😀--ve\nr"
+],
+[
+"}:\nes-😀s:vép s,;",
+"}:\nes-😀s:vép s,;"
+],
+[
+" \"-",
+" \"-"
+],
+[
+"/'s hoi}",
+"/'s hoi}"
+],
+[
+">p///[/)|<>/pde\"(re-}a[Uev-iai\"r/isr'",
+">p///[/)|<>/pde\"(re-}a[Uev-iai\"r/isr'"
+],
+[
+"p` b]h/)ss/~😀\"d\\or:_>Usd ",
+"p` b]h/)ss/~😀\"d\\or:_>Usd "
+],
+[
+"sr\t,>pUU_s\"",
+"sr\t,>pUU_s\""
+],
+[
+"e|sc_;i-ssé[_r/s\nvp😀é}s`/",
+"e|sc_;i-ssé[_r/s\nvp😀é}s`/"
+],
+[
+"Uvp,adoe(ca|./ia(o(d/~",
+"Uvp,adoe(ca|./ia(o(d/~"
+],
+[
+"o.~bU[<;c>`vs-\n{échvs",
+"o.~bU[<;c>`vs-\n{échvs"
+],
+[
+"i\t -s<\n.",
+"i\t -s<\n."
+],
+[
+"`e]( /<\n<a|",
+"`e]( /<\n<a|"
+],
+[
+"sovéé`c>:os.r😀,@/se/{'@ése",
+"sovéé`c>:os.r😀,@/se/{'@ése"
+],
+[
+"_vsa<i\"_UUe{<d[~{]s😀]s@) U@`\\ae/h pd ",
+"_vsa<i\"_UUe{<d[~{]s😀]s@) U@`\\ae/h pd "
+],
+[
+"`~s~d[/- @;<{\\<d)}s(_a:a/cp<réca('/{é",
+"`~s~d[/- @;<{\\<d)}s(_a:a/cp<réca('/{é"
+],
+[
+"  >\t<@hdb ob;)e]-;; ",
+"  >\t<@hdb ob;)e]-;; "
+],
+[
+"/r`/,,/d(a,b,d)c s}",
+"/r`/,,/d(a,b,d)c s}"
+],
+[
+"a'},U<,~~  ,()///|b|<😀~é/'\no/\"",
+"a'},U<,~~  ,()///|b|<😀~é/'\no/\""
+],
+[
+"-_\\\ni};'o\")ad😀pr\"-aseé\"s/o|s`ah`[c\n😀v<\nc",
+"-_\\\ni};'o\")ad😀pr\"-aseé\"s/o|s`ah`[c\n😀v<\nc"
+],
+[
+":\\  s op_é{",
+":\\  s op_é{"
+],
+[
+"i(😀c\te||};@_(`sc\":s>~p",
+"i(😀c\te||};@_(`sc\":s>~p"
+],
+[
+"{s:;oo\t\\",
+"{s:;oo\t\\"
+],
+[
+"",
+""
+],
+[
+"/,|(b./é",
+"/,|(b./é"
+],
+[
+"vo  .{-/(a{d}",
+"vo  .{-/(a{d}"
+],
+[
+"s\n[~éc/rvs😀oe_c;r  :><\nv",
+"s\n[~éc/rvs😀oe_c;r  :><\nv"
+],
+[
+"p( >r]h_ \\\\ sd.@pa/)`(s>e",
+"p( >r]h_ \\\\ sd.@pa/)`(s>e"
+],
+[
+"\n\\pa( s/sb;/:/h]\n.c|~hU/c/sp_",
+"\n\\pa( s/sb;h]\n.c|~hU/c/sp_"
+],
+[
+"e/ @",
+"e/ @"
+],
+[
+"//hsp/\\_[asoié/p'\"({p.,\n _{/ vsav\nc;)_",
+"//hsp/\\_[asoié/p'\"({p.,\n _{/ vsav\nc;)_"
+],
+[
+" p \n\\p\\😀U,)>v|",
+" p \n\\p\\😀U,)>v|"
+],
+[
+"_ { <ov})|>\n  .saa;,:vU]",
+"_ { <ov})|>\n  .saa;,:vU]"
+],
+[
+" 'e`{{e@i;-a i ;",
+" 'e`{{e@i;-a i ;"
+],
+[
+"_\\h/e.\ns\\\n/}v/is\tio\n@eb_",
+"_\\h/e.\ns\\\n/}v/is\tio\n@eb_"
+],
+[
+"e\\>|/_U]",
+"e\\>|/_U]"
+],
+[
+")]/-😀e@avp😀e@e|(e/c_s>'s>- ) /.\nv/_:/ e]",
+")]/-😀e@avp😀e@e|(e/c_s>'s>- ) /.\nv/_:/ e]"
+],
+[
+"/-]p\t~b😀~-p\"da-{:s'@\"\t~/ dd😀: ",
+"/-]p\t~b😀~-p\"da-{:s'@\"\t~/ dd😀: "
+],
+[
+"/o-[<``[/\\oesé/-s  c>[-},h) h'@//s[es\\",
+"/o-[<``[/\\oesé/-s  c>[-},h) h'@//s[es\\"
+],
+[
+"-;s~}{/]c <sere[.{d(d/<|]/c}{/'/\\a/'",
+"-;s~}{/]c <sere[.{d(d/<|]/c}{/'/\\a/'"
+],
+[
+"\\ //|<@/é/i]oesd`/ba😀s\")\\(\n éaso</eré/",
+"\\ //|<@/é/i]oesd`/ba😀s\")\\(\n éaso<eré"
+],
+[
+"'~:/}->c\"h/s\\(.}-)`s|",
+"'~:/}->c\"h/s\\(.}-)`s|"
+],
+[
+",/)-/]:s}U[  /re/:/v[/_ b\"}a[",
+",/)-/]:s}U[  v[/_ b\"}a["
+],
+[
+"}@\"'e\n.;ac@/rs,/]]po{/r ré 😀/}\" i",
+"}@\"'e\n.;ac@/rs,/]]po{/r ré 😀/}\" i"
+],
+[
+"😀;s \tsvp |a`o/.._;p/;ré{_ \">i()(_/:d😀~>",
+"😀;s \tsvp |a`o/.._;p/;ré{_ \">i()(_/:d😀~>"
+],
+[
+";h  😀>bp_ {_vao-\n;dh s\\",
+";h  😀>bp_ {_vao-\n;dh s\\"
+],
+[
+"-~/é@`/<😀]\\éa😀p) éUv[@</[es;@_/😀ea\n-(\t`;",
+"-~/é@`/<😀]\\éa😀p) éUv[@</[es;@_/😀ea\n-(\t`;"
+],
+[
+";/😀/\n\"[",
+";😀\n\"["
+],
+[
+"/;],<]ss_}o\\_@r:é\"~`@/[- -\nUp/;:/",
+"/;],<]ss_}o\\_@r:é\"~`@/[- -\nUp/;:/"
+],
+[
+"/-/a-}bi`😀aUip-\n/c~\n ~]<.",
+"a-}bi`😀aUip-\n/c~\n ~]<."
+],
+[
+" ][(",
+" ][("
+],
+[
+"\\/\\~\\; @(",
+"\\/\\~\\; @("
+],
+[
+"p\\p[]. b\",]b-\"/sp`/(cr😀(e]rUc -/i \ti.p./",
+"p\\p[]. b\",]b-\"/sp`/(cr😀(e]rUc -/i \ti.p./"
+],
+[
+"\"//d,😀-|\\:Ui\tpd]r/ saop/a)ppc|<😀",
+"\"//d,😀-|\\:Ui\tpd]r/ saop/a)ppc|<😀"
+],
+[
+"ei)\"eéc_(a(é`s",
+"ei)\"eéc_(a(é`s"
+],
+[
+"a)e /v_\"er:-:]})v\no((.\n<``aésh`a-UUp",
+"a)e /v_\"er:-:]})v\no((.\n<``aésh`a-UUp"
+],
+[
+"ho.\n)sd",
+"ho.\n)sd"
+],
+[
+"ha.]d-/h;\"drd~@vo}\\\t/\"]([\\a😀 o/ahp",
+"ha.]d-/h;\"drd~@vo}\\\t/\"]([\\a😀 o/ahp"
+],
+[
+"'dc:-U;)\t😀\n ai}\"d]`] p😀>/ps\t/a/}/c",
+"'dc:-U;)\t😀\n ai}\"d]`] p😀>/ps\ta}/c"
+],
+[
+"`ebe/p]~ Ue ",
+"`ebe/p]~ Ue "
+]
+],
+"truncate": [
+[
+"️",
+"️",
+"1",
+"️"
+],
+[
+"👍🏳👩‍한🔥 👩",
+"👍🏳👩‍한🔥 👩",
+"7",
+"👍🏳👩‍한🔥 👩"
+],
+[
+"e👍",
+"e👍",
+"2",
+"e👍"
+],
+[
+"x\r‍👩a‍",
+"x\r‍👩a‍",
+"5",
+"x\r‍👩a‍"
+],
+[
+"👨 ",
+"👨 ",
+"2",
+"👨"
+],
+[
+"́️👨❤‍👍🇺🏽ba👧️🌈x한🌈",
+"́️👨❤‍👍🇺🏽ba👧️🌈x한…",
+"11",
+"́️👨❤‍👍🇺🏽ba👧️🌈x한🌈"
+],
+[
+"x❤👧❤\r\r\rb️x‍❤🇺\t\r🏽a\nx \tb🔥b️️🏳\n❤x",
+"x❤👧❤\r\r\rb️x‍❤…",
+"26",
+"x❤👧❤\r\r\rb️x‍❤🇺\t\r🏽a"
+],
+[
+"🔥한🌈👩a",
+"🔥한🌈👩a",
+"5",
+"🔥한🌈👩a"
+],
+[
+"🔥🏽️️b‍‍b️",
+"🔥🏽️️b‍‍b️",
+"3",
+"🔥🏽️️b‍‍b️"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"🔥‍x🔥한 \n‍́🏳한\ne👧🔥\nx한🇸‍️한‍́",
+"🔥‍x🔥한 \n‍́🏳한\n…",
+"18",
+"🔥‍x🔥한"
+],
+[
+"🔥🇺🌈한️️👧🇺❤️́",
+"🔥🇺🌈한️️👧🇺❤️́",
+"7",
+"🔥🇺🌈한️️👧🇺❤️́"
+],
+[
+"👩🇸👨🇺x‍‍🏽 👨👧👩👧\n‍️🌈️‍x👍́🏽🇺👩👩",
+"👩🇸👨🇺x‍‍🏽 👨👧👩👧…",
+"18",
+"👩🇸👨🇺x‍‍🏽 👨👧👩👧"
+],
+[
+"🏽b🇺👨👍",
+"🏽b🇺👨👍",
+"5",
+"🏽b🇺👨👍"
+],
+[
+" a👨‍❤👍🇸🏳🔥️❤🌈한‍́🇸\t 👩❤\r ‍x👩e❤❤",
+" a👨‍❤👍🇸🏳🔥️❤🌈한‍́…",
+"22",
+"a👨‍❤👍🇸🏳🔥️❤🌈한‍́🇸\t 👩❤\r ‍x👩e❤❤"
+],
+[
+"\r️́️e ❤\t️é‍ ‍\t\r",
+"\r️́️e ❤\t️é‍ ‍\t…",
+"11",
+"\r️́️e ❤\t️é‍ ‍\t\r"
+],
+[
+"xb👍👩‍👧\t❤ ❤👨👩🔥🇺\n️b‍é👨",
+"xb👍👩‍👧\t❤ ❤👨👩…",
+"17",
+"xb👍👩‍👧\t❤ ❤👨👩🔥🇺"
+],
+[
+"🏳́🇸👍",
+"🏳́🇸👍",
+"3",
+"🏳́🇸👍"
+],
+[
+"\t❤🏳  👩‍🏳🏳 \r‍한",
+"\t❤🏳  👩‍🏳🏳 \r‍…",
+"11",
+"❤🏳  👩‍🏳🏳 \r‍한"
+],
+[
+"‍\n👨b‍🔥👨",
+"‍\n👨b‍🔥👨",
+"6",
+"‍"
+],
+[
+"한‍️🏽b\n \n👩e🔥‍한\t👧️b\r한👍👨‍ ‍",
+"한‍️🏽b\n \n👩e🔥‍한\t…",
+"17",
+"한‍️🏽b"
+],
+[
+"🇺́‍🇺\r\na🇸‍\r👍️\n 🔥🏽a️한👩‍e\t👍",
+"🇺́‍🇺\r\na🇸‍\r👍️\n 🔥🏽…",
+"16",
+"🇺́‍🇺\r\na🇸‍\r👍️"
+],
+[
+"‍🏽e‍👩🇸👍‍‍e한",
+"‍🏽e‍👩🇸👍‍‍e한",
+"7",
+"‍🏽e‍👩🇸👍‍‍e한"
+],
+[
+"🏳🇺‍👩\t️ae️️👍a한❤\t‍‍🌈\tbe‍👍👧 x\n",
+"🏳🇺‍👩\t️ae️️👍a한…",
+"22",
+"🏳🇺‍👩\t️ae️️👍a한❤\t‍‍🌈\tbe‍👍👧 x"
+],
+[
+"한🇸‍‍",
+"한🇸‍‍",
+"2",
+"한🇸‍‍"
+],
+[
+"👍́‍‍🇸️👨e🔥 b👍👩",
+"👍́‍‍🇸️👨e🔥 b👍👩",
+"9",
+"👍́‍‍🇸️👨e🔥 b👍👩"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"🏳🔥👧️́🔥a\t️",
+"🏳🔥👧️́🔥a\t️",
+"7",
+"🏳🔥👧️́🔥a\t️"
+],
+[
+"‍‍🏳́́🇸️👩",
+"‍‍🏳́́🇸️👩",
+"4",
+"‍‍🏳́́🇸️👩"
+],
+[
+"👍‍\t👧🇸👨👨🔥\n👍한한🔥🏳 \n한e🇺🇸👍🇸b‍\t🇺‍",
+"👍‍\t👧🇸👨👨🔥\n👍한…",
+"23",
+"👍‍\t👧🇸👨👨🔥"
+],
+[
+"한‍👍한👍🏳🇸́‍ b️🏽🇸‍🔥\r",
+"한‍👍한👍🏳🇸́‍ b️🏽🇸‍🔥…",
+"11",
+"한‍👍한👍🏳🇸́‍ b️🏽🇸‍🔥\r"
+],
+[
+"‍",
+"‍",
+"1",
+"‍"
+],
+[
+"\r🏽\t\r‍👧a👧❤e👩👨\r \n‍🏳‍🏳🏳🇺e",
+"\r🏽\t\r‍👧a👧❤e…",
+"20",
+"\r🏽\t\r‍👧a👧❤e👩👨\r"
+],
+[
+"́🌈\n️🇸한\rb🏽🔥",
+"́🌈\n️🇸한\rb🏽🔥",
+"9",
+"́🌈"
+],
+[
+"‍a🏳x‍🏽b👧️‍́\t🔥🔥b",
+"‍a🏳x‍🏽b👧️‍́\t🔥🔥b",
+"10",
+"‍a🏳x‍🏽b👧️‍́\t🔥🔥b"
+],
+[
+"👩b❤\t🇺́🇸‍‍🏳🏽👧🏳",
+"👩b❤\t🇺́🇸‍‍🏳🏽👧🏳",
+"9",
+"👩b❤\t🇺́🇸‍‍🏳🏽👧🏳"
+],
+[
+"́👨́a‍\t👨👍한\r🌈👨👩️́👨🌈b👨\t️‍‍́‍🏽b",
+"́👨́a‍\t👨👍한\r🌈👨…",
+"18",
+"́👨́a‍\t👨👍한\r🌈👨👩️́👨🌈b👨\t️‍‍́‍🏽b"
+],
+[
+"🔥a한\r\ra한🇸🇸👍❤\r🏳👩🇺 ",
+"🔥a한\r\ra한🇸🇸👍❤…",
+"15",
+"🔥a한\r\ra한🇸🇸👍❤\r🏳👩🇺"
+],
+[
+"\r\nx️️🏳🌈🌈한a한👩\t🔥e\r\t🔥🔥́́‍🔥\r👧한👩‍한‍",
+"\r\nx️️🏳🌈🌈한a한👩\t…",
+"21",
+"\r\nx️️🏳🌈🌈한a한👩\t🔥e\r\t🔥🔥́́‍🔥\r👧한👩‍한‍"
+],
+[
+"🏽👨‍🏽\tx️👍🇸",
+"🏽👨‍🏽\tx️👍🇸",
+"6",
+"🏽👨‍🏽\tx️👍🇸"
+],
+[
+"́‍\n‍🔥🇸🇸be\t́🏳e🔥e",
+"́‍\n‍🔥🇸🇸be\t́🏳…",
+"13",
+"́‍"
+],
+[
+"️👩👨👧\n👧 ❤‍👍🏳🔥\n️x",
+"️👩👨👧\n👧 ❤‍👍🏳🔥…",
+"13",
+"️👩👨👧"
+],
+[
+"👩🏽‍‍ ",
+"👩🏽‍‍ ",
+"2",
+"👩🏽‍‍"
+],
+[
+"️한‍🌈\r한b\t🌈👧\n👩\n🌈️️👨b🏽🇺👍️🏳🇺",
+"️한‍🌈\r한b\t🌈👧\n…",
+"19",
+"️한‍🌈\r한b\t🌈👧"
+],
+[
+"\r‍👧",
+"\r‍👧",
+"3",
+"\r‍👧"
+],
+[
+"🇺🏽\rx",
+"🇺🏽\rx",
+"3",
+"🇺🏽\rx"
+],
+[
+"́b️👧\t",
+"́b️👧\t",
+"4",
+"́b️👧"
+],
+[
+"🏽🏽🔥🌈́🔥́x 🌈👍👨🌈👩🏳\t x‍\rx‍👩🌈\r\raa",
+"🏽🏽🔥🌈́🔥́x 🌈👍👨🌈…",
+"23",
+"🏽🏽🔥🌈́🔥́x 🌈👍👨🌈👩🏳\t x‍\rx‍👩🌈\r\raa"
+],
+[
+"🏽‍🇺🌈\t‍a‍👨🏳🇸‍한‍\n\rax🌈🌈️👧a",
+"🏽‍🇺🌈\t‍a‍👨🏳🇸‍한‍…",
+"18",
+"🏽‍🇺🌈\t‍a‍👨🏳🇸‍한‍"
+],
+[
+"👩‍b‍a️ee\t👩e\t🏽🇺️x️b\t🇺🔥\nb️‍️ 🏽",
+"👩‍b‍a️ee\t👩e\t🏽…",
+"19",
+"👩‍b‍a️ee\t👩e\t🏽🇺️x️b\t🇺🔥"
+],
+[
+"\t🌈x️👨a‍\r️‍é❤️\n🌈\n",
+"\t🌈x️👨a‍\r️‍é❤️\n…",
+"12",
+"🌈x️👨a‍\r️‍é❤️"
+],
+[
+"x🇺❤️‍🇸❤️x👧\r🇺 🌈🏽b",
+"x🇺❤️‍🇸❤️x👧\r🇺 …",
+"12",
+"x🇺❤️‍🇸❤️x👧\r🇺 🌈🏽b"
+],
+[
+"🔥🏽‍👨\r",
+"🔥🏽‍👨\r",
+"2",
+"🔥🏽‍👨\r"
+],
+[
+"👍👩e️❤️e️‍👨\n👩🇸‍\t🏳️🔥👍🇺\n\r",
+"👍👩e️❤️e️‍👨\n👩🇸‍\t…",
+"16",
+"👍👩e️❤️e️‍👨"
+],
+[
+" ‍🏳🏳한🇺🔥",
+" ‍🏳🏳한🇺🔥",
+"6",
+"‍🏳🏳한🇺🔥"
+],
+[
+"🌈x👍👨",
+"🌈x👍👨",
+"4",
+"🌈x👍👨"
+],
+[
+"한‍한❤🏳🏳🇺👍👩👨b🏽🏳bb",
+"한‍한❤🏳🏳🇺👍👩👨b🏽…",
+"13",
+"한‍한❤🏳🏳🇺👍👩👨b🏽🏳bb"
+],
+[
+" a  한\t️🏳\nx🔥👧️\t👍🌈‍ b‍👨👨👍️한",
+" a  한\t️🏳\nx…",
+"21",
+"a  한\t️🏳"
+],
+[
+"🇺é한👧🏳",
+"🇺é한👧🏳",
+"5",
+"🇺é한👧🏳"
+],
+[
+"️x한👩be️🇸́\n‍❤\reb‍‍🔥‍️",
+"️x한👩be️🇸́\n‍❤…",
+"14",
+"️x한👩be️🇸́"
+],
+[
+"👩️🏳🏳🌈🌈\n‍❤❤x️\r‍🌈a🌈‍👍\t❤‍👨‍한🏳",
+"👩️🏳🏳🌈🌈\n‍❤❤x️…",
+"19",
+"👩️🏳🏳🌈🌈"
+],
+[
+"e️🏳🔥🇸👧👧x 🇸́‍🏳ee👩‍‍e🇸🏽‍ ‍ae️‍\t",
+"e️🏳🔥🇸👧👧x 🇸́‍🏳…",
+"19",
+"e️🏳🔥🇸👧👧x 🇸́‍🏳ee👩‍‍e🇸🏽‍ ‍ae️‍"
+],
+[
+" 🇺️️́🇺a👍‍\r👩‍b‍️한👩🔥‍🇸\n👨🏽",
+" 🇺️️́🇺a👍‍\r👩‍b‍️한👩…",
+"14",
+"🇺️️́🇺a👍‍\r👩‍b‍️한👩🔥‍🇸"
+],
+[
+"‍🌈x\ń\ń️e🔥ba️🇸🇺\n한‍a❤️🇺️\tx👍‍🌈",
+"‍🌈x\ń\ń️e🔥b…",
+"20",
+"‍🌈x"
+],
+[
+"x👩️‍️ bx️한🏽e👍️한🇺️‍한👍",
+"x👩️‍️ bx️한🏽e👍️한🇺️‍…",
+"12",
+"x👩️‍️ bx️한🏽e👍️한🇺️‍한👍"
+],
+[
+"🏳👧🇸️👩\n👩e한🏽b❤‍‍́🔥e",
+"🏳👧🇸️👩\n👩e한🏽b❤‍‍́…",
+"12",
+"🏳👧🇸️👩"
+],
+[
+"a한‍️❤a\n\t🏽️́\t️e🌈️",
+"a한‍️❤a\n\t🏽️́\t️e…",
+"11",
+"a한‍️❤a"
+],
+[
+"️\n🇺🇸",
+"️\n🇺🇸",
+"3",
+"️"
+],
+[
+"🌈\r👨\nb🇺 ‍‍",
+"🌈\r👨\nb🇺 ‍‍",
+"7",
+"🌈\r👨"
+],
+[
+"👨🏽 x️",
+"👨🏽 x️",
+"3",
+"👨🏽 x️"
+],
+[
+"❤🌈🇺b️👨🇺e\tb\n👨‍b\t‍",
+"❤🌈🇺b️👨🇺e\tb\n…",
+"14",
+"❤🌈🇺b️👨🇺e\tb"
+],
+[
+"x‍\r ‍a한🇸",
+"x‍\r ‍a한🇸",
+"6",
+"x‍\r ‍a한🇸"
+],
+[
+"x\t🔥a❤‍́ ❤‍👨b🌈️️\t\r️️‍🏽️🇸‍x‍‍\t",
+"x\t🔥a❤‍́ ❤‍👨b🌈️️\t…",
+"15",
+"x\t🔥a❤‍́ ❤‍👨b🌈️️\t\r️️‍🏽️🇸‍x‍‍"
+],
+[
+"\tx한",
+"\tx한",
+"3",
+"x한"
+],
+[
+"\ra🇺\t👨‍🏳b🇸‍\n\r‍🔥️❤\r👨️‍‍",
+"\ra🇺\t👨‍🏳b🇸‍\n\r‍…",
+"14",
+"\ra🇺\t👨‍🏳b🇸‍"
+],
+[
+"🌈́\rx👩❤🔥❤👧a‍🏳x🏽",
+"🌈́\rx👩❤🔥❤👧a‍🏳…",
+"11",
+"🌈́\rx👩❤🔥❤👧a‍🏳x🏽"
+],
+[
+"👧👩한‍‍\r\n\r👩한x\tx👍\t\r‍́👍e‍🌈🇸🇺🌈🏳",
+"👧👩한‍‍\r\n\r👩한x\tx…",
+"20",
+"👧👩한‍‍\r\n\r👩한x\tx👍\t\r‍́👍e‍🌈🇸🇺🌈🏳"
+],
+[
+"🏳x🇸️👨\t\n🇺️\ń🇸🇺️👧👧a‍\re👍‍🇸👧 ‍🔥‍한",
+"🏳x🇸️👨\t\n🇺️\ń🇸🇺️…",
+"21",
+"🏳x🇸️👨"
+],
+[
+"❤b",
+"❤b",
+"2",
+"❤b"
+],
+[
+"\n❤x👨🇺️",
+"\n❤x👨🇺️",
+"5",
+"❤x👨🇺️"
+],
+[
+"👍🔥🇺️ a👨a 👨👧👩́️b️\t🌈️👧🇺한🌈́a🇺\n한👧👨",
+"👍🔥🇺️ a👨a 👨👧…",
+"24",
+"👍🔥🇺️ a👨a 👨👧👩́️b️\t🌈️👧🇺한🌈́a🇺"
+],
+[
+"\r‍‍👨‍ ️🇺‍👩b🇺한❤한e한️👩x🌈",
+"\r‍‍👨‍ ️🇺‍👩b🇺한❤…",
+"16",
+"\r‍‍👨‍ ️🇺‍👩b🇺한❤한e한️👩x🌈"
+],
+[
+"️️👧\t‍👨👧́‍ 🌈️‍b‍❤🏽",
+"️️👧\t‍👨👧́‍ 🌈️‍b‍❤🏽",
+"10",
+"️️👧\t‍👨👧́‍ 🌈️‍b‍❤🏽"
+],
+[
+"️🏳🔥👍  ️한️a👧️a‍🇸🏽❤🌈️‍👧한\t한‍️‍\r",
+"️🏳🔥👍  ️한️a👧️a‍…",
+"17",
+"️🏳🔥👍  ️한️a👧️a‍🇸🏽❤🌈️‍👧한\t한‍️‍\r"
+],
+[
+"‍️‍🌈e🇸‍🔥🌈́️‍️e️👧‍🌈‍́b",
+"‍️‍🌈e🇸‍🔥🌈́️‍️e️👧‍🌈‍́b",
+"9",
+"‍️‍🌈e🇸‍🔥🌈́️‍️e️👧‍🌈‍́b"
+],
+[
+"́  \n👨e️🇸b🏳a👩",
+"́  \n👨e️🇸b🏳a…",
+"11",
+"́"
+],
+[
+"\r️\r‍🔥👨🇸",
+"\r️\r‍🔥👨🇸",
+"7",
+"\r️\r‍🔥👨🇸"
+],
+[
+"‍🇸e\t‍ea🏽‍🇺️🇸",
+"‍🇸e\t‍ea🏽‍🇺️🇸",
+"9",
+"‍🇸e\t‍ea🏽‍🇺️🇸"
+],
+[
+"́🔥🏳🇸👨🏽a🌈\t🇺한🔥👍👍\r\n🔥🇸\r❤‍ ",
+"́🔥🏳🇸👨🏽a🌈\t🇺한…",
+"19",
+"́🔥🏳🇸👨🏽a🌈\t🇺한🔥👍👍\r\n🔥🇸\r❤‍"
+],
+[
+"e️‍‍🌈️🏳‍́e️️‍b‍🔥 ️한👨🔥 🇸👨🔥👩👍🇺e🏽",
+"e️‍‍🌈️🏳‍́e️️‍b‍🔥 ️한👨🔥…",
+"18",
+"e️‍‍🌈️🏳‍́e️️‍b‍🔥 ️한👨🔥 🇸👨🔥👩👍🇺e🏽"
+],
+[
+"🔥‍ 🏽🏳️🇸‍👩 ❤e🏳e\r👨x🌈🔥❤",
+"🔥‍ 🏽🏳️🇸‍👩 ❤e🏳e…",
+"16",
+"🔥‍ 🏽🏳️🇸‍👩 ❤e🏳e\r👨x🌈🔥❤"
+],
+[
+"‍🏽\n🔥❤b",
+"‍🏽\n🔥❤b",
+"5",
+"‍🏽"
+],
+[
+"b‍‍👨ax한‍b\r\n️️🇸 ❤🏽\n️‍️👧\t한🔥‍\n‍ ",
+"b‍‍👨ax한‍b\r\n️️🇸 …",
+"20",
+"b‍‍👨ax한‍b\r\n️️🇸 ❤🏽"
+],
+[
+"🏳🔥‍",
+"🏳🔥‍",
+"2",
+"🏳🔥‍"
+],
+[
+"🏳a‍́️️👩❤\t👧👨👍👧e❤́한\r\ŕ\nb👨🔥️👧👩️🏽x",
+"🏳a‍́️️👩❤\t👧👨👍👧e…",
+"22",
+"🏳a‍́️️👩❤\t👧👨👍👧e❤́한\r\ŕ"
+],
+[
+"️‍한́‍🇺",
+"️‍한́‍🇺",
+"3",
+"️‍한́‍🇺"
+],
+[
+"한‍́e️xa 👍👍\nee️🌈👩́한🔥",
+"한‍́e️xa 👍👍\nee️…",
+"14",
+"한‍́e️xa 👍👍"
+],
+[
+"👧🏳‍️ 👍🏳 ",
+"👧🏳‍️ 👍🏳 ",
+"6",
+"👧🏳‍️ 👍🏳"
+],
+[
+"🏽\r🏳́a🇸🇺",
+"🏽\r🏳́a🇸🇺",
+"5",
+"🏽\r🏳́a🇸🇺"
+],
+[
+"️️️e\te❤‍‍\n🔥a \n🇺e🇸️",
+"️️️e\te❤‍‍\n🔥a \n…",
+"13",
+"️️️e\te❤‍‍"
+],
+[
+"a❤ 한",
+"a❤ 한",
+"4",
+"a❤ 한"
+],
+[
+"b한🏽🇺👍🌈x🏳🇸👧‍👨👩👨e️️ 🏽‍️ ",
+"b한🏽🇺👍🌈x🏳🇸👧‍👨👩…",
+"14",
+"b한🏽🇺👍🌈x🏳🇸👧‍👨👩👨e️️ 🏽‍️"
+],
+[
+"️́🌈b️🏳🔥\r\tb ́́x",
+"️́🌈b️🏳🔥\r\tb ́́x",
+"10",
+"️́🌈b️🏳🔥\r\tb ́́x"
+],
+[
+"🇸b\r️🇸‍👩\rbb́한👨🇸",
+"🇸b\r️🇸‍👩\rbb́한…",
+"12",
+"🇸b\r️🇸‍👩\rbb́한👨🇸"
+],
+[
+"́\t️‍🌈👨❤️‍👩🇸👧e❤ 👍👧\nx️🔥🏳́a",
+"́\t️‍🌈👨❤️‍👩🇸👧e❤…",
+"18",
+"́\t️‍🌈👨❤️‍👩🇸👧e❤ 👍👧"
+],
+[
+"️ab‍ 한👍‍‍\rx‍‍‍́🏳👩‍👩́\r❤️️",
+"️ab‍ 한👍‍‍\rx‍‍‍́🏳👩‍👩́…",
+"12",
+"️ab‍ 한👍‍‍\rx‍‍‍́🏳👩‍👩́\r❤️️"
+],
+[
+"👍‍b👍x‍‍👩️ ️́‍",
+"👍‍b👍x‍‍👩️ ️́‍",
+"6",
+"👍‍b👍x‍‍👩️ ️́‍"
+],
+[
+"‍🏽‍\r🔥️‍\t️🌈\t‍👨́🏳",
+"‍🏽‍\r🔥️‍\t️🌈\t‍👨́🏳",
+"10",
+"‍🏽‍\r🔥️‍\t️🌈\t‍👨́🏳"
+],
+[
+"‍\n👧한👩️\t\r\t👩\na🏳🇺‍️b 👍‍ ️a\t👩a",
+"‍\n👧한👩️\t\r\t👩\n…",
+"21",
+"‍"
+],
+[
+"́🇺‍️‍🏽️e‍ ️́a👩👩\n🏽👨\n\ta️👨️́́\t🇸",
+"́🇺‍️‍🏽️e‍ ️́a👩👩\n🏽👨…",
+"16",
+"́🇺‍️‍🏽️e‍ ️́a👩👩"
+],
+[
+"🏳🏳‍️b️👍🇸 👩́🇺\t한🇺👩‍b ‍🏽e",
+"🏳🏳‍️b️👍🇸 👩́🇺\t한…",
+"15",
+"🏳🏳‍️b️👍🇸 👩́🇺\t한🇺👩‍b ‍🏽e"
+],
+[
+" x🔥b🇸‍‍\te👩👍\r\n🌈‍🏳",
+" x🔥b🇸‍‍\te👩👍\r\n…",
+"11",
+"x🔥b🇸‍‍\te👩👍\r\n🌈‍🏳"
+],
+[
+"️‍x🏽\t👧‍\t‍👍🇸",
+"️‍x🏽\t👧‍\t‍👍🇸",
+"8",
+"️‍x🏽\t👧‍\t‍👍🇸"
+],
+[
+"한🇸b‍b‍‍",
+"한🇸b‍b‍‍",
+"4",
+"한🇸b‍b‍‍"
+],
+[
+"‍한b‍b️👧️❤ ",
+"‍한b‍b️👧️❤ ",
+"7",
+"‍한b‍b️👧️❤"
+],
+[
+"🌈‍🏽️\r️a❤a🌈❤́🌈  \t🌈❤‍🔥\n❤️️a🇺‍‍",
+"🌈‍🏽️\r️a❤a🌈❤́🌈 …",
+"18",
+"🌈‍🏽️\r️a❤a🌈❤́🌈  \t🌈❤‍🔥"
+],
+[
+" ‍한👍❤\n👩",
+" ‍한👍❤\n👩",
+"6",
+"‍한👍❤"
+],
+[
+"👧 ",
+"👧 ",
+"2",
+"👧"
+],
+[
+"🔥👩️👧👨 👩🇸🌈a‍👨‍",
+"🔥👩️👧👨 👩🇸🌈a‍👨‍",
+"10",
+"🔥👩️👧👨 👩🇸🌈a‍👨‍"
+],
+[
+"\t🏳🏳👩‍🇸‍\t‍👨\n🔥한",
+"\t🏳🏳👩‍🇸‍\t‍👨\n🔥…",
+"11",
+"🏳🏳👩‍🇸‍\t‍👨"
+],
+[
+"e a🔥‍b\r️️👍🇺🇺x\n‍🇺한‍a️🔥🏳‍🏽‍👍\r",
+"e a🔥‍b\r️️👍🇺🇺x…",
+"19",
+"e a🔥‍b\r️️👍🇺🇺x"
+],
+[
+"👨️한́a️",
+"👨️한́a️",
+"3",
+"👨️한́a️"
+],
+[
+"️️",
+"️️",
+"1",
+"️️"
+],
+[
+"🇸🇸🇺e🌈\n️́e",
+"🇸🇸🇺e🌈\n️́e",
+"7",
+"🇸🇸🇺e🌈"
+],
+[
+"🏳a❤\n🇸️\r\t\n👧",
+"🏳a❤\n🇸️\r\t\n👧",
+"9",
+"🏳a❤"
+],
+[
+"👨\t\r️🇸🇺👨❤b",
+"👨\t\r️🇸🇺👨❤b",
+"8",
+"👨\t\r️🇸🇺👨❤b"
+],
+[
+"xe🏽👍́b́🇸‍👧‍x️👧👨‍\r🇺❤x️️🔥",
+"xe🏽👍́b́🇸‍👧‍x️👧👨‍\r…",
+"14",
+"xe🏽👍́b́🇸‍👧‍x️👧👨‍\r🇺❤x️️🔥"
+],
+[
+"🔥🇸‍‍❤🇸🏽👨❤🏳e‍",
+"🔥🇸‍‍❤🇸🏽👨❤🏳e‍",
+"8",
+"🔥🇸‍‍❤🇸🏽👨❤🏳e‍"
+],
+[
+"xba🌈‍\t‍́️b👧🇺‍한️́👧🏳\r🏳️‍🇺",
+"xba🌈‍\t‍́️b👧🇺‍한️́…",
+"15",
+"xba🌈‍\t‍́️b👧🇺‍한️́👧🏳\r🏳️‍🇺"
+],
+[
+"👍👨‍\n한x́🌈🔥👍a🔥‍❤",
+"👍👨‍\n한x́🌈🔥👍a🔥‍❤",
+"10",
+"👍👨‍"
+],
+[
+"‍ ",
+"‍ ",
+"2",
+"‍"
+],
+[
+"‍",
+"‍",
+"1",
+"‍"
+],
+[
+"‍́🇺a\t️🇺🌈‍ \n🔥‍🌈 \t",
+"‍́🇺a\t️🇺🌈‍ \n🔥‍🌈…",
+"12",
+"‍́🇺a\t️🇺🌈‍"
+],
+[
+"👧‍🇸b🏽",
+"👧‍🇸b🏽",
+"3",
+"👧‍🇸b🏽"
+],
+[
+"👩🏳́️e\n‍e️x️🏳́🇸\n️👧한",
+"👩🏳́️e\n‍e️x️🏳́🇸\n…",
+"13",
+"👩🏳́️e"
+],
+[
+"🏽🇺b🏽🏳́🌈\n한bb👍️‍🏳🇸한a👩́‍a🇺",
+"🏽🇺b🏽🏳́🌈\n한bb👍️‍🏳…",
+"16",
+"🏽🇺b🏽🏳́🌈"
+],
+[
+"🇸🏳🏳❤🏽‍👩é🏳‍e️ 🇺a",
+"🇸🏳🏳❤🏽‍👩é🏳‍e️ 🇺a",
+"10",
+"🇸🏳🏳❤🏽‍👩é🏳‍e️ 🇺a"
+],
+[
+"‍x한🌈🇸👨한🇸🌈한👨x\n🇺️x",
+"‍x한🌈🇸👨한🇸🌈한…",
+"15",
+"‍x한🌈🇸👨한🇸🌈한👨x"
+],
+[
+"🔥a❤eeb한\n👍️́‍‍🌈e👨️️e‍🏳́🏽️x",
+"🔥a❤eeb한\n👍️́‍‍🌈…",
+"15",
+"🔥a❤eeb한"
+],
+[
+"🌈🔥🌈🔥🇺\ń🔥e️한\n👨👧🌈\re\r️🌈🏽",
+"🌈🔥🌈🔥🇺\ń🔥e️한…",
+"19",
+"🌈🔥🌈🔥🇺"
+],
+[
+" \t\t👧🌈🏽한\r",
+" \t\t👧🌈🏽한\r",
+"7",
+"👧🌈🏽한\r"
+],
+[
+"👩🇺b❤️ 👍‍️🇸🌈🏽🇸👍🇺🇺b한",
+"👩🇺b❤️ 👍‍️🇸🌈🏽🇸👍…",
+"13",
+"👩🇺b❤️ 👍‍️🇸🌈🏽🇸👍🇺🇺b한"
+],
+[
+"‍👧 🌈한x‍́️️🇺a\n🇸🌈b‍x️\nb한👩️🏳́🇸️",
+"‍👧 🌈한x‍́️️🇺a\n🇸…",
+"19",
+"‍👧 🌈한x‍́️️🇺a"
+],
+[
+"🏳👩‍\r️ 한",
+"🏳👩‍\r️ 한",
+"6",
+"🏳👩‍\r️ 한"
+],
+[
+"️👍️b🇺\n‍‍a👍👩e👩️b🔥🏳\t👍b️́🌈️\t🇸́e️",
+"️👍️b🇺\n‍‍a👍👩e…",
+"21",
+"️👍️b🇺"
+],
+[
+"❤a‍́\r‍‍🏽‍👍️👍‍\nb 👨",
+"❤a‍́\r‍‍🏽‍👍️👍‍\nb 👨",
+"10",
+"❤a‍́\r‍‍🏽‍👍️👍‍"
+],
+[
+"\t👍 🌈́‍‍",
+"\t👍 🌈́‍‍",
+"4",
+"👍 🌈́‍‍"
+],
+[
+"\rb👩🇺́🇸🏳👨👍́🏳🏳️🇺🏽\r🌈‍🌈\n ‍🇺",
+"\rb👩🇺́🇸🏳👨👍́🏳🏳️…",
+"16",
+"\rb👩🇺́🇸🏳👨👍́🏳🏳️🇺🏽\r🌈‍🌈"
+],
+[
+"‍👍🌈️‍b́👍\tx️\n👧b️‍a️b️a🇸👨́‍‍️🌈👨a",
+"‍👍🌈️‍b́👍\tx️\n👧b️‍…",
+"18",
+"‍👍🌈️‍b́👍\tx️"
+],
+[
+"👨한‍‍‍🏳 a️❤a👨👩a👍 🇺b️x 🇺🇸‍🔥🇸",
+"👨한‍‍‍🏳 a️❤a👨👩a…",
+"19",
+"👨한‍‍‍🏳 a️❤a👨👩a👍 🇺b️x 🇺🇸‍🔥🇸"
+],
+[
+"‍🔥🇺\t️a",
+"‍🔥🇺\t️a",
+"6",
+"‍🔥🇺\t️a"
+],
+[
+"\rx\r🏽a❤한👩🏳‍👍́\t🔥‍🔥b👩",
+"\rx\r🏽a❤한👩🏳‍👍́\t…",
+"13",
+"\rx\r🏽a❤한👩🏳‍👍́\t🔥‍🔥b👩"
+],
+[
+"ab❤👨한️👩👨‍️🌈❤‍️\na‍‍️👍x👧🏽\n️x‍",
+"ab❤👨한️👩👨‍️🌈❤‍️\n…",
+"17",
+"ab❤👨한️👩👨‍️🌈❤‍️"
+],
+[
+"b️\r🇺🇸🇺🏳🇺\r\r🇺👧‍‍❤❤👍‍",
+"b️\r🇺🇸🇺🏳🇺\r\r🇺👧‍‍…",
+"13",
+"b️\r🇺🇸🇺🏳🇺\r\r🇺👧‍‍❤❤👍‍"
+],
+[
+"한‍🇸e👩ae❤\r‍\n 👧e👍x\t❤bb🌈",
+"한‍🇸e👩ae❤\r‍\n…",
+"20",
+"한‍🇸e👩ae❤\r‍"
+],
+[
+"🇸🏳‍🏳‍ ‍🏽🇺\n\nba‍🇺❤🏽🏽‍",
+"🇸🏳‍🏳‍ ‍🏽🇺\n\nba‍🇺❤🏽🏽‍",
+"10",
+"🇸🏳‍🏳‍ ‍🏽🇺"
+],
+[
+"b👍‍a️🔥🔥️❤e🔥🏽🏳 🔥👨",
+"b👍‍a️🔥🔥️❤e🔥🏽🏳 …",
+"12",
+"b👍‍a️🔥🔥️❤e🔥🏽🏳 🔥👨"
+],
+[
+"🔥👧 👨\r🇸🔥👩́🇺🇺👩🇺한❤‍\n️️️🇸👍🇸‍👩",
+"🔥👧 👨\r🇸🔥👩́🇺🇺👩…",
+"19",
+"🔥👧 👨\r🇸🔥👩́🇺🇺👩🇺한❤‍"
+],
+[
+"‍️👨",
+"‍️👨",
+"2",
+"‍️👨"
+],
+[
+"👍❤‍\n👍🏽한‍‍👨️👩🇸‍🔥👧 🏳️",
+"👍❤‍\n👍🏽한‍‍👨️👩🇸‍🔥👧…",
+"12",
+"👍❤‍"
+],
+[
+"e🔥\n🏳🌈🏳a👩🔥👧 ❤️b👨️👩🏳🏽👧️",
+"e🔥\n🏳🌈🏳a👩🔥👧…",
+"17",
+"e🔥"
+],
+[
+"❤\n👩한x👧\r🔥🏽🏽a‍❤👍🇺",
+"❤\n👩한x👧\r🔥🏽🏽a‍❤…",
+"12",
+"❤"
+],
+[
+"‍x️",
+"‍x️",
+"2",
+"‍x️"
+],
+[
+"‍🌈b",
+"‍🌈b",
+"3",
+"‍🌈b"
+],
+[
+"\n🇸‍👍한🔥🇸 🏳",
+"\n🇸‍👍한🔥🇸 🏳",
+"8",
+"🇸‍👍한🔥🇸 🏳"
+],
+[
+"e\n",
+"e\n",
+"2",
+"e"
+],
+[
+"a️x 👨x‍👨a️❤a️🔥",
+"a️x 👨x‍👨a️❤a️🔥",
+"10",
+"a️x 👨x‍👨a️❤a️🔥"
+],
+[
+"👧 🔥🇸한 \n️👩한b‍  ️‍🏽‍👍b🌈‍🔥e🏽‍",
+"👧 🔥🇸한 \n️👩한…",
+"17",
+"👧 🔥🇸한"
+],
+[
+"́👍한👨🏳a🇺🇸❤👩🔥👍️🏽한a‍x️‍🔥\t\r🇺‍👧",
+"́👍한👨🏳a🇺🇸❤👩🔥…",
+"19",
+"́👍한👨🏳a🇺🇸❤👩🔥👍️🏽한a‍x️‍🔥\t\r🇺‍👧"
+],
+[
+"x‍한a \t 👩🇺\n‍👩e🏳🔥🔥",
+"x‍한a \t 👩🇺\n‍…",
+"15",
+"x‍한a \t 👩🇺"
+],
+[
+"‍‍\nx👍🏳\n\t️‍❤🇺🇸👨🌈\n한️",
+"‍‍\nx👍🏳\n\t️‍❤🇺🇸…",
+"14",
+"‍‍"
+],
+[
+"❤️🇸 🏳️‍‍❤❤❤‍\n👨‍‍\n️🏳🏳️👩❤한",
+"❤️🇸 🏳️‍‍❤❤❤‍\n👨‍‍\n…",
+"16",
+"❤️🇸 🏳️‍‍❤❤❤‍"
+],
+[
+"x️\r‍‍🇺\n 🏽‍",
+"x️\r‍‍🇺\n 🏽‍",
+"6",
+"x️\r‍‍🇺"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"❤🏽❤🇸🏳️️b🏽🏽👨b‍ b️👧e🇸a🔥👍‍",
+"❤🏽❤🇸🏳️️b🏽🏽👨b‍ b️👧…",
+"15",
+"❤🏽❤🇸🏳️️b🏽🏽👨b‍ b️👧e🇸a🔥👍‍"
+],
+[
+"🏳️x‍‍👩́🇸‍a🇸❤́",
+"🏳️x‍‍👩́🇸‍a🇸❤́",
+"7",
+"🏳️x‍‍👩́🇸‍a🇸❤́"
+],
+[
+"e👧‍👩‍한👍🏳🔥́‍️‍‍👩b🏳\tb️b️‍ 🏳🏽‍",
+"e👧‍👩‍한👍🏳🔥́‍️‍‍👩b🏳\t…",
+"14",
+"e👧‍👩‍한👍🏳🔥́‍️‍‍👩b🏳\tb️b️‍ 🏳🏽‍"
+],
+[
+"\r️́ ️‍🌈️️‍ ️‍e🌈👨",
+"\r️́ ️‍🌈️️‍ ️‍e🌈👨",
+"8",
+"\r️́ ️‍🌈️️‍ ️‍e🌈👨"
+],
+[
+"b👍a👩\r🔥한한👧👩🌈👍‍‍‍🏽 ❤ 🌈x🌈 a️",
+"b👍a👩\r🔥한한👧👩…",
+"20",
+"b👍a👩\r🔥한한👧👩🌈👍‍‍‍🏽 ❤ 🌈x🌈 a️"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"́\t\t\ra👨a️‍👩한🌈x👩🇺x한x👧👨\te🌈🇸🌈🌈🏽",
+"́\t\t\ra👨a️‍👩한🌈…",
+"24",
+"́\t\t\ra👨a️‍👩한🌈x👩🇺x한x👧👨\te🌈🇸🌈🌈🏽"
+],
+[
+"́‍\n한️‍e",
+"́‍\n한️‍e",
+"4",
+"́‍"
+],
+[
+"👩\n\t️🔥🇺‍👨️a\n👩👩️🌈👍🔥",
+"👩\n\t️🔥🇺‍👨️a\n👩…",
+"14",
+"👩"
+],
+[
+"‍x👧x‍👩️🏽b́❤🔥🌈👍‍ ‍‍🇺",
+"‍x👧x‍👩️🏽b́❤🔥🌈👍‍…",
+"12",
+"‍x👧x‍👩️🏽b́❤🔥🌈👍‍ ‍‍🇺"
+],
+[
+"️🔥‍️️\r️\r🇺‍👧́한👧한️🏳️👨‍️‍\r",
+"️🔥‍️️\r️\r🇺‍👧́한👧한️…",
+"13",
+"️🔥‍️️\r️\r🇺‍👧́한👧한️🏳️👨‍️‍\r"
+],
+[
+"👩a \n🇸🇸x\r️ 한\r👩🏳👍\t👍‍❤a👨xx한️\r️🇺️️",
+"👩a \n🇸🇸x\r️ 한…",
+"24",
+"👩a"
+],
+[
+"\ŕ‍👍\t‍🏽🔥🌈👍👨👍한x\r ️️\ne",
+"\ŕ‍👍\t‍🏽🔥🌈👍👨👍…",
+"16",
+"\ŕ‍👍\t‍🏽🔥🌈👍👨👍한x\r ️️"
+],
+[
+"👩‍🏽\t👧👨👧\nx🏳\r\n 🇸\r👍",
+"👩‍🏽\t👧👨👧\nx🏳\r\n …",
+"13",
+"👩‍🏽\t👧👨👧"
+],
+[
+"한️eb🔥\n\t👩👩️👧 ",
+"한️eb🔥\n\t👩👩️👧 ",
+"10",
+"한️eb🔥"
+],
+[
+"́👩👧\t🇺",
+"́👩👧\t🇺",
+"5",
+"́👩👧\t🇺"
+],
+[
+" ️🏽ab👨 🇸❤🏽한👧 \r️👩👧‍",
+" ️🏽ab👨 🇸❤🏽한👧 …",
+"14",
+"️🏽ab👨 🇸❤🏽한👧 \r️👩👧‍"
+],
+[
+"👧️",
+"👧️",
+"1",
+"👧️"
+],
+[
+"👩🏽a‍\t🔥́🏽❤👍🇸x🏽🔥👧‍́‍🏳́\r👩️b́",
+"👩🏽a‍\t🔥́🏽❤👍🇸x🏽🔥👧‍́‍…",
+"14",
+"👩🏽a‍\t🔥́🏽❤👍🇸x🏽🔥👧‍́‍🏳́\r👩️b́"
+],
+[
+"👩🔥🏳👩́🌈  \na\ra️x‍🌈 👩 ‍",
+"👩🔥🏳👩́🌈  \na\r…",
+"16",
+"👩🔥🏳👩́🌈"
+],
+[
+"🇸a🔥‍ 👩️x\t́🇸🇺",
+"🇸a🔥‍ 👩️x\t́🇸🇺",
+"9",
+"🇸a🔥‍ 👩️x\t́🇸🇺"
+],
+[
+"‍️🌈🔥🇸️b🏳\na👩🏽️́️\r\r🇸‍\nbx👧👩🏽️",
+"‍️🌈🔥🇸️b🏳\na👩🏽️́️\r…",
+"17",
+"‍️🌈🔥🇸️b🏳"
+],
+[
+"🌈👧‍🏽‍🇺🏳🇺\n👩️🇸\ne🇸‍️\n🔥👨👧👧",
+"🌈👧‍🏽‍🇺🏳🇺\n👩️🇸\ne…",
+"16",
+"🌈👧‍🏽‍🇺🏳🇺"
+],
+[
+"️🇸x 🇺👨",
+"️🇸x 🇺👨",
+"6",
+"️🇸x 🇺👨"
+],
+[
+"👩🏽️한️x👧️️‍👨\ta\n❤🇺️👍🇺  x️한",
+"👩🏽️한️x👧️️‍👨\ta\n❤🇺️👍…",
+"15",
+"👩🏽️한️x👧️️‍👨\ta"
+],
+[
+"́👍👩❤️x🔥🔥a‍한‍‍🇸🏳🏽🔥x\ń🏳🌈️한한한🇺️",
+"́👍👩❤️x🔥🔥a‍한‍‍🇸…",
+"21",
+"́👍👩❤️x🔥🔥a‍한‍‍🇸🏳🏽🔥x"
+],
+[
+"‍🏽️한🏽🏽👨🇸‍x️",
+"‍🏽️한🏽🏽👨🇸‍x️",
+"5",
+"‍🏽️한🏽🏽👨🇸‍x️"
+],
+[
+"‍‍👍a‍",
+"‍‍👍a‍",
+"3",
+"‍‍👍a‍"
+],
+[
+"\n️\n‍‍́‍\r‍\n\r‍a‍b한‍\n\t",
+"\n️\n‍‍́‍\r‍\n\r‍a‍…",
+"14",
+"️"
+],
+[
+"🇺️‍한\r\rx👨‍‍👩🇺‍‍\rbx",
+"🇺️‍한\r\rx👨‍‍👩🇺‍‍\rb…",
+"11",
+"🇺️‍한\r\rx👨‍‍👩🇺‍‍\rbx"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+" ️b️🌈a‍👩👩\r👨́️a👩🔥❤e🇺‍‍b",
+" ️b️🌈a‍👩👩\r👨́️a👩…",
+"15",
+"️b️🌈a‍👩👩\r👨́️a👩🔥❤e🇺‍‍b"
+],
+[
+"‍🇸🇸️\r",
+"‍🇸🇸️\r",
+"3",
+"‍🇸🇸️\r"
+],
+[
+"e🔥🏽\n🏳🏽️한️a‍\t👨👍x🇸한❤🏳bbe❤",
+"e🔥🏽\n🏳🏽️한️a‍\t👨👍x…",
+"18",
+"e🔥🏽"
+],
+[
+"a한️❤🏳한❤👧",
+"a한️❤🏳한❤👧",
+"7",
+"a한️❤🏳한❤👧"
+],
+[
+"\n🇺x👨\r‍👩 \n",
+"\n🇺x👨\r‍👩 \n",
+"9",
+"🇺x👨\r‍👩"
+],
+[
+"\t👧‍🔥🏳👍🇸️́x👩🇸️",
+"\t👧‍🔥🏳👍🇸️́x👩🇸️",
+"8",
+"👧‍🔥🏳👍🇸️́x👩🇸️"
+],
+[
+"🏳👧🏽👩️️️❤🇸👧🇸❤👧‍́‍️́‍👩👧a‍👨한",
+"🏳👧🏽👩️️️❤🇸👧🇸❤👧‍́‍️́‍👩…",
+"14",
+"🏳👧🏽👩️️️❤🇸👧🇸❤👧‍́‍️́‍👩👧a‍👨한"
+],
+[
+"‍🏽",
+"‍🏽",
+"1",
+"‍🏽"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"‍🏳a\nx👨b 한\t👧a‍a️🏽❤🏽́\n‍👧‍\n️",
+"‍🏳a\nx👨b 한\t…",
+"19",
+"‍🏳a"
+],
+[
+"‍x\t\r",
+"‍x\t\r",
+"4",
+"‍x\t\r"
+],
+[
+"\té👍🇺🏽👍👍e🇺🌈한🔥́‍한‍👩🇸‍‍🇸👩👧",
+"\té👍🇺🏽👍👍e🇺🌈한…",
+"17",
+"é👍🇺🏽👍👍e🇺🌈한🔥́‍한‍👩🇸‍‍🇸👩👧"
+],
+[
+"🏳a🇸e\r‍ ❤aa🇸‍👧🔥👧‍ 🏽🇺❤‍\t ",
+"🏳a🇸e\r‍ ❤aa…",
+"19",
+"🏳a🇸e\r‍ ❤aa🇸‍👧🔥👧‍ 🏽🇺❤‍"
+],
+[
+"́\n ́‍́🇺️🇸x́x❤e️‍‍️\n🌈️b",
+"́\n ́‍́🇺️🇸x́x❤e️‍‍️\n…",
+"12",
+"́"
+],
+[
+"\rb️",
+"\rb️",
+"2",
+"\rb️"
+],
+[
+"👧🏳🌈x️🇺❤️‍́",
+"👧🏳🌈x️🇺❤️‍́",
+"6",
+"👧🏳🌈x️🇺❤️‍́"
+],
+[
+"‍한‍e‍ a️🔥b\r‍👨a👧👩 ❤b\n\t‍🌈‍́🇸‍🌈",
+"‍한‍e‍ a️🔥b\r‍👨…",
+"22",
+"‍한‍e‍ a️🔥b\r‍👨a👧👩 ❤b"
+],
+[
+"🇺👧bx👍👍👩ex",
+"🇺👧bx👍👍👩ex",
+"9",
+"🇺👧bx👍👍👩ex"
+],
+[
+"🇺́‍e👩🔥️\n‍\n한‍🌈🏳 ‍‍x한🔥ee️ea👧",
+"🇺́‍e👩🔥️\n‍\n한‍🌈🏳…",
+"19",
+"🇺́‍e👩🔥️"
+],
+[
+"e\t ❤👍한‍🏽e‍🏳🏳\r‍🔥🇺️🌈\t️",
+"e\t ❤👍한‍🏽e‍🏳🏳\r…",
+"16",
+"e\t ❤👍한‍🏽e‍🏳🏳\r‍🔥🇺️🌈\t️"
+],
+[
+"🌈\n❤‍́\r🇸‍‍\t👍👍🇸🏳́👩️🇸👨🏳❤️👍🇺́️👩e",
+"🌈\n❤‍́\r🇸‍‍\t👍👍🇸🏳́…",
+"19",
+"🌈"
+],
+[
+"\r🌈️❤️‍👍👧️‍👍️️a️ 👨️👩👧\r",
+"\r🌈️❤️‍👍👧️‍👍️️a️ 👨️👩👧\r",
+"10",
+"\r🌈️❤️‍👍👧️‍👍️️a️ 👨️👩👧\r"
+],
+[
+"\t́‍‍한👨\ra\n🌈️\t🏽‍‍️👧️‍️",
+"\t́‍‍한👨\ra\n🌈️\t🏽‍‍️…",
+"11",
+"́‍‍한👨\ra"
+],
+[
+"‍‍🏳️️b👩 \r🌈‍‍❤🔥",
+"‍‍🏳️️b👩 \r🌈‍‍❤🔥",
+"9",
+"‍‍🏳️️b👩 \r🌈‍‍❤🔥"
+],
+[
+"\te👨❤🔥‍🏳",
+"\te👨❤🔥‍🏳",
+"5",
+"e👨❤🔥‍🏳"
+],
+[
+"한‍️b‍👨️🏽\t\n👧́🇸한🏳한\rx🇸\n👧\t❤e🏽x🏽👨\t",
+"한‍️b‍👨️🏽\t\n👧́🇸한🏳한…",
+"21",
+"한‍️b‍👨️🏽"
+],
+[
+"️️👧👍❤🔥👍👧🌈‍👩👨️‍",
+"️️👧👍❤🔥👍👧🌈‍👩👨️‍",
+"9",
+"️️👧👍❤🔥👍👧🌈‍👩👨️‍"
+],
+[
+"🌈🏳‍🇺x́",
+"🌈🏳‍🇺x́",
+"4",
+"🌈🏳‍🇺x́"
+],
+[
+"🌈́🇺\n \n️",
+"🌈́🇺\n \n️",
+"6",
+"🌈́🇺"
+],
+[
+"‍👨",
+"‍👨",
+"2",
+"‍👨"
+],
+[
+"🔥👧🇺👨\n\t❤\n👧👩️🔥‍️\t🏽x\n👍️b️",
+"🔥👧🇺👨\n\t❤\n👧👩️…",
+"17",
+"🔥👧🇺👨"
+],
+[
+"\n️️́‍\t🔥🔥🇸\t\n️‍🔥\re🏽‍",
+"\n️️́‍\t🔥🔥🇸\t\n️‍🔥…",
+"12",
+"️️́‍\t🔥🔥🇸"
+],
+[
+"❤🌈👧́\n🏳️🏳️ ‍🇸👨👧️\r 🌈👨️️🌈️‍🔥‍한",
+"❤🌈👧́\n🏳️🏳️ ‍🇸👨👧️…",
+"16",
+"❤🌈👧́"
+],
+[
+"‍ 🏳🇺",
+"‍ 🏳🇺",
+"4",
+"‍ 🏳🇺"
+],
+[
+" 🌈👧️a\r\t‍❤bb́‍️👩‍\t👩️️xb👩",
+" 🌈👧️a\r\t‍❤bb́‍️…",
+"16",
+"🌈👧️a\r\t‍❤bb́‍️👩‍\t👩️️xb👩"
+],
+[
+"한a🇺x️🌈‍",
+"한a🇺x️🌈‍",
+"5",
+"한a🇺x️🌈‍"
+],
+[
+"🇺🏳🌈aa❤\t‍한❤ab\r한👩🇺e👧👩🌈bb️👩🔥‍",
+"🇺🏳🌈aa❤\t‍한❤…",
+"24",
+"🇺🏳🌈aa❤\t‍한❤ab\r한👩🇺e👧👩🌈bb️👩🔥‍"
+],
+[
+"\n🌈️❤🇸🏳 👍🔥🔥👧\t ️",
+"\n🌈️❤🇸🏳 👍🔥🔥👧…",
+"12",
+"🌈️❤🇸🏳 👍🔥🔥👧\t ️"
+],
+[
+"🔥🏳e👧👧́🏽👧️é👧🏽a👨🔥🇺\t👍\t👩\n🔥👩",
+"🔥🏳e👧👧́🏽👧️é👧🏽a👨…",
+"19",
+"🔥🏳e👧👧́🏽👧️é👧🏽a👨🔥🇺\t👍\t👩"
+],
+[
+"👍‍\n\n\ta👧👍👍한한🌈",
+"👍‍\n\n\ta👧👍👍한한…",
+"11",
+"👍‍"
+],
+[
+"\r🏳🏳👩‍️️🔥\ŕb",
+"\r🏳🏳👩‍️️🔥\ŕb",
+"8",
+"\r🏳🏳👩‍️️🔥\ŕb"
+],
+[
+"‍👨️ ‍❤👍🏳🇸️️🏽‍‍👍🏽‍🇺👩\n",
+"‍👨️ ‍❤👍🏳🇸️️🏽‍‍👍🏽‍🇺👩…",
+"11",
+"‍👨️ ‍❤👍🏳🇸️️🏽‍‍👍🏽‍🇺👩"
+],
+[
+"‍\t👧‍\n🏳\n👧👍👧️́\tx‍️b👧x🔥👧🔥👨🏽x",
+"‍\t👧‍\n🏳\n👧👍👧️́\t…",
+"19",
+"‍\t👧‍"
+],
+[
+"‍👍\n ️‍",
+"‍👍\n ️‍",
+"4",
+"‍👍"
+],
+[
+"❤️🔥❤\tx‍́‍👧\n\n🇺🏳한́‍e🇸",
+"❤️🔥❤\tx‍́‍👧\n\n🇺🏳…",
+"13",
+"❤️🔥❤\tx‍́‍👧"
+],
+[
+"🏳‍\tb🏳\r️‍\n‍️‍b🔥️ \n👧👍e👧e\r‍",
+"🏳‍\tb🏳\r️‍\n‍️‍b🔥️…",
+"19",
+"🏳‍\tb🏳\r️‍"
+],
+[
+"\n❤👍\n 🔥a",
+"\n❤👍\n 🔥a",
+"7",
+"❤👍"
+],
+[
+"‍❤👧👧️x🇺",
+"‍❤👧👧️x🇺",
+"6",
+"‍❤👧👧️x🇺"
+],
+[
+"🇸👍‍\n️ ️👍️‍",
+"🇸👍‍\n️ ️👍️‍",
+"6",
+"🇸👍‍"
+],
+[
+"e👩e🏳🌈한e 👧ee👨🇸 ‍❤🌈a\t",
+"e👩e🏳🌈한e 👧e…",
+"18",
+"e👩e🏳🌈한e 👧ee👨🇸 ‍❤🌈a"
+],
+[
+"🏳‍👨👩",
+"🏳‍👨👩",
+"2",
+"🏳‍👨👩"
+],
+[
+"\t🇸 🔥❤🏳🏳️́\t🏽b️\t🇺\ne🌈\na",
+"\t🇸 🔥❤🏳🏳️́\t🏽b️…",
+"17",
+"🇸 🔥❤🏳🏳️́\t🏽b️\t🇺"
+],
+[
+"🏳e‍👨\t🇸👨👍️e",
+"🏳e‍👨\t🇸👨👍️e",
+"8",
+"🏳e‍👨\t🇸👨👍️e"
+],
+[
+"🌈한❤️👨x‍👧️❤\n️🏳",
+"🌈한❤️👨x‍👧️❤\n️🏳",
+"10",
+"🌈한❤️👨x‍👧️❤"
+],
+[
+"️\t👨‍x🔥🇸👍",
+"️\t👨‍x🔥🇸👍",
+"7",
+"️\t👨‍x🔥🇸👍"
+],
+[
+"a️‍👍️b️ex🇸👍🇸🇺🇸e👨️🇺‍❤🔥🇸\n",
+"a️‍👍️b️ex🇸👍🇸🇺🇸e…",
+"16",
+"a️‍👍️b️ex🇸👍🇸🇺🇸e👨️🇺‍❤🔥🇸"
+],
+[
+"🏳a👩́👧a🇸é❤🌈x한\n",
+"🏳a👩́👧a🇸é❤🌈x…",
+"12",
+"🏳a👩́👧a🇸é❤🌈x한"
+],
+[
+"🔥\n‍️‍‍",
+"🔥\n‍️‍‍",
+"3",
+"🔥"
+],
+[
+"\n👍‍️❤b👍‍한",
+"\n👍‍️❤b👍‍한",
+"6",
+"👍‍️❤b👍‍한"
+],
+[
+"x🇺🇺❤b🇺👍\n",
+"x🇺🇺❤b🇺👍\n",
+"7",
+"x🇺🇺❤b🇺👍"
+],
+[
+"\ń́️e🇺\n🇺🌈🔥 ❤\nx🌈️\ŕ❤️👨a",
+"\ń́️e🇺\n🇺🌈🔥 ❤…",
+"18",
+"́́️e🇺"
+],
+[
+"🇸️🔥a‍x🇸‍",
+"🇸️🔥a‍x🇸‍",
+"5",
+"🇸️🔥a‍x🇸‍"
+],
+[
+"‍‍a👨️b️́👧👍\n👩🏳‍️👧한‍x️️‍",
+"‍‍a👨️b️́👧👍\n👩🏳‍️👧…",
+"12",
+"‍‍a👨️b️́👧👍"
+],
+[
+"🔥",
+"🔥",
+"1",
+"🔥"
+],
+[
+"한🌈‍\r️👩🏳b️🏽a\n️ 👧\r️🌈🏽‍️️\n👧👧🌈🇺🌈🇺",
+"한🌈‍\r️👩🏳b️🏽a\n️…",
+"22",
+"한🌈‍\r️👩🏳b️🏽a"
+],
+[
+"x\r🏽‍👩\t🏽́‍🇺🇸b️한́‍\t👨\n‍️🔥🏳한🏽❤🇸",
+"x\r🏽‍👩\t🏽́‍🇺🇸b️한́‍\t…",
+"18",
+"x\r🏽‍👩\t🏽́‍🇺🇸b️한́‍\t👨"
+],
+[
+"\t👨\n🏳🇺👨👩👍🔥️‍👧👧한a👍❤‍👍‍🇺👍🇸👍👍",
+"\t👨\n🏳🇺👨👩👍🔥️‍👧👧…",
+"19",
+"👨"
+],
+[
+"👨🔥́e👩a한",
+"👨🔥́e👩a한",
+"6",
+"👨🔥́e👩a한"
+],
+[
+"‍\n한👧️\t️🇺🇸  👩‍🏽👨x👨한‍a‍",
+"‍\n한👧️\t️🇺🇸  👩‍🏽…",
+"15",
+"‍"
+],
+[
+"\n👍👍e❤🏽́️x🔥️🔥🌈🇺️a한️🏳‍🌈🇺",
+"\n👍👍e❤🏽́️x🔥️🔥🌈🇺️…",
+"14",
+"👍👍e❤🏽́️x🔥️🔥🌈🇺️a한️🏳‍🌈🇺"
+],
+[
+"b🇸b‍\r‍🏳🔥️❤\t",
+"b🇸b‍\r‍🏳🔥️❤\t",
+"9",
+"b🇸b‍\r‍🏳🔥️❤"
+],
+[
+"a🌈🏳x🇺xb️👍e\n🏳🏽\n🌈한🏽\r‍‍\n🔥🏳한❤🔥",
+"a🌈🏳x🇺xb️👍e\n…",
+"22",
+"a🌈🏳x🇺xb️👍e"
+],
+[
+"a\tx🏽a👍́🌈",
+"a\tx🏽a👍́🌈",
+"6",
+"a\tx🏽a👍́🌈"
+],
+[
+"👧‍🇺🏽👧‍👍\r",
+"👧‍🇺🏽👧‍👍\r",
+"4",
+"👧‍🇺🏽👧‍👍\r"
+],
+[
+"‍❤‍e️한🔥🏳👧",
+"‍❤‍e️한🔥🏳👧",
+"7",
+"‍❤‍e️한🔥🏳👧"
+],
+[
+"👍👍\t\n‍🇺a️️‍👍\tx🌈‍x‍‍🌈한 ️‍🇸🔥",
+"👍👍\t\n‍🇺a️️‍👍\tx…",
+"17",
+"👍👍"
+],
+[
+"🏽🔥a👍x한́️️e️bx́👍a🌈b️‍‍🔥️",
+"🏽🔥a👍x한́️️e️bx́👍…",
+"14",
+"🏽🔥a👍x한́️️e️bx́👍a🌈b️‍‍🔥️"
+],
+[
+"b́🔥❤🇸‍e️a🇸❤🏽👩🏽‍🇸한🌈‍🏳❤👧️👩b👩",
+"b́🔥❤🇸‍e️a🇸❤🏽👩🏽‍🇸…",
+"17",
+"b́🔥❤🇸‍e️a🇸❤🏽👩🏽‍🇸한🌈‍🏳❤👧️👩b👩"
+],
+[
+"a🇸👨b🇺\t️",
+"a🇸👨b🇺\t️",
+"7",
+"a🇸👨b🇺\t️"
+],
+[
+"❤️🔥🏳👩🌈\ne️\r👍❤️‍👩‍\ra‍🌈️a🔥‍",
+"❤️🔥🏳👩🌈\ne️\r👍❤️‍👩‍…",
+"15",
+"❤️🔥🏳👩🌈"
+],
+[
+"👍",
+"👍",
+"1",
+"👍"
+],
+[
+"👧e‍🏳‍‍́🇸️\n🌈b한👨️👨👨한‍x️\n 🔥 ",
+"👧e‍🏳‍‍́🇸️\n🌈b한👨️👨…",
+"17",
+"👧e‍🏳‍‍́🇸️"
+],
+[
+"🏽‍ b‍🇸 ‍️ 🌈한\ra👍\n",
+"🏽‍ b‍🇸 ‍️ 🌈한\ra…",
+"12",
+"🏽‍ b‍🇸 ‍️ 🌈한\ra👍"
+],
+[
+"‍‍🇺️‍👧한️a🇺‍🇸🔥b한\r❤‍‍‍‍",
+"‍‍🇺️‍👧한️a🇺‍🇸🔥b한…",
+"12",
+"‍‍🇺️‍👧한️a🇺‍🇸🔥b한\r❤‍‍‍‍"
+],
+[
+"x‍👍👩xba\r‍‍한❤\t\t👧🔥👍‍👩e‍❤🏽",
+"x‍👍👩xba\r‍‍한❤…",
+"17",
+"x‍👍👩xba\r‍‍한❤\t\t👧🔥👍‍👩e‍❤🏽"
+],
+[
+"\n🇺👩a한🏳🇺\t",
+"\n🇺👩a한🏳🇺\t",
+"8",
+"🇺👩a한🏳🇺"
+],
+[
+"️́🇸️❤🇺́🏽🇺‍a‍\te️e🏳👨b❤️\r🔥❤🏳👨\t️‍",
+"️́🇸️❤🇺́🏽🇺‍a‍\te️e🏳…",
+"20",
+"️́🇸️❤🇺́🏽🇺‍a‍\te️e🏳👨b❤️\r🔥❤🏳👨\t️‍"
+],
+[
+"e️‍🏽🇸🔥🔥🔥 ‍e‍ 👩️️❤🏳\n\r❤️👧",
+"e️‍🏽🇸🔥🔥🔥 ‍e‍ 👩️️❤…",
+"15",
+"e️‍🏽🇸🔥🔥🔥 ‍e‍ 👩️️❤🏳"
+],
+[
+"👩 x🏽x한",
+"👩 x🏽x한",
+"5",
+"👩 x🏽x한"
+],
+[
+"x\r\n",
+"x\r\n",
+"2",
+"x\r\n"
+],
+[
+"한👧",
+"한👧",
+"2",
+"한👧"
+],
+[
+"ax🇺🏳🇸한xe👧‍",
+"ax🇺🏳🇸한xe👧‍",
+"9",
+"ax🇺🏳🇸한xe👧‍"
+],
+[
+"\t ",
+"\t ",
+"2",
+""
+],
+[
+"́b👧🏳\r👩🇸e🔥\r🏽🇺️👩👩🏽️ ❤\r‍️‍",
+"́b👧🏳\r👩🇸e🔥\r…",
+"18",
+"́b👧🏳\r👩🇸e🔥\r🏽🇺️👩👩🏽️ ❤\r‍️‍"
+],
+[
+"👍️🔥",
+"👍️🔥",
+"2",
+"👍️🔥"
+],
+[
+"‍🔥b️한‍👍\t‍🔥️\n\r 🌈🏽‍xxx🌈‍x́👨",
+"‍🔥b️한‍👍\t‍🔥️\n\r…",
+"18",
+"‍🔥b️한‍👍\t‍🔥️"
+],
+[
+"‍🇸🏽🇸🇸e️👧‍́🏽\t",
+"‍🇸🏽🇸🇸e️👧‍́🏽\t",
+"6",
+"‍🇸🏽🇸🇸e️👧‍́🏽"
+],
+[
+"👍 👩a👩e👨\r🇺️️🇸🔥\t 🌈👨‍\t 👨️‍\r\nb🏽e🏽‍",
+"👍 👩a👩e👨\r🇺️️🇸…",
+"21",
+"👍 👩a👩e👨\r🇺️️🇸🔥\t 🌈👨‍\t 👨️‍\r\nb🏽e🏽‍"
+],
+[
+"한👨x🇸❤‍🌈́🇺 \r \n ️a🏽a🏽🏽🏽❤ ",
+"한👨x🇸❤‍🌈́🇺 \r \n…",
+"15",
+"한👨x🇸❤‍🌈́🇺 \r"
+],
+[
+"️🔥❤ e❤🏽❤👍",
+"️🔥❤ e❤🏽❤👍",
+"8",
+"️🔥❤ e❤🏽❤👍"
+],
+[
+"🏽xe xe🏳️🏽🌈 \n🇺🏳️ b🔥👧👨🏳️🇺́‍́👩❤‍👨",
+"🏽xe xe🏳️🏽🌈 \n…",
+"21",
+"🏽xe xe🏳️🏽🌈"
+],
+[
+"❤❤",
+"❤❤",
+"2",
+"❤❤"
+],
+[
+"‍‍🏳❤한🇸  ́️🇸",
+"‍‍🏳❤한🇸  ́️🇸",
+"8",
+"‍‍🏳❤한🇸  ́️🇸"
+],
+[
+" 🏳🌈️́🏽‍‍❤❤👩 🏽a️❤❤👍👧🔥한🇺́🌈️ ",
+" 🏳🌈️́🏽‍‍❤❤👩 🏽a️❤❤…",
+"17",
+"🏳🌈️́🏽‍‍❤❤👩 🏽a️❤❤👍👧🔥한🇺́🌈️"
+],
+[
+"\n🔥🏽\t",
+"\n🔥🏽\t",
+"3",
+"🔥🏽"
+],
+[
+"e🇸‍🏳🔥‍\r🌈",
+"e🇸‍🏳🔥‍\r🌈",
+"6",
+"e🇸‍🏳🔥‍\r🌈"
+],
+[
+"❤e‍️👨️‍🇸🇸",
+"❤e‍️👨️‍🇸🇸",
+"4",
+"❤e‍️👨️‍🇸🇸"
+],
+[
+"🔥‍́\t️👨👨‍🌈🏽",
+"🔥‍́\t️👨👨‍🌈🏽",
+"5",
+"🔥‍́\t️👨👨‍🌈🏽"
+],
+[
+"👧❤b👨‍한🌈‍🏳👨👧️a🏽👧🇺",
+"👧❤b👨‍한🌈‍🏳👨👧️a🏽👧…",
+"11",
+"👧❤b👨‍한🌈‍🏳👨👧️a🏽👧🇺"
+],
+[
+"🏳‍❤b",
+"🏳‍❤b",
+"2",
+"🏳‍❤b"
+],
+[
+"́한\r🏽👨 ️‍👍🇸🌈‍‍🇸 ️ 🇺한️",
+"́한\r🏽👨 ️‍👍🇸🌈‍‍🇸…",
+"14",
+"́한\r🏽👨 ️‍👍🇸🌈‍‍🇸 ️ 🇺한️"
+],
+[
+"‍👩‍🏳️️\r‍",
+"‍👩‍🏳️️\r‍",
+"4",
+"‍👩‍🏳️️\r‍"
+],
+[
+"️👩a🏳️e한️👩b\t🇺한‍🇺‍́\r🇺🇺",
+"️👩a🏳️e한️👩b\t🇺…",
+"14",
+"️👩a🏳️e한️👩b\t🇺한‍🇺‍́\r🇺🇺"
+],
+[
+"🏽️❤b🌈\n🏽‍🏳́️👧‍x🇸\t‍‍ebe‍",
+"🏽️❤b🌈\n🏽‍🏳́️👧‍x🇸…",
+"15",
+"🏽️❤b🌈"
+],
+[
+"\ra‍‍️\t‍👨🌈️🔥\n️\r👨\r‍🔥🌈e🔥한ae",
+"\ra‍‍️\t‍👨🌈️🔥\n️\r…",
+"20",
+"\ra‍‍️\t‍👨🌈️🔥"
+],
+[
+"👨b\r‍👍 🔥́🔥‍👩한 \r",
+"👨b\r‍👍 🔥́🔥‍👩한 …",
+"11",
+"👨b\r‍👍 🔥́🔥‍👩한 \r"
+],
+[
+"🌈\nx👍❤b\ra🇺‍a🇸️🌈‍‍‍👧️e❤\n👩🔥\ra👨",
+"🌈\nx👍❤b\ra🇺‍a…",
+"21",
+"🌈"
+],
+[
+" 🏳‍️👧👧️\n\t👍x‍‍️\t️👍‍🇺👧👍",
+" 🏳‍️👧👧️\n\t👍x‍‍️\t️…",
+"14",
+"🏳‍️👧👧️"
+],
+[
+"❤🇺‍🇺👍🇺👩ae👨 ❤x",
+"❤🇺‍🇺👍🇺👩ae👨 …",
+"12",
+"❤🇺‍🇺👍🇺👩ae👨 ❤x"
+],
+[
+"́b👩́‍b‍👩👩한\r\r👨\nax🇸‍👧‍👨🔥‍e👨\n\n",
+"́b👩́‍b‍👩👩한\r\r👨…",
+"20",
+"́b👩́‍b‍👩👩한\r\r👨"
+],
+[
+" \r\tx🇸🇺",
+" \r\tx🇸🇺",
+"5",
+"\r\tx🇸🇺"
+],
+[
+"‍️한é❤ 👨a👩e\n‍‍️️\ta👩❤ 🏳👍🏽",
+"‍️한é❤ 👨a👩e\n…",
+"18",
+"‍️한é❤ 👨a👩e"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"‍\t️eba❤e\r한e🇸‍️👨",
+"‍\t️eba❤e\r한…",
+"13",
+"‍\t️eba❤e\r한e🇸‍️👨"
+],
+[
+"️❤xb‍🏳a‍👨x",
+"️❤xb‍🏳a‍👨x",
+"8",
+"️❤xb‍🏳a‍👨x"
+],
+[
+"️한\r👧b\n👍🇺e",
+"️한\r👧b\n👍🇺e",
+"9",
+"️한\r👧b"
+],
+[
+"🏳️‍a️🔥🇺🌈\r‍́🏽‍한👩\n️",
+"🏳️‍a️🔥🇺🌈\r‍́🏽‍한👩\n…",
+"11",
+"🏳️‍a️🔥🇺🌈\r‍́🏽‍한👩"
+],
+[
+"a️",
+"a️",
+"1",
+"a️"
+],
+[
+"a‍‍❤️️e‍👧🇺👧🏳🏽a👍🔥👩️",
+"a‍‍❤️️e‍👧🇺👧🏳🏽a👍🔥…",
+"11",
+"a‍‍❤️️e‍👧🇺👧🏳🏽a👍🔥👩️"
+],
+[
+"́ ‍‍🇸x👍\r👍🇸️́🇸️\r한",
+"́ ‍‍🇸x👍\r👍🇸️́🇸️\r…",
+"11",
+"́ ‍‍🇸x👍\r👍🇸️́🇸️\r한"
+],
+[
+"a👍‍👨 🏽️👩‍🔥́ e‍️👨\n️🇺🔥\r ‍🏳 ",
+"a👍‍👨 🏽️👩‍🔥́ e‍️👨\n️🇺…",
+"15",
+"a👍‍👨 🏽️👩‍🔥́ e‍️👨"
+],
+[
+"\rab🔥 🌈🇸\nb\ra‍x️️한",
+"\rab🔥 🌈🇸\nb\r…",
+"13",
+"\rab🔥 🌈🇸"
+],
+[
+"‍한",
+"‍한",
+"2",
+"‍한"
+],
+[
+"‍️🇺‍👨🏽👩\t🇺한️한🇸‍️👧️️👩️👩👧́🇺x\t👨️",
+"‍️🇺‍👨🏽👩\t🇺한️한🇸‍️👧️️…",
+"17",
+"‍️🇺‍👨🏽👩\t🇺한️한🇸‍️👧️️👩️👩👧́🇺x\t👨️"
+],
+[
+"👩️🏽👧\re️b\r️🏽👩‍‍‍한🌈‍❤\r\r️",
+"👩️🏽👧\re️b\r️🏽👩‍‍‍한🌈‍❤…",
+"13",
+"👩️🏽👧\re️b\r️🏽👩‍‍‍한🌈‍❤\r\r️"
+],
+[
+"🇺🔥‍🏳🏳\n👩‍️\n🏳🔥\r‍️️\t‍🌈‍b🇺️‍🏽‍‍🇺🇺",
+"🇺🔥‍🏳🏳\n👩‍️\n🏳🔥\r‍️️…",
+"16",
+"🇺🔥‍🏳🏳"
+],
+[
+"e‍🔥🏳한🏽‍b️🏽b 🌈\n👨🌈e🏳",
+"e‍🔥🏳한🏽‍b️🏽b 🌈\n👨…",
+"13",
+"e‍🔥🏳한🏽‍b️🏽b 🌈"
+],
+[
+"👩  ‍́\n\rab🌈‍🏽🇸 \ń‍ea❤👍x́🇸",
+"👩  ‍́\n\rab🌈‍🏽🇸 …",
+"18",
+"👩  ‍́"
+],
+[
+"👧‍b👨́🌈\r\n❤️🌈‍x❤x🇸🔥e🔥\n‍e‍🇺❤🏳🏽",
+"👧‍b👨́🌈\r\n❤️🌈‍x❤x…",
+"20",
+"👧‍b👨́🌈\r\n❤️🌈‍x❤x🇸🔥e🔥"
+],
+[
+"️x한️️ ‍🌈\r️🇺️b🌈️b❤‍👩a 👨x👩❤",
+"️x한️️ ‍🌈\r️🇺️b🌈️…",
+"18",
+"️x한️️ ‍🌈\r️🇺️b🌈️b❤‍👩a 👨x👩❤"
+],
+[
+"🌈👍👍👨🇸e ́ x❤👨️‍🔥\n👧‍👍🌈‍👍‍xe🇸\t\r\r️",
+"🌈👍👍👨🇸e ́ x❤…",
+"21",
+"🌈👍👍👨🇸e ́ x❤👨️‍🔥"
+],
+[
+"🏳‍👨한❤b️👧🇺👩🇺👨\r‍́️🇸́x️\n‍‍🏳한👩e",
+"🏳‍👨한❤b️👧🇺👩🇺👨\r…",
+"19",
+"🏳‍👨한❤b️👧🇺👩🇺👨\r‍́️🇸́x️"
+],
+[
+"❤🌈a",
+"❤🌈a",
+"3",
+"❤🌈a"
+],
+[
+"‍\ń‍🏽e ‍́‍\t ️‍🔥🏽️bb\r🇺🏽é👍",
+"‍\ń‍🏽e ‍́‍\t ️‍🔥🏽️bb…",
+"14",
+"‍"
+],
+[
+"🇺ea🏽👨🏳👨x️x  ️👩️🇺👩❤\n‍️‍한🇺👧\n👍‍",
+"🇺ea🏽👨🏳👨x️x  ️…",
+"21",
+"🇺ea🏽👨🏳👨x️x  ️👩️🇺👩❤"
+],
+[
+"👍́👩👧 ️ 🔥👨 ️ ",
+"👍́👩👧 ️ 🔥👨 ️ ",
+"9",
+"👍́👩👧 ️ 🔥👨 ️"
+],
+[
+"́👩e️👧한👨\te👧️❤🌈\taa 👩👩xé🇺👨️x🏽‍",
+"́👩e️👧한👨\te👧️❤…",
+"22",
+"́👩e️👧한👨\te👧️❤🌈\taa 👩👩xé🇺👨️x🏽‍"
+],
+[
+" 🏽 🏽한👧‍️👩b\t‍x\r👍e",
+" 🏽 🏽한👧‍️👩b\t‍x\r…",
+"12",
+"🏽 🏽한👧‍️👩b\t‍x\r👍e"
+],
+[
+"🏳́👍e‍🏳️️👩‍",
+"🏳́👍e‍🏳️️👩‍",
+"5",
+"🏳́👍e‍🏳️️👩‍"
+],
+[
+"xb 🏽🏳한👧👍🏳x‍️bb🏽\r🇺🌈‍🔥b️🇸‍🔥",
+"xb 🏽🏳한👧👍🏳x‍️b…",
+"17",
+"xb 🏽🏳한👧👍🏳x‍️bb🏽\r🇺🌈‍🔥b️🇸‍🔥"
+],
+[
+"👨한\n🇺👨️x️🏳\t",
+"👨한\n🇺👨️x️🏳\t",
+"8",
+"👨한"
+],
+[
+"👧️️\n🇸\r❤👍\t👧한",
+"👧️️\n🇸\r❤👍\t👧한",
+"9",
+"👧️️"
+],
+[
+"\n️👩\txb🏽🇸👍 ‍\n🌈👨👧",
+"\n️👩\txb🏽🇸👍 ‍\n…",
+"13",
+"️👩\txb🏽🇸👍 ‍"
+],
+[
+"👨\ń️e\n‍🇺️🇺́\n❤👩🇺\t🇸‍🔥🏽🏳‍‍👨",
+"👨\ń️e\n‍🇺️🇺́\n❤…",
+"17",
+"👨"
+],
+[
+"👧‍‍🏳👍\t",
+"👧‍‍🏳👍\t",
+"4",
+"👧‍‍🏳👍"
+],
+[
+"한️️",
+"한️️",
+"1",
+"한️️"
+],
+[
+"🇺️",
+"🇺️",
+"1",
+"🇺️"
+],
+[
+"🏽한한\n🇸️🌈👩❤🇺b‍🏽\tee👩🇺\r👨 한‍",
+"🏽한한\n🇸️🌈👩❤🇺b‍🏽…",
+"19",
+"🏽한한"
+],
+[
+"e🏽🇺‍‍x‍🏽\tx👨x🌈b👧\t🏳x🏳❤ ",
+"e🏽🇺‍‍x‍🏽\tx👨x🌈b👧…",
+"16",
+"e🏽🇺‍‍x‍🏽\tx👨x🌈b👧\t🏳x🏳❤"
+],
+[
+"\tx́‍‍́🇺‍👧🇸\r한👍🏽x\n🇺🇸️🌈👍",
+"\tx́‍‍́🇺‍👧🇸\r한👍🏽x\n…",
+"13",
+"x́‍‍́🇺‍👧🇸\r한👍🏽x"
+],
+[
+"‍\t🇺‍e",
+"‍\t🇺‍e",
+"4",
+"‍\t🇺‍e"
+],
+[
+"\t 👧🇺‍한a",
+"\t 👧🇺‍한a",
+"6",
+"👧🇺‍한a"
+],
+[
+"👨👧🇺 \r👧👍 \r\re👨\r‍🔥\r‍👩\r",
+"👨👧🇺 \r👧👍 \r\r…",
+"19",
+"👨👧🇺 \r👧👍 \r\re👨\r‍🔥\r‍👩\r"
+],
+[
+" ️",
+" ️",
+"1",
+"️"
+],
+[
+"️‍\ta️🇺‍👍👩한한 ab👨\t한🏳\n‍‍\n‍🔥‍️‍",
+"️‍\ta️🇺‍👍👩한한 a…",
+"20",
+"️‍\ta️🇺‍👍👩한한 ab👨\t한🏳"
+],
+[
+"🔥❤🏽👩🏳b👧👩\t👍🏳👧‍bee 🇸️a",
+"🔥❤🏽👩🏳b👧👩\t👍🏳…",
+"17",
+"🔥❤🏽👩🏳b👧👩\t👍🏳👧‍bee 🇸️a"
+],
+[
+"❤🇸́🔥x🏳❤👩\n️👧🏳‍‍ ‍\ń",
+"❤🇸́🔥x🏳❤👩\n️👧…",
+"14",
+"❤🇸́🔥x🏳❤👩"
+],
+[
+"\n\n\n❤‍eb🏽‍🔥‍️",
+"\n\n\n❤‍eb🏽‍🔥‍️",
+"7",
+"❤‍eb🏽‍🔥‍️"
+],
+[
+"́x🇺‍x👨❤‍🔥e‍🌈‍️🇺\ne‍️️🏽‍",
+"́x🇺‍x👨❤‍🔥e‍🌈‍️🇺\n…",
+"11",
+"́x🇺‍x👨❤‍🔥e‍🌈‍️🇺"
+],
+[
+"a‍👍‍❤x👩👩🌈한x🇺‍👨🇺👨👧️a🏳🇺x❤🏳🌈‍‍",
+"a‍👍‍❤x👩👩🌈한x🇺‍👨…",
+"20",
+"a‍👍‍❤x👩👩🌈한x🇺‍👨🇺👨👧️a🏳🇺x❤🏳🌈‍‍"
+],
+[
+"‍́❤‍‍👧\n🏽",
+"‍́❤‍‍👧\n🏽",
+"5",
+"‍́❤‍‍👧"
+],
+[
+"\r🔥‍👍a️x‍\r\r‍‍‍a🏽🌈\n한🇺️",
+"\r🔥‍👍a️x‍\r\r‍‍‍a🏽🌈\n…",
+"12",
+"\r🔥‍👍a️x‍\r\r‍‍‍a🏽🌈"
+],
+[
+"👩️🏳\t👧\n\nx",
+"👩️🏳\t👧\n\nx",
+"7",
+"👩️🏳\t👧"
+],
+[
+"👍🇸❤\r️👧👩",
+"👍🇸❤\r️👧👩",
+"7",
+"👍🇸❤\r️👧👩"
+],
+[
+"👩",
+"👩",
+"1",
+"👩"
+],
+[
+"️👩\t🏽‍🏳❤ea🇸 👧́ ️👩́🏽👧🇸\n",
+"️👩\t🏽‍🏳❤ea🇸 …",
+"16",
+"️👩\t🏽‍🏳❤ea🇸 👧́ ️👩́🏽👧🇸"
+],
+[
+"❤‍\n‍ ‍‍👧🔥x 👩️é️",
+"❤‍\n‍ ‍‍👧🔥x 👩️é️",
+"10",
+"❤‍"
+],
+[
+"ba🇸🏽👩👨🌈\n🌈👧🌈ae‍ 👩️‍́한🇺",
+"ba🇸🏽👩👨🌈\n🌈👧🌈…",
+"16",
+"ba🇸🏽👩👨🌈"
+],
+[
+" 한‍️️ 한한e🇺",
+" 한‍️️ 한한e🇺",
+"7",
+"한‍️️ 한한e🇺"
+],
+[
+"\n‍ 🏳ex🇺👧🌈‍",
+"\n‍ 🏳ex🇺👧🌈‍",
+"9",
+"‍ 🏳ex🇺👧🌈‍"
+],
+[
+"b️",
+"b️",
+"1",
+"b️"
+],
+[
+"",
+"",
+"0",
+""
+],
+[
+"🔥xa🌈\t b🌈❤🔥🏳👧한\r🇺\t🏳b",
+"🔥xa🌈\t b🌈❤🔥…",
+"18",
+"🔥xa🌈\t b🌈❤🔥🏳👧한\r🇺\t🏳b"
+],
+[
+"🇺🔥\t‍👧️\ne️‍🏳",
+"🇺🔥\t‍👧️\ne️‍🏳",
+"8",
+"🇺🔥\t‍👧️"
+],
+[
+"x",
+"x",
+"1",
+"x"
+],
+[
+"🇺🇺🏽❤️🇸\r\n 🏳️👩 한🇺🔥bxa🌈️b",
+"🇺🇺🏽❤️🇸\r\n 🏳️👩 한🇺…",
+"16",
+"🇺🇺🏽❤️🇸\r\n 🏳️👩 한🇺🔥bxa🌈️b"
+],
+[
+"‍🏳b🇸x\r🏽🌈️a👍❤‍",
+"‍🏳b🇸x\r🏽🌈️a👍…",
+"11",
+"‍🏳b🇸x\r🏽🌈️a👍❤‍"
+],
+[
+"🔥👩🇺👧👩",
+"🔥👩🇺👧👩",
+"5",
+"🔥👩🇺👧👩"
+],
+[
+"‍e🇺‍‍👨‍ ",
+"‍e🇺‍‍👨‍ ",
+"5",
+"‍e🇺‍‍👨‍"
+],
+[
+"ex🏳x\r👧👧🔥\n👨🌈a‍🌈",
+"ex🏳x\r👧👧🔥\n👨…",
+"13",
+"ex🏳x\r👧👧🔥"
+],
+[
+"👧️\t‍‍ e️b️",
+"👧️\t‍‍ e️b️",
+"6",
+"👧️\t‍‍ e️b️"
+],
+[
+"\ŕe🇺e👍👧‍‍\t́a🇺‍👍‍️‍",
+"\ŕe🇺e👍👧‍‍\t́a…",
+"12",
+"\ŕe🇺e👍👧‍‍\t́a🇺‍👍‍️‍"
+],
+[
+"👍b‍👍👍👩👧️‍🔥🇸  한🏽👨\r🇸👍️🇺👩xa\r",
+"👍b‍👍👍👩👧️‍🔥🇸  한🏽…",
+"19",
+"👍b‍👍👍👩👧️‍🔥🇸  한🏽👨\r🇸👍️🇺👩xa\r"
+],
+[
+" 한\n🌈\r",
+" 한\n🌈\r",
+"5",
+"한"
+]
+]
+}
