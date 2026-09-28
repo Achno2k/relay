@@ -31,6 +31,7 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-23 | P3 | go-live | fixed 352be0c (package tests); not reproduced live | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
 | R8-24 | P3 | go-live | verified (Go, 7880): tool `Read`, summary `Read qa-read-r8.txt` | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
 | R8-25 | P2 | go-server | verified (Go 0149e14, 7892): silent client dropped at 45 s, answering client kept | Go `/ws` never pings: a phone that vanishes without a FIN stays a client; found by go-parity |
+| R8-26 | P3 | go-drivers (api.md: relay-lead) | open | `GET /controls?kind=claude` omits `defaultModel` when settings.json has no `model`; api.md says it's always sent. Found by ios-bugs, via go-parity |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
@@ -166,6 +167,15 @@ Checked and fine (no bug) in Swift: WS auto-ping is on (Hummingbird default 30 s
 - Fix: a ticker goroutine per connection calls `c.Ping(ctx)` every 30 s with a timeout and closes the connection on failure.
 - Test: a client that never answers pings is dropped and `Hub.Count()` goes back to 0.
 - Verified (0149e14, own build on 7892, fake herdr): a raw-socket client that reads but never answers pings got its ping at 30.0 s and was closed at 45.0 s. A normal client that answers pings stayed connected for its whole 80 s window.
+
+### R8-26: claude `defaultModel` missing from `GET /controls?kind=claude` (ios-bugs, via go-parity)
+- Repro (7878, same on Go 7880): `GET /controls?kind=claude` returns `defaultEffort` but no `defaultModel` key. `~/.claude/settings.json` has no `model` key, so Claude runs its built-in default.
+- api.md (Per-agent controls) says `defaultModel`/`defaultEffort` are "always sent by GET /controls?kind=…".
+- Not a Go regression: both bridges behave the same.
+- Decide one:
+  - api.md says `defaultModel` is absent when the agent has no saved default (the app then shows no preselected model), or
+  - the bridge reports Claude's built-in default model when settings.json has none.
+- relay-lead decides; go-drivers implements if the bridge changes.
 
 ## iOS
 
