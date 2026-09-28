@@ -28,6 +28,20 @@ enum AttachmentProcessing {
         }
     }
 
+    /// Reads a file picked in Files. Anything but an image (images are downscaled after) is checked
+    /// against the limit by its size first, so a huge file is never loaded just to be turned down.
+    /// Call off the main thread: this is a synchronous read of up to 20 MB.
+    static func read(_ url: URL) throws -> (data: Data, type: UTType?) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let values = try? url.resourceValues(forKeys: [.contentTypeKey, .fileSizeKey])
+        let type = values?.contentType ?? UTType(filenameExtension: url.pathExtension)
+        if type?.conforms(to: .image) != true, let size = values?.fileSize, size > maxBytes {
+            throw Failure.tooLarge(name: url.lastPathComponent)
+        }
+        return (try Data(contentsOf: url, options: .mappedIfSafe), type)
+    }
+
     /// `name` is the original file name; `type` its UTType if known.
     static func prepare(data: Data, name: String, type: UTType?) throws -> Prepared {
         let type = type ?? UTType(filenameExtension: (name as NSString).pathExtension)

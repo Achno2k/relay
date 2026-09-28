@@ -76,6 +76,27 @@ final class ComposerAttachments {
         }
     }
 
+    /// Files picked in Files, in order. Read off the main thread: ten 20 MB files read inline froze the
+    /// composer, and one huge file was loaded in full before being turned down as over 20 MB.
+    func add(files urls: [URL]) {
+        Task {
+            for url in urls {
+                guard remainingSlots > 0 else {
+                    store.errorMessage = "Up to \(AttachmentProcessing.maxCount) files per message."
+                    return
+                }
+                do {
+                    let file = try await Task.detached(priority: .userInitiated) { try AttachmentProcessing.read(url) }.value
+                    add(data: file.data, name: url.lastPathComponent, type: file.type)
+                } catch let failure as AttachmentProcessing.Failure {
+                    store.errorMessage = failure.errorDescription
+                } catch {
+                    store.errorMessage = "Couldn't read \(url.lastPathComponent)."
+                }
+            }
+        }
+    }
+
     func remove(_ id: UUID) {
         items.removeAll { $0.id == id }
     }

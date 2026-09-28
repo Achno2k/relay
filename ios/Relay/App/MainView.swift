@@ -125,7 +125,11 @@ struct MainView: View {
             if presented { hideKeyboard() }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await store.refresh() } }
+            switch phase {
+            case .active: Task { await store.resume() }
+            case .background: store.suspend()
+            default: break
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             store.handleMemoryWarning()
@@ -225,7 +229,8 @@ private struct ConnectionBanner: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            if store.connection == .reconnecting {
+            // Retrying can't help while the token is rejected; the re-pair prompt says what will.
+            if store.connection == .reconnecting, !store.needsRePairing {
                 Label("Reconnecting…", systemImage: "wifi.exclamationmark")
                     .font(.footnote.weight(.semibold))
                     .padding(.horizontal, 14)

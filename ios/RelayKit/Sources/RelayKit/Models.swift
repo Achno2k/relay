@@ -628,6 +628,10 @@ public enum ServerEvent: Decodable, Hashable, Sendable {
 public enum ConnectionEvent: Hashable, Sendable {
     case connected
     case disconnected
+    /// The bridge answered the upgrade with this HTTP status instead of switching protocols: it's
+    /// reachable but refused the socket, most likely the token (the Swift bridge says 400, not 401).
+    /// Always followed by `.disconnected`.
+    case rejected(status: Int)
     case event(ServerEvent)
 }
 

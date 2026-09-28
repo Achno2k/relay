@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import RelayKit
 import Observation
 
@@ -70,6 +71,11 @@ final class AppStore {
     var errorMessage: String?
 
     private var eventsTask: Task<Void, Never>?
+    /// The socket was closed for the background; `resume()` reopens it.
+    private var suspended = false
+    /// The next `hello` must resync: the socket was reopened, so frames may have been missed.
+    private var resyncOnConnect = false
+    private var pathMonitor: NWPathMonitor?
     /// Bumped every time a message load starts for an agent, so a reply from an earlier, slower
     /// request (a rapid agent switch, or a reconnect racing an `open()`) can't overwrite a newer one.
     private var messagesRequest: [String: Int] = [:]
@@ -131,6 +137,19 @@ final class AppStore {
 
     func start() {
         guard eventsTask == nil else { return }
+        openSocket()
+        watchNetwork()
+        Task { await refresh() }
+    }
+
+    func stop() {
+        eventsTask?.cancel()
+        eventsTask = nil
+        pathMonitor?.cancel()
+        pathMonitor = nil
+    }
+
+    private func openSocket() {
         let stream = backend.events()
         eventsTask = Task { [weak self] in
             for await event in stream {
@@ -138,19 +157,58 @@ final class AppStore {
                 await self.handle(event)
             }
         }
-        Task { await refresh() }
     }
 
-    func stop() {
+    /// Opens a fresh socket now instead of waiting out the backoff (up to 30 s); its `hello` resyncs.
+    func reconnect() {
+        eventsTask?.cancel()
+        resyncOnConnect = true
+        openSocket()
+    }
+
+    /// Background: close the socket. A suspended app can't read it anyway, it can come back as a
+    /// zombie that never errors, and while it looks open the bridge keeps reading screens and
+    /// polling usage for nobody.
+    func suspend() {
+        guard eventsTask != nil, !suspended else { return }
         eventsTask?.cancel()
         eventsTask = nil
+        suspended = true
+    }
+
+    /// Foreground: reopen the socket if it was closed or is waiting to retry, and resync now so the
+    /// chat is current even before the socket is back.
+    func resume() async {
+        if suspended || connection == .reconnecting {
+            suspended = false
+            reconnect()
+        }
+        await refresh()
+    }
+
+    /// The network came back (airplane mode off, Wi-Fi joined): retry now rather than after the backoff.
+    func networkBecameAvailable() {
+        guard connection == .reconnecting, !suspended, eventsTask != nil else { return }
+        reconnect()
+    }
+
+    private func watchNetwork() {
+        guard pathMonitor == nil else { return }
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in self?.networkBecameAvailable() }
+        }
+        monitor.start(queue: .global(qos: .utility))
+        pathMonitor = monitor
     }
 
     private func handle(_ event: ConnectionEvent) async {
         switch event {
         case .connected:
-            let wasDown = connection == .reconnecting
+            let wasDown = connection == .reconnecting || resyncOnConnect
             connection = .connected
+            resyncOnConnect = false
             // Frames sent while we were away are gone, and a restarted bridge starts `seq` over.
             if wasDown {
                 liveReplySeq = [:]
@@ -160,6 +218,16 @@ final class AppStore {
             if wasDown { await refresh() }
         case .disconnected:
             connection = .reconnecting
+        case .rejected(let status):
+            // Reachable but refused: usually a rotated token. Only REST says so for sure (the bridge
+            // answers the upgrade with a bare 400), and without asking the app would sit on
+            // "Reconnecting…" forever instead of offering to pair again.
+            connection = .reconnecting
+            if status == 401 || status == 403 {
+                needsRePairing = true
+            } else if !needsRePairing {
+                await refresh()
+            }
         case .event(let e):
             apply(e)
         }
@@ -286,7 +354,7 @@ final class AppStore {
         do {
             let page = try await backend.messages(agentId: agentId, before: nil, limit: 50)
             guard messagesRequest[agentId] == generation else { return }  // superseded by a newer load
-            state.setPage(page, agentId: agentId)
+            state.mergeLatestPage(page, agentId: agentId)
             resolvePending(agentId: agentId, with: page.messages)
             updateLive { $0.match(agentId: agentId, transcript: state.messages[agentId] ?? []) }
         } catch {
@@ -400,6 +468,11 @@ final class AppStore {
                 }
                 await followUp(after: approval)
             } catch {
+                // The answer never reached the agent (offline, bridge down), so it's still asking.
+                // Bring the card back so it can be answered again; nothing else would, since the
+                // status stays `blocked` and no change arrives to refetch it.
+                recentlyAnswered[approval.agentId] = nil
+                if selectedAgentId == approval.agentId, self.approval == nil { self.approval = approval }
                 report(error)
             }
         }

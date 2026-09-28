@@ -30,8 +30,10 @@
 		3F5E994A5102C645FC68DDE9 /* ControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021AFCBC2410A8CE68452503 /* ControlsTests.swift */; };
 		4343ECBEA49302122D583485 /* ApprovalViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD50D15CCCE77FD2C627A69 /* ApprovalViews.swift */; };
 		43B00B6D80DAE4131F4C9BAF /* NewChatUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF6F0A8401B00C5DBDBBBBD1 /* NewChatUITests.swift */; };
+		470FD55FD67E2971D03B52AE /* Round8Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86224FE3F6FBF4A3DF39FDD3 /* Round8Tests.swift */; };
 		48FD6423D2C6BB21B97D3DA1 /* Round3Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F4CA5295E71A7C719081F8 /* Round3Tests.swift */; };
 		4900F6EF78F8F5B2F3228ECA /* RelayKit in Frameworks */ = {isa = PBXBuildFile; productRef = BBCA5FD19EB45071473A3C7D /* RelayKit */; };
+		4A2B34B1063A16F8A6D09DDB /* FilesPickerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCB69102F7992FC4AC43C6D /* FilesPickerUITests.swift */; };
 		4E4411C10C00A4ED93CD86AE /* LiveReplyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2FF35A0E89A5DBCB9F89AC /* LiveReplyUITests.swift */; };
 		506A057C19B556A24ADDA85C /* DesignQAShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8644DFA6912C27E53A50CB93 /* DesignQAShots.swift */; };
 		526CC581323542FEA1CF344F /* LiveKindControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A82BCCC3A5466E4DBBC2AB4 /* LiveKindControlsTests.swift */; };
@@ -64,6 +66,7 @@
 		C34A2C3D2EF3050156579EFB /* Indicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4300BCAC01D8E32F1FA56ADC /* Indicators.swift */; };
 		C6C92B287A1E25BD21E88FB6 /* SidebarToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2144DDCC30AF97A090E41FA6 /* SidebarToolbar.swift */; };
 		CB03996BB925C88854A25A51 /* SidebarListsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA005D7CFA44FD73D66D7313 /* SidebarListsUITests.swift */; };
+		CEA681B5D4F61D7ACFF1AEC7 /* Round8UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */; };
 		D0CCD89167ACBB59A2D873B6 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3772B7BC9E1856FB2551A9D4 /* AppModel.swift */; };
 		D9F56A5EC5FDAD795F5AE47F /* SidebarProjectSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DD0B4E58CE5EF076DAAE12 /* SidebarProjectSection.swift */; };
 		DAD9AA78424A4D9B470B3B1E /* MockBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BB9BE8AFCB5D157451CFC2 /* MockBackend.swift */; };
@@ -124,7 +127,9 @@
 		4CF408B8F742FA41968F3ABB /* MockChats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockChats.swift; sourceTree = "<group>"; };
 		4E368749B2609FF25E28E313 /* MockSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSidebar.swift; sourceTree = "<group>"; };
 		4F0943376AC3BDCDA75E20CC /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
+		4FCB69102F7992FC4AC43C6D /* FilesPickerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesPickerUITests.swift; sourceTree = "<group>"; };
 		515A69B4CDFBB0B2067D00BB /* AppDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDefaults.swift; sourceTree = "<group>"; };
+		529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Round8UITests.swift; sourceTree = "<group>"; };
 		53BC0B51B9E3C3E9AF8E1D5A /* NewChatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatTests.swift; sourceTree = "<group>"; };
 		549A59F3CE162D5619C457F9 /* SidebarFilterMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarFilterMenu.swift; sourceTree = "<group>"; };
 		5560F841C9C3863AB0E4C205 /* SidebarBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarBottomBar.swift; sourceTree = "<group>"; };
@@ -144,6 +149,7 @@
 		80270D748DB6A250BBD42E65 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		81389142837BCFC9F10C8F0D /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
 		82B422B228FE886B476AB4D0 /* LiveToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveToolTests.swift; sourceTree = "<group>"; };
+		86224FE3F6FBF4A3DF39FDD3 /* Round8Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Round8Tests.swift; sourceTree = "<group>"; };
 		8644DFA6912C27E53A50CB93 /* DesignQAShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignQAShots.swift; sourceTree = "<group>"; };
 		88EBB50D6387C066EBEE9162 /* RelayKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RelayKit; path = RelayKit; sourceTree = SOURCE_ROOT; };
 		8DC9DFEA2A583C3904C32C4A /* SidebarShellUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarShellUITests.swift; sourceTree = "<group>"; };
@@ -341,6 +347,7 @@
 			children = (
 				8644DFA6912C27E53A50CB93 /* DesignQAShots.swift */,
 				C7B1E2B5D03381101B4D44B0 /* EmptyStateUITests.swift */,
+				4FCB69102F7992FC4AC43C6D /* FilesPickerUITests.swift */,
 				A23917E0B538A432F082C782 /* LiveE2ETests.swift */,
 				0A82BCCC3A5466E4DBBC2AB4 /* LiveKindControlsTests.swift */,
 				4B065EDF3B9E1F1832310B1E /* LiveNewChatTests.swift */,
@@ -350,6 +357,7 @@
 				CF6F0A8401B00C5DBDBBBBD1 /* NewChatUITests.swift */,
 				247E5C6385B60B0588E471A5 /* Round2UITests.swift */,
 				B7E8B8A4D17C0BCEE98004CC /* Round3UITests.swift */,
+				529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */,
 				417A0DA3F5D971C8037B3AB9 /* SidebarFilterMenuUITests.swift */,
 				DA005D7CFA44FD73D66D7313 /* SidebarListsUITests.swift */,
 				B08D3D1786AE5BC795D70059 /* SidebarMotionUITests.swift */,
@@ -428,6 +436,7 @@
 				F4E037C3CB7E6F9CBB240548 /* ReducerTests.swift */,
 				2E9B76A4DA5BA891DBC04D9D /* Round2Tests.swift */,
 				78F4CA5295E71A7C719081F8 /* Round3Tests.swift */,
+				86224FE3F6FBF4A3DF39FDD3 /* Round8Tests.swift */,
 				EF08A07927F964EA986C4020 /* SidebarGroupingTests.swift */,
 				25C7F2E3E9DEBF28E427D679 /* StoreTests.swift */,
 				4AF9F054C80D13CEC9C3E9CD /* UsageStoreTests.swift */,
@@ -585,6 +594,7 @@
 			files = (
 				506A057C19B556A24ADDA85C /* DesignQAShots.swift in Sources */,
 				F3E81726E78071F0E98493CD /* EmptyStateUITests.swift in Sources */,
+				4A2B34B1063A16F8A6D09DDB /* FilesPickerUITests.swift in Sources */,
 				9D3D5AF639C417A1CC9297FA /* LiveE2ETests.swift in Sources */,
 				526CC581323542FEA1CF344F /* LiveKindControlsTests.swift in Sources */,
 				0E0524B7FA44C586C9538A36 /* LiveNewChatTests.swift in Sources */,
@@ -594,6 +604,7 @@
 				43B00B6D80DAE4131F4C9BAF /* NewChatUITests.swift in Sources */,
 				3E03058DD86EB9DEE1DA4D9C /* Round2UITests.swift in Sources */,
 				303A3EA21AC18011F2DAAADD /* Round3UITests.swift in Sources */,
+				CEA681B5D4F61D7ACFF1AEC7 /* Round8UITests.swift in Sources */,
 				A7E1DA77E629553712BD1336 /* SidebarFilterMenuUITests.swift in Sources */,
 				CB03996BB925C88854A25A51 /* SidebarListsUITests.swift in Sources */,
 				22D12E314E1B2EBA77599739 /* SidebarMotionUITests.swift in Sources */,
@@ -616,6 +627,7 @@
 				8A64622C8DFB780A4A2ACBB6 /* ReducerTests.swift in Sources */,
 				AFCB351F77BFF9ECC3E5CD6B /* Round2Tests.swift in Sources */,
 				48FD6423D2C6BB21B97D3DA1 /* Round3Tests.swift in Sources */,
+				470FD55FD67E2971D03B52AE /* Round8Tests.swift in Sources */,
 				BBA8A37D619090D3EE03993C /* SidebarGroupingTests.swift in Sources */,
 				0809D2C3563805DB04E028B5 /* StoreTests.swift in Sources */,
 				288359C2A828D2EF39720831 /* UsageStoreTests.swift in Sources */,

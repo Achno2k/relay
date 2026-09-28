@@ -8,6 +8,10 @@ struct UserBubble: View {
     var attachments: [AttachmentRef] = []
     var agentId: String = ""
     var store: AppStore?
+    /// The send failed (offline, bridge down): say so and offer retry and delete, never a silent dim.
+    var failed = false
+    var onRetry: () -> Void = {}
+    var onDiscard: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
@@ -21,11 +25,32 @@ struct UserBubble: View {
                     .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 22))
                     .textSelection(.enabled)
             }
+            if failed {
+                Button(action: onRetry) {
+                    Label("Not sent. Tap to retry.", systemImage: "exclamationmark.circle.fill")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("retrySend")
+            }
         }
-        .opacity(pending ? 0.6 : 1)
+        .opacity(pending && !failed ? 0.6 : 1)
+        .contextMenu {
+            if failed {
+                Button("Retry", systemImage: "arrow.clockwise", action: onRetry)
+                Button("Delete", systemImage: "trash", role: .destructive, action: onDiscard)
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("userBubble")
-        .accessibilityValue(pending ? "pending" : "sent")
+        .accessibilityValue(failed ? "not sent" : pending ? "pending" : "sent")
+        .accessibilityActions {
+            if failed {
+                Button("Retry", action: onRetry)
+                Button("Delete", action: onDiscard)
+            }
+        }
         .frame(maxWidth: maxWidth, alignment: .trailing)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }

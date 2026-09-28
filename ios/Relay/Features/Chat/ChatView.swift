@@ -337,8 +337,13 @@ private struct ChatTranscript: View {
     @ViewBuilder
     private func row(_ item: ChatItem, isLast: Bool, working: Bool) -> some View {
         switch item {
-        case .user(_, let text, let pending, let attachments):
-            UserBubble(text: text, pending: pending, maxWidth: width * 0.8, attachments: attachments, agentId: agent.id, store: store)
+        case .user(let id, let text, let pending, let attachments):
+            UserBubble(
+                text: text, pending: pending, maxWidth: width * 0.8, attachments: attachments, agentId: agent.id, store: store,
+                failed: store.failedPending.contains(id),
+                onRetry: { store.retry(id, to: agent.id) },
+                onDiscard: { store.discardFailed(id, from: agent.id) }
+            )
         case .text(_, let markdown):
             if agent.transcript == .unsupported {
                 LiveScreenCard(text: LiveScreenCard.screenText(markdown))

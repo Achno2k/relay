@@ -71,6 +71,26 @@ struct RelayState: Equatable, Sendable {
         hasMore[agentId] = page.hasMore
     }
 
+    /// The latest page, fetched again on a resync (foreground, reconnect) into a chat that's already
+    /// loaded. Replacing the list outright threw away older pages the person had scrolled up to (the
+    /// view jumped back to the last 50), and dropped any message the socket delivered while the
+    /// request was in flight (the page is a snapshot from before it).
+    mutating func mergeLatestPage(_ page: MessagePage, agentId: String) {
+        guard let existing = messages[agentId], !existing.isEmpty, let first = page.messages.first,
+              let last = page.messages.last
+        else { return setPage(page, agentId: agentId) }
+        let inPage = Set(page.messages.map(\.id))
+        var merged = page.messages
+        if let i = existing.firstIndex(where: { $0.id == first.id }) {
+            // The page overlaps what's loaded: keep the older history, and whether there's more of it.
+            merged = existing[..<i].filter { !inPage.contains($0.id) } + merged
+        } else {
+            hasMore[agentId] = page.hasMore
+        }
+        merged += existing.filter { !inPage.contains($0.id) && $0.createdAt > last.createdAt }
+        messages[agentId] = merged
+    }
+
     mutating func prependPage(_ page: MessagePage, agentId: String) {
         let existing = messages[agentId] ?? []
         let known = Set(existing.map(\.id))

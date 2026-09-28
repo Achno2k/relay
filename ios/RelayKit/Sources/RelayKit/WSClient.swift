@@ -1,7 +1,7 @@
 import Foundation
 
-/// `/ws?token=`. Yields `.connected` on `hello`, `.disconnected` when the socket drops,
-/// then reconnects with exponential backoff (1s, 2s, 4s … capped at 30s).
+/// `/ws?token=`. Yields `.connected` on `hello`, `.disconnected` when the socket drops
+/// (after `.rejected` if the bridge refused the upgrade), then reconnects with exponential backoff (1s, 2s, 4s … capped at 30s).
 public struct WSClient: Sendable {
     public let url: URL
     let session: URLSession
@@ -55,6 +55,9 @@ public struct WSClient: Sendable {
                     pinger.cancel()
                     socket.cancel(with: .goingAway, reason: nil)
                     if Task.isCancelled { break }
+                    if !greeted, let status = Self.rejection(socket.response) {
+                        continuation.yield(.rejected(status: status))
+                    }
                     continuation.yield(.disconnected)
                     try? await Task.sleep(for: Self.backoff(attempt: attempt))
                     attempt += 1
@@ -65,14 +68,26 @@ public struct WSClient: Sendable {
         }
     }
 
+    /// The status of an upgrade the bridge answered but refused; nil if it never answered or switched.
+    public static func rejection(_ response: URLResponse?) -> Int? {
+        guard let http = response as? HTTPURLResponse, http.statusCode != 101 else { return nil }
+        return http.statusCode
+    }
+
     /// A socket can die silently while the phone sleeps. Pings surface that as a receive error.
+    /// A pong that never comes (a dead route, not a closed one) counts as dead too.
     private static func ping(_ socket: URLSessionWebSocketTask) async {
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(15))
             if Task.isCancelled { return }
+            let deadline = Task {
+                try await Task.sleep(for: .seconds(10))
+                socket.cancel(with: .abnormalClosure, reason: nil)
+            }
             let ok = await withCheckedContinuation { (c: CheckedContinuation<Bool, Never>) in
                 socket.sendPing { error in c.resume(returning: error == nil) }
             }
+            deadline.cancel()
             if !ok {
                 socket.cancel(with: .abnormalClosure, reason: nil)
                 return

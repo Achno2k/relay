@@ -82,7 +82,7 @@ struct ComposerView: View {
             allowedContentTypes: [.image, .pdf, .plainText, .sourceCode, .json, .data],
             allowsMultipleSelection: true
         ) { result in
-            if case .success(let urls) = result { loadFiles(urls) }
+            if case .success(let urls) = result { attachments?.add(files: urls) }
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
@@ -173,16 +173,6 @@ struct ComposerView: View {
                 let type = item.supportedContentTypes.first { $0.conforms(to: .image) } ?? .jpeg
                 attachments?.add(data: data, name: "photo-\(i + 1).\(type.preferredFilenameExtension ?? "jpg")", type: type)
             }
-        }
-    }
-
-    private func loadFiles(_ urls: [URL]) {
-        for url in urls {
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url) else { continue }
-            let type = (try? url.resourceValues(forKeys: [.contentTypeKey]))?.contentType
-            attachments?.add(data: data, name: url.lastPathComponent, type: type)
         }
     }
 }

@@ -19,6 +19,8 @@ actor MockBackend: Backend {
     private var uploads: [String: (attachment: Attachment, data: Data)] = [:]
     private let latency: Duration = .milliseconds(UserDefaults.standard.integer(forKey: "latency").nonZero ?? 120)
     private var usageSnapshot: UsageSnapshot
+    /// Prompts starting "unsent" fail once, like a send while offline; the retry goes through.
+    private var failedOnce: Set<String> = []
 
     init(replayInterval: Duration? = .seconds(4)) {
         let fixtures = Fixtures()
@@ -107,6 +109,9 @@ actor MockBackend: Backend {
     }
 
     func prompt(agentId: String, text: String, attachments: [String]) async throws {
+        if text.lowercased().hasPrefix("unsent"), failedOnce.insert(text).inserted {
+            throw RelayError.unreachable(timedOut: false)
+        }
         if let i = agentList.firstIndex(where: { $0.id == agentId }), agentList[i].transcriptState == .pending {
             agentList[i].transcriptState = .ready
             agentList[i].hasTranscript = true
