@@ -186,14 +186,23 @@ outer:
 			}
 		}
 	}
+	// A dialog's `❯ 1. Yes` row is its menu cursor, not the user's prompt. A prompt can start
+	// with "1. " too, so only while a dialog footer ("Esc to cancel") is on screen.
+	dialog := slices.ContainsFunc(lines[:end], func(l string) bool { return strings.Contains(strings.ToLower(l), "esc to cancel") })
 	start := 0
 	for i := end - 1; i >= 0; i-- {
-		// A dialog's `❯ 1. Yes` row is its menu cursor, not the user's prompt.
-		if t := trimWS(lines[i]); strings.HasPrefix(t, "❯") && !menuCursor.MatchString(t) {
+		if t := trimWS(lines[i]); strings.HasPrefix(t, "❯") && !(dialog && menuCursor.MatchString(t)) {
 			start = i + 1
 			for start < end && trimWS(lines[start]) != "" {
 				start++
 			}
+			break
+		}
+	}
+	// Claude's logo heads a fresh session: nothing above it, and none of it, is this turn.
+	for i := end - 1; i >= start; i-- {
+		if isClaudeLogo(lines[i]) {
+			start = i + 1
 			break
 		}
 	}
@@ -216,6 +225,17 @@ var (
 	// of the transcript view while the pane is scrolled up.
 	claudeOverlay = icu(`\s*(?:\d+ new messages?|Jump to bottom) \(click\)(?: ↓)?`)
 )
+
+// isClaudeLogo matches the rows of Claude's startup logo (`▐▛███▜▌   Claude Code v…`).
+func isClaudeLogo(line string) bool {
+	t := trimWS(line)
+	for _, p := range []string{"▐▛", "▝▜", "▝▝", "▘▘"} {
+		if strings.HasPrefix(t, p) {
+			return true
+		}
+	}
+	return false
+}
 
 // toolOutputIndent is where Claude's tool output text starts (`  ⎿  `); reply prose sits at 2.
 const toolOutputIndent = 5

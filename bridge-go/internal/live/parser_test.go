@@ -560,3 +560,22 @@ func TestClaudeSingleFileLabelIsTheTranscriptTool(t *testing.T) {
 		}
 	}
 }
+
+const claudeLogo = ` ▐▛███▜▌   Claude Code v2.1.280
+▝▜█████▛▘  Opus 5.5 (1M context) with high effort · Claude Max
+  ▘▘ ▝▝    ~/dev/shop-api · 2 awaiting input`
+
+func TestClaudeLogoIsNeverText(t *testing.T) {
+	// A fresh session: the logo, and nothing of the turn drawn yet.
+	expectEqual(t, Parse(claudeLogo+"\n\n✻ Crafting… (1s)\n"+claudeBottom, "claude"), Screen{})
+	// With the reply under it.
+	expectEqual(t, Parse(claudeLogo+"\n\n⏺ Hi there\n\n"+claudeBottom, "claude").Text, strPtr("Hi there"))
+}
+
+func TestAPromptStartingWithANumberIsStillTheEcho(t *testing.T) {
+	// Only a dialog's cursor row is skipped; the user's own "1. …" prompt is the echo.
+	screen := claudeLogo + "\n\n❯ 1. Say hi\n  2. Say bye\n\n⏺ Hi\n\n" + claudeBottom
+	expectEqual(t, Parse(screen, "claude").Text, strPtr("Hi"))
+	screen = "⏺ Earlier reply.\n\n❯ 1. Run the tests\n\n✻ Crafting… (1s)\n" + claudeBottom
+	expectEqual(t, Parse(screen, "claude"), Screen{})
+}
