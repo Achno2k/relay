@@ -273,6 +273,17 @@ func (s *Service) kindOf(a herdr.Agent) string {
 	return e.kind
 }
 
+// forget drops everything kept per pane once its agent is gone (herdr never reuses pane ids).
+func (s *Service) forget(paneID string) {
+	s.mu.Lock()
+	delete(s.seen, paneID)
+	delete(s.createdKinds, paneID)
+	s.mu.Unlock()
+	if f, ok := any(s.controls).(interface{ Forget(string) }); ok {
+		f.Forget(paneID)
+	}
+}
+
 func (s *Service) rememberCreated(paneID, kind string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -719,42 +730,33 @@ func (s *Service) Create(ctx context.Context, r server.CreateRequest) (api.Agent
 	}
 	s.rememberCreated(pane.PaneID, kind)
 
-	// The new shell may need a moment before herdr considers it available.
-	started := false
-	var lastErr error
-	for attempt := range 6 {
-		_, err := s.herdr.StartAgent(ctx, name, kind, pane.PaneID, args, 0)
-		if err == nil {
-			started = true
+	// The new shell may need a moment before herdr considers it available (agent_pane_busy);
+	// that's the only failure worth retrying.
+	var startErr error
+	for attempt := range startAttempts {
+		if _, startErr = s.herdr.StartAgent(ctx, name, kind, pane.PaneID, args, 0); !isRemote(startErr, "agent_pane_busy") {
 			break
 		}
-		var he *herdr.Error
-		if !errors.As(err, &he) {
-			return api.Agent{}, err
-		}
-		lastErr = err
-		if he.Kind == herdr.ErrRemote && (he.Code == "agent_not_ready" ||
-			strings.HasPrefix(he.Code, "invalid") || strings.Contains(he.Code, "unknown")) {
-			// agent_not_ready: blocked during startup (e.g. a trust dialog). The agent exists;
-			// just skip the prompt.
-			break
-		}
-		if err := sleep(ctx, time.Duration(300*(attempt+1))*time.Millisecond); err != nil {
-			return api.Agent{}, err
+		if attempt < startAttempts-1 {
+			if err := sleep(ctx, time.Duration(300*(attempt+1))*time.Millisecond); err != nil {
+				startErr = err
+				break
+			}
 		}
 	}
-	if !started {
-		var he *herdr.Error
-		if !errors.As(lastErr, &he) || he.Kind != herdr.ErrRemote || he.Code != "agent_not_ready" {
-			if lastErr == nil {
-				lastErr = herdr.IOError("agent.start failed")
+	switch {
+	case startErr == nil:
+		if r.Prompt != nil && *r.Prompt != "" {
+			if err := s.herdr.Prompt(ctx, pane.PaneID, *r.Prompt); err != nil {
+				return api.Agent{}, err
 			}
-			return api.Agent{}, lastErr
 		}
-	} else if r.Prompt != nil && *r.Prompt != "" {
-		if err := s.herdr.Prompt(ctx, pane.PaneID, *r.Prompt); err != nil {
-			return api.Agent{}, err
-		}
+	case isRemote(startErr, "agent_not_ready"):
+		// Blocked during startup (e.g. a trust dialog): the agent exists; skip the prompt.
+	default:
+		// Nothing started: don't leave an empty shell tab behind.
+		s.closeTab(pane.TabID)
+		return api.Agent{}, startErr
 	}
 	hasDriver := s.controls.HasDriver(kind)
 	var chosenModel *string
@@ -787,6 +789,24 @@ func (s *Service) Create(ctx context.Context, r server.CreateRequest) (api.Agent
 		}
 	}
 	return created, nil
+}
+
+const startAttempts = 6
+
+func isRemote(err error, code string) bool {
+	var he *herdr.Error
+	return errors.As(err, &he) && he.Kind == herdr.ErrRemote && he.Code == code
+}
+
+// closeTab removes a tab this bridge opened for an agent that never started. Best effort, and
+// not tied to the request: the client may already have gone.
+func (s *Service) closeTab(tabID string) {
+	if tabID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), herdr.ActionTimeout)
+	defer cancel()
+	_ = s.herdr.CloseTab(ctx, tabID)
 }
 
 // defaultName is `<kind letters and digits>-<4 hex>`, e.g. `claude-3f9a`.

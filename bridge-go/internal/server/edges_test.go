@@ -3,7 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +14,7 @@ import (
 	"github.com/coder/websocket"
 
 	"relay/internal/api"
+	"relay/internal/herdr"
 )
 
 // Behavior probed on the Swift (Hummingbird) bridge that the routes must keep.
@@ -177,5 +181,43 @@ func TestHub_DropsOldestWhenAClientFallsBehind(t *testing.T) {
 	hub.Broadcast(api.Hello()) // no subscribers, no panic on the closed channel
 	if hub.Count() != 0 {
 		t.Error("count")
+	}
+}
+
+// R8-3: herdr's own messages (and internal errors) can quote paths; they never cross the wire.
+func TestEdges_ErrorMessagesNeverLeakPaths(t *testing.T) {
+	for _, err := range []error{
+		herdr.Remote("agent_name_taken", "agent name bridge-pi is already used; candidates: pane_id=w14:p4 cwd=/Users/dev/.relay/e2e status=Done"),
+		errors.New("open /Users/dev/.relay/uploads/w1_p1/x.png: permission denied"),
+		api.NewError(http.StatusBadGateway, "control_failed", "Error: /private/var/tmp/x/y failed"),
+	} {
+		rec := httptest.NewRecorder()
+		writeError(rec, err)
+		body := rec.Body.String()
+		if strings.Contains(body, "/Users/") || strings.Contains(body, "/private/") {
+			t.Errorf("leaked: %s", body)
+		}
+	}
+	// The bridge's own messages keep route paths intact.
+	rec := httptest.NewRecorder()
+	writeError(rec, api.BadRequest("x isn't one of this agent's model options (… in GET /agents/:id/controls)"))
+	if !strings.Contains(rec.Body.String(), "GET /agents/:id/controls") {
+		t.Errorf("scrubbed our own message: %s", rec.Body.String())
+	}
+}
+
+// R8-18: a refused WebSocket upgrade is a 401 with the JSON error body, like REST.
+func TestEdges_WSBadTokenIs401WithBody(t *testing.T) {
+	ts := newTestServer(t, Options{})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, res, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(ts.URL, "http")+"/ws?token=bad", nil)
+	if err == nil || res == nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusUnauthorized || string(body) != `{"error":{"code":"unauthorized","message":"missing or invalid token"}}` {
+		t.Errorf("%d %s", res.StatusCode, body)
 	}
 }

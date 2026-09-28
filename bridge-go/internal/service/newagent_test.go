@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"relay/internal/api"
 	"relay/internal/controls"
@@ -227,5 +229,102 @@ func TestNewAgent_CreateValidatesBeforeOpeningATab(t *testing.T) {
 	var e *api.Error
 	if !errors.As(err, &e) {
 		t.Errorf("cwdFromPane: %v", err)
+	}
+}
+
+// R8-4, R8-5: a start that can't succeed answers at once with herdr's mapped error and closes the
+// tab it opened; only agent_pane_busy (the new shell isn't ready yet) is retried.
+func TestNewAgent_FailedStartClosesItsTabAndDoesNotRetry(t *testing.T) {
+	for _, c := range []struct {
+		code   string
+		status int
+	}{
+		{"agent_name_taken", 409},
+		{"unsupported_agent_kind", 400},
+		{"agent_pane_not_found", 404},
+	} {
+		t.Run(c.code, func(t *testing.T) {
+			fake := herdrtest.New(t, func(method string, params map[string]any) any {
+				switch method {
+				case "pane.list":
+					return map[string]any{"type": "pane_list", "panes": []any{map[string]any{"pane_id": "w14:p1", "workspace_id": "w14", "tab_id": "w14:t1", "cwd": "/Users/dev"}}}
+				case "tab.create":
+					return map[string]any{"type": "tab_created", "tab": map[string]any{"tab_id": "w14:t9", "workspace_id": "w14"},
+						"root_pane": map[string]any{"pane_id": "w14:p9", "workspace_id": "w14", "tab_id": "w14:t9"}}
+				case "agent.start":
+					return herdrtest.Error{Code: c.code, Message: "no; cwd=/Users/dev/secret"}
+				case "tab.close":
+					return map[string]any{"type": "ok"}
+				}
+				return herdrtest.Error{Code: "unknown_method", Message: method}
+			})
+			s := nowhereService(t, fake.SocketPath)
+			start := time.Now()
+			_, err := s.Create(context.Background(), server.CreateRequest{WorkspaceID: "w14", Kind: "pi", Name: str("bridge-pi")})
+			if e := api.FromError(err); e.Status != c.status {
+				t.Errorf("status %d (%v)", e.Status, err)
+			}
+			if d := time.Since(start); d > time.Second {
+				t.Errorf("took %v", d)
+			}
+			starts := 0
+			for _, m := range fake.Methods() {
+				if m == "agent.start" {
+					starts++
+				}
+			}
+			if starts != 1 {
+				t.Errorf("agent.start called %d times", starts)
+			}
+			if p := fake.Params("tab.close"); p != `{"tab_id":"w14:t9"}` {
+				t.Errorf("tab.close %q", p)
+			}
+		})
+	}
+}
+
+func TestNewAgent_BusyShellIsRetriedAndNotReadyKeepsTheAgent(t *testing.T) {
+	var mu sync.Mutex
+	calls := 0
+	fake := herdrtest.New(t, func(method string, params map[string]any) any {
+		switch method {
+		case "pane.list":
+			return map[string]any{"type": "pane_list", "panes": []any{map[string]any{"pane_id": "w14:p1", "workspace_id": "w14", "tab_id": "w14:t1", "cwd": "/Users/dev"}}}
+		case "tab.create":
+			return map[string]any{"type": "tab_created", "tab": map[string]any{"tab_id": "w14:t9", "workspace_id": "w14"},
+				"root_pane": map[string]any{"pane_id": "w14:p9", "workspace_id": "w14", "tab_id": "w14:t9"}}
+		case "agent.start":
+			mu.Lock()
+			defer mu.Unlock()
+			calls++
+			if calls < 3 {
+				return herdrtest.Error{Code: "agent_pane_busy", Message: "not an available shell"}
+			}
+			return herdrtest.Error{Code: "agent_not_ready", Message: "blocked at startup"}
+		case "agent.get":
+			return map[string]any{"type": "agent_info", "agent": herdrtest.AgentJSON("w14:p9", str("c"), "blocked", "/Users/dev", nil, "")}
+		case "workspace.list":
+			return map[string]any{"type": "workspace_list", "workspaces": herdrtest.Workspaces()}
+		case "agent.read":
+			return map[string]any{"type": "pane_read", "read": map[string]any{"pane_id": "w14:p9", "workspace_id": "w14", "tab_id": "w14:t9",
+				"source": "detection", "format": "text", "text": "", "revision": 1, "truncated": false}}
+		}
+		return herdrtest.Error{Code: "unknown_method", Message: method}
+	})
+	s := nowhereService(t, fake.SocketPath)
+	a, err := s.Create(context.Background(), server.CreateRequest{WorkspaceID: "w14", Kind: "claude", Name: str("c")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.ID != "w14:p9" || a.Status != api.StatusBlocked {
+		t.Errorf("%+v", a)
+	}
+	if slices.Contains(fake.Methods(), "tab.close") {
+		t.Error("closed the tab of a live agent")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 3 {
+		t.Errorf("agent.start called %d times", calls)
 	}
 }

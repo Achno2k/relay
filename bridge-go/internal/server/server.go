@@ -17,6 +17,7 @@ import (
 
 	"relay/internal/api"
 	"relay/internal/herdr"
+	"relay/internal/transcript"
 	"relay/internal/uploads"
 )
 
@@ -488,7 +489,17 @@ func writeJSON(w http.ResponseWriter, status int, v any) error {
 	return nil
 }
 
+// writeError renders err as the JSON error shape. Messages the bridge didn't write itself (herdr's,
+// internal errors, an agent's screen quoted in control_failed) can carry absolute paths, so those
+// are scrubbed: full paths never cross the wire.
 func writeError(w http.ResponseWriter, err error) {
 	e := api.FromError(err)
+	var own *api.Error
+	if !errors.As(err, &own) || e.Code == "control_failed" {
+		e = api.NewError(e.Status, e.Code, pathScrubber.Scrub(e.Message))
+	}
 	_ = writeJSON(w, e.Status, e.Body())
 }
+
+// pathScrubber has no cwd, so every absolute path keeps only its last component.
+var pathScrubber = transcript.NewScrubber("")

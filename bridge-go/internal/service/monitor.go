@@ -161,6 +161,7 @@ func (m *Monitor) refresh(ctx context.Context) {
 	for id := range m.known {
 		if _, ok := next[id]; !ok {
 			m.hub.Broadcast(api.AgentClosed(id))
+			m.service.forget(id)
 		}
 	}
 	for id, t := range m.tailers {

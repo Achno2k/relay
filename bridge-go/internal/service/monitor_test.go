@@ -103,6 +103,13 @@ func TestMonitor_CreatedClosedAndTailedMessages(t *testing.T) {
 	if e := nextEvent(t, events, api.EventAgentClosed); e.AgentID != "w1:p2" {
 		t.Errorf("closed %s", e.AgentID)
 	}
+	// R8-19: a closed agent's per-pane state is dropped.
+	svc.mu.Lock()
+	_, kept := svc.seen["w1:p2"]
+	svc.mu.Unlock()
+	if kept {
+		t.Error("seen still has w1:p2")
+	}
 
 	f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
@@ -118,5 +125,50 @@ func TestMonitor_CreatedClosedAndTailedMessages(t *testing.T) {
 	defer landedMu.Unlock()
 	if len(landed) != 1 || landed[0] != "w1:p1/a1" {
 		t.Errorf("onMessage %v", landed)
+	}
+}
+
+// R8-13: updatedAt follows the transcript's current mtime, never a cached one.
+func TestService_UpdatedAtFollowsTranscriptMtime(t *testing.T) {
+	projects := t.TempDir()
+	dir := filepath.Join(projects, transcript.ProjectDirName("/Users/dev/shop-api"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "sess-1.jsonl")
+	if err := os.WriteFile(file, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fake := herdrtest.New(t, func(method string, params map[string]any) any {
+		switch method {
+		case "agent.get":
+			return map[string]any{"type": "agent_info", "agent": herdrtest.AgentJSON("w1:p1", str("a"), "idle", "/Users/dev/shop-api",
+				map[string]any{"source": "herdr:claude", "agent": "claude", "kind": "id", "value": "sess-1"}, "")}
+		case "workspace.list":
+			return map[string]any{"type": "workspace_list", "workspaces": herdrtest.Workspaces()}
+		case "agent.read":
+			return map[string]any{"type": "pane_read", "read": map[string]any{"pane_id": "w1:p1", "workspace_id": "w1", "tab_id": "w1:t1",
+				"source": "detection", "format": "text", "text": "", "revision": 1, "truncated": false}}
+		}
+		return herdrtest.Error{Code: "unknown_method", Message: method}
+	})
+	s := New(Deps{
+		Herdr:   herdr.NewClient(fake.SocketPath),
+		Locator: transcript.NewLocator(projects, transcript.NewCodexRollouts(filepath.Join(projects, "codex"))),
+		Uploads: uploads.NewStore(t.TempDir()),
+	})
+	ctx := context.Background()
+	for _, at := range []time.Time{time.Date(2026, 9, 25, 9, 35, 0, 0, time.UTC), time.Date(2026, 9, 28, 11, 7, 0, 0, time.UTC)} {
+		if err := os.Chtimes(file, at, at); err != nil {
+			t.Fatal(err)
+		}
+		a, err := s.Agent(ctx, "w1:p1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		// With no state change seen, the transcript's mtime is updatedAt as is.
+		if want := api.FormatTime(at); a.UpdatedAt != want {
+			t.Errorf("updatedAt %s, want %s", a.UpdatedAt, want)
+		}
 	}
 }
