@@ -31,7 +31,7 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-23 | P3 | go-live | fixed 352be0c (package tests); not reproduced live | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
 | R8-24 | P3 | go-live | verified (Go, 7880): tool `Read`, summary `Read qa-read-r8.txt` | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
 | R8-25 | P2 | go-server | verified (Go 0149e14, 7892): silent client dropped at 45 s, answering client kept | Go `/ws` never pings: a phone that vanishes without a FIN stays a client; found by go-parity |
-| R8-26 | P3 | go-drivers (api.md: relay-lead) | open | `GET /controls?kind=claude` omits `defaultModel` when settings.json has no `model`; api.md says it's always sent. Found by ios-bugs, via go-parity |
+| R8-26 | P3 | relay-lead | closed: doc change only (d1327d1) | `GET /controls?kind=claude` omits `defaultModel` when settings.json has no `model`; api.md says it's always sent. Found by ios-bugs, via go-parity |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
@@ -176,6 +176,7 @@ Checked and fine (no bug) in Swift: WS auto-ping is on (Hummingbird default 30 s
   - api.md says `defaultModel` is absent when the agent has no saved default (the app then shows no preselected model), or
   - the bridge reports Claude's built-in default model when settings.json has none.
 - relay-lead decides; go-drivers implements if the bridge changes.
+- Closed: doc change only (d1327d1). `defaultModel`/`defaultEffort` are left out when the agent has no saved default; the bridge doesn't guess Claude's built-in default (it depends on the plan). No code change. Current behavior on 7878 and Go matches the new rule.
 
 ## iOS
 

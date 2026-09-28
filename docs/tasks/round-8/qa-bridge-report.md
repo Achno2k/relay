@@ -1,12 +1,12 @@
 # qa-bridge report (round 8)
 
 ## What changed
-- No code. Bridge bugs are filed in `docs/qa/round8.md` (Bridge section): R8-1 to R8-25, each with repro, expected result, fix and owner.
+- No code. Bridge bugs are filed in `docs/qa/round8.md` (Bridge section): R8-1 to R8-26, each with repro, expected result, fix and owner.
   - R8-1 to R8-21 came from my audit.
-  - R8-13 and R8-25 came from go-parity; R8-22 and R8-23 from go-live.
+  - R8-13 and R8-25 came from go-parity, R8-26 from ios-bugs via go-parity; R8-22 and R8-23 from go-live.
   - R8-24 came up during re-verification.
-- Severity: 3 × P1, 12 × P2, 10 × P3.
-- relay-lead decided R8-9 and R8-11 in `api.md` (c28fd33).
+- Severity: 3 × P1, 12 × P2, 11 × P3.
+- relay-lead decided R8-9 and R8-11 in `api.md` (c28fd33), and closed R8-26 with a doc change (d1327d1).
 
 ## Tests ported
 - None; this session owns no code. Swift 0 / Go 0.
