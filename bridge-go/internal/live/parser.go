@@ -115,7 +115,10 @@ func claude(lines []string) Screen {
 			for len(content) > 0 && indent(content[0]) >= toolOutputIndent {
 				content = content[1:]
 			}
-			if len(content) == 0 {
+			// What's left may start at the `⎿` result line, still without a header. Only a
+			// `⎿  $ command` line says which tool it is; anything else can't be named, and may
+			// well be a tool that already finished.
+			if len(content) == 0 || strings.HasPrefix(trimWS(content[0]), "⎿") && !hasCommandLine(content) {
 				continue
 			}
 		}
@@ -281,13 +284,20 @@ var claudePathTools = map[string]bool{"Read": true, "Write": true, "Edit": true,
 
 var claudeCommandTimer = icu(`\s+\(\d+(?:m\s*\d+)?s(?:\s+·\s+\d+ lines?)?\)$`)
 
+func isCommandLine(l string) bool {
+	t := trimWS(l)
+	return strings.HasPrefix(t, "⎿  $ ") || strings.HasPrefix(t, "⎿ $ ")
+}
+
+func hasCommandLine(content []string) bool { return slices.ContainsFunc(content, isCommandLine) }
+
 func claudeToolCall(content []string) *ToolCall {
 	// `⎿  $ ping -c 8 127.0.0.1 (3s · 5 lines)`: the command itself, the most specific source.
 	for _, l := range content {
-		t := trimWS(l)
-		if !strings.HasPrefix(t, "⎿  $ ") && !strings.HasPrefix(t, "⎿ $ ") {
+		if !isCommandLine(l) {
 			continue
 		}
+		t := trimWS(l)
 		rest := dropChars(trimWS(dropChars(t, 1)), 2)
 		if command := claudeCommandTimer.ReplaceAllString(rest, ""); command != "" {
 			return newTool("Bash", map[string]string{"command": command})

@@ -512,9 +512,12 @@ func TestClaudeScrolledOffDiffIsNotAToolSummary(t *testing.T) {
 ──────────────────────────────────
 ❯
 ──────────────────────────────────`
-	parsed := Parse(screen, "claude")
-	expectEqual(t, parsed.Text, (*string)(nil))
-	expectEqual(t, toolOf(t, parsed).Summary(noCwd), "Tool")
+	// The Edit already ran (the agent is thinking again): nothing on screen names a running tool.
+	expectEqual(t, Parse(screen, "claude"), Screen{})
+
+	// A header-less `⎿  $ command` line still names the command.
+	screen = "     b = 1\n  ⎿  $ ping -c 8 127.0.0.1\n     (ctrl+b to run in background)\n\n" + claudeBottom
+	expectEqual(t, Parse(screen, "claude").Tool, newTool("Bash", map[string]string{"command": "ping -c 8 127.0.0.1"}))
 
 	// Prose after the orphan output still shows.
 	screen = "     (ctrl+b to run in background)\n\n⏺ The tests pass.\n\n" + claudeBottom

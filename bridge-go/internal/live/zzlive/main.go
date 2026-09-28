@@ -28,7 +28,7 @@ func (hub) Broadcast(ev api.ServerEvent) {
 	}
 	flag := ""
 	if ev.Text != nil && (strings.Contains(*ev.Text, "Update available") || strings.Contains(*ev.Text, "brew upgrade")) {
-		flag = "  <<< BANNER"
+		flag = "  <<< BANNER: " + *ev.Text
 	}
 	fmt.Printf("%s seq=%d text=%q tool=%q%s\n", ev.AgentID, ev.Seq, text, tool, flag)
 }
@@ -36,7 +36,7 @@ func (hub) Broadcast(ev api.ServerEvent) {
 func main() {
 	c := herdr.NewClient("")
 	m := live.NewMonitor(c, hub{})
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	go m.Run(ctx)
 	for ctx.Err() == nil {
