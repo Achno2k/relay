@@ -28,7 +28,7 @@
 - Not filed because it didn't reproduce: after an approval, text that had already landed would reappear as live text. It doesn't happen, because Claude writes that text only after the approval.
 
 ## What's left
-- R8-24 (go-live): open.
+- R8-24 (go-live): fixed in 7fed37f and my parser cases pass. A live check waits until go-parity hands back the e2e agents.
 - R8-11 on codex: not run live, to save codex quota. The code path is the same as pi's, and go-server tested codex's input box by typing into it.
 - R8-17: not run live, because the test would delete `~/.claude/settings.json`.
 - Re-run the live checks on 7880 once the Go bridge serves there (or after cutover). Each `docs/qa/round8.md` entry says how.

@@ -29,7 +29,7 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-21 | P3 | go-core | verified (Go): home and token 0700/0600 | `~/.relay` keeps loose permissions (0744) if it already exists |
 | R8-22 | P2 | go-live | fixed 352be0c (package tests); not reproduced live | Claude tool output whose header scrolled off leaks into `reply.live` (as text, or as a junk `Tool`) |
 | R8-23 | P3 | go-live | fixed 352be0c (package tests); not reproduced live | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
-| R8-24 | P3 | go-live | open | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
+| R8-24 | P3 | go-live | fixed 7fed37f, QA cases pass (package); live check after go-parity's slot | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
