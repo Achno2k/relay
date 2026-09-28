@@ -27,6 +27,8 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-19 | P3 | go-server | open | Per-agent state maps are never pruned when agents close |
 | R8-20 | P3 | go-core | open | Too-long `HERDR_SOCKET_PATH` fails every request with `502 herdr_error` instead of at startup |
 | R8-21 | P3 | go-core | open | `~/.relay` keeps loose permissions (0744) if it already exists |
+| R8-22 | P2 | go-live | open | Claude tool output whose header scrolled off leaks into `reply.live` (as text, or as a junk `Tool`) |
+| R8-23 | P3 | go-live | open | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
@@ -137,6 +139,16 @@ Checked and fine (no bug): WS auto-ping is on (Hummingbird default 30 s), so dea
 ### R8-21: `~/.relay` permissions
 - `~/.relay` is `drwxr--r--` here: launchd creates it for the log before the bridge runs, and `RelayHome.ensure` only applies 0700 when it creates the directory. The token and uploads are 0600/0700, so nothing readable leaks today; `relay.log` is 0644.
 - Fix: `chmod 0700` the home on start; create the log 0600.
+
+### R8-22: scrolled-off tool output leaks into live reply (go-live)
+- Seen live by go-live (read-only Go monitor with Swift-identical parsing, narrow or short panes, long tool output).
+- When a Claude tool's `⏺ Name(args)` header has scrolled off the viewport, the indented `⎿` output left on screen has no block marker. It becomes `reply.live` `text` (e.g. `…(1m 4s · 5 lines) (ctrl+b to run in background)`), or a tool named `Tool` whose summary is diff lines (an Edit's `96  ### …` rows).
+- Expected (api.md Live reply): `text` is never tool output; an unrecognised fragment isn't a tool.
+- Fix: a leading run of indented `⎿`/output lines with no header above is tool output: skip it for `text`, and don't build a tool from it unless the header is visible. Add parser tests with a viewport that starts mid-output.
+
+### R8-23: fullscreen chrome in live text (go-live)
+- Seen live by go-live. Claude's fullscreen view draws `1 new message (click) ↓` and `Jump to bottom (click)`, and those lines end up in `reply.live` `text`.
+- Fix: add both to the chrome list the parser strips. Test with a screen that has each.
 
 ## iOS
 
