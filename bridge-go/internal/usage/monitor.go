@@ -17,16 +17,16 @@ type Hub interface {
 
 // Options: zero values mean the api.md defaults and the live probes.
 type Options struct {
-	Codex          func() []byte                // account/rateLimits/read response line
-	ClaudeUsage    func(dir string) []byte      // claude -p /usage stdout
-	ClaudeAuth     func() []byte                // claude auth status --json stdout
-	PiAuth         func(provider string) []byte // pi auth check --provider <p> --json stdout
-	ProbeDir       string                       // cwd for claude -p; "" = <relay home>/usage-probe
-	Tick           time.Duration                // 15 s
-	BaseInterval   time.Duration                // 60 s
-	MaxInterval    time.Duration                // 10 min
-	StaleAfter     time.Duration                // 15 min
-	ManualCooldown time.Duration                // 15 s
+	Codex          func(ctx context.Context) []byte                  // account/rateLimits/read response line
+	ClaudeUsage    func(ctx context.Context, dir string) []byte      // claude -p /usage stdout
+	ClaudeAuth     func(ctx context.Context) []byte                  // claude auth status --json stdout
+	PiAuth         func(ctx context.Context, provider string) []byte // pi auth check --provider <p> --json stdout
+	ProbeDir       string                                            // cwd for claude -p; "" = <relay home>/usage-probe
+	Tick           time.Duration                                     // 15 s
+	BaseInterval   time.Duration                                     // 60 s
+	MaxInterval    time.Duration                                     // 10 min
+	StaleAfter     time.Duration                                     // 15 min
+	ManualCooldown time.Duration                                     // 15 s
 	Now            func() time.Time
 }
 
@@ -45,6 +45,8 @@ type Monitor struct {
 	backoff      map[string]time.Duration
 	lastManual   time.Time
 	bg           sync.WaitGroup
+	// ctx is Run's context, so a manual refresh's probes stop with the monitor too.
+	ctx context.Context
 }
 
 func NewMonitor(hub Hub) *Monitor { return NewMonitorWith(hub, Options{}) }
@@ -78,14 +80,17 @@ func NewMonitorWith(hub Hub, o Options) *Monitor {
 	if o.Now == nil {
 		o.Now = time.Now
 	}
-	return &Monitor{hub: hub, o: o, providers: map[string]api.UsageProvider{},
+	return &Monitor{hub: hub, o: o, ctx: context.Background(), providers: map[string]api.UsageProvider{},
 		nextEligible: map[string]time.Time{}, backoff: map[string]time.Duration{}}
 }
 
 // Run seeds the cache at once (so GET /usage never waits on a subscriber), then polls every tick
 // while at least one /ws client is connected. Returns when ctx is done.
 func (m *Monitor) Run(ctx context.Context) {
-	m.pollAll(true)
+	m.mu.Lock()
+	m.ctx = ctx
+	m.mu.Unlock()
+	m.pollAll(ctx, true)
 	t := time.NewTicker(m.o.Tick)
 	defer t.Stop()
 	for {
@@ -94,7 +99,7 @@ func (m *Monitor) Run(ctx context.Context) {
 			return
 		case <-t.C:
 			if m.hub.Count() > 0 {
-				m.pollAll(false)
+				m.pollAll(ctx, false)
 			}
 		}
 	}
@@ -130,34 +135,54 @@ func (m *Monitor) RequestRefresh() bool {
 		return false
 	}
 	m.lastManual = n
+	ctx := m.ctx
 	m.mu.Unlock()
 	m.bg.Add(1)
 	go func() {
 		defer m.bg.Done()
-		m.pollAll(true)
+		m.pollAll(ctx, true)
 	}()
 	return true
 }
 
-func (m *Monitor) piReady(provider string) bool { return PiReady(m.o.PiAuth(provider)) }
+func (m *Monitor) piReady(ctx context.Context, provider string) bool {
+	return PiReady(m.o.PiAuth(ctx, provider))
+}
 
-func (m *Monitor) pollAll(force bool) {
+// pollAll runs one pass. A cancelled ctx kills a running probe and skips the rest, and nothing
+// is recorded from a cancelled pass.
+func (m *Monitor) pollAll(ctx context.Context, force bool) {
 	m.poll.Lock()
 	defer m.poll.Unlock()
-	piCodex := m.piReady("openai-codex")
-	piClaude := m.piReady("anthropic")
-	piOpenCodeGo := m.piReady("opencode-go")
-	m.pollCodex(force, piCodex)
-	m.pollClaude(force, piClaude)
+	if ctx.Err() != nil {
+		return
+	}
+	piCodex := m.piReady(ctx, "openai-codex")
+	piClaude := m.piReady(ctx, "anthropic")
+	piOpenCodeGo := m.piReady(ctx, "opencode-go")
+	if ctx.Err() != nil {
+		return
+	}
+	m.pollCodex(ctx, force, piCodex)
+	if ctx.Err() != nil {
+		return
+	}
+	m.pollClaude(ctx, force, piClaude)
+	if ctx.Err() != nil {
+		return
+	}
 	m.pollOpenCodeGo(piOpenCodeGo)
 }
 
-func (m *Monitor) pollCodex(force, piReady bool) {
+func (m *Monitor) pollCodex(ctx context.Context, force, piReady bool) {
 	if !force && !m.eligible("codex") {
 		return
 	}
 	n := m.o.Now()
-	raw := m.o.Codex()
+	raw := m.o.Codex(ctx)
+	if ctx.Err() != nil {
+		return
+	}
 	var p *api.UsageProvider
 	if raw != nil {
 		p = ParseCodex(raw, n, piReady)
@@ -169,13 +194,17 @@ func (m *Monitor) pollCodex(force, piReady bool) {
 	m.record(*p, n)
 }
 
-func (m *Monitor) pollClaude(force, piReady bool) {
+func (m *Monitor) pollClaude(ctx context.Context, force, piReady bool) {
 	if !force && !m.eligible("claude") {
 		return
 	}
 	n := m.o.Now()
 	_ = os.MkdirAll(m.o.ProbeDir, 0o755)
-	usage, auth := m.o.ClaudeUsage(m.o.ProbeDir), m.o.ClaudeAuth()
+	usage := m.o.ClaudeUsage(ctx, m.o.ProbeDir)
+	auth := m.o.ClaudeAuth(ctx)
+	if ctx.Err() != nil {
+		return
+	}
 	p := ParseClaude(usage, auth, n, piReady)
 	if p == nil {
 		m.recordFailure("claude", "claude -p /usage didn't return usage data", n)

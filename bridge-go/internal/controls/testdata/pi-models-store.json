@@ -1,0 +1,8 @@
+{"anthropic":{"models":[
+  {"id":"claude-fable-5","reasoning":true,"thinkingLevelMap":{"off":null,"xhigh":"xhigh","max":"max"}},
+  {"id":"claude-sonnet-5","reasoning":true,"thinkingLevelMap":{"xhigh":"xhigh","max":"max"}},
+  {"id":"claude-haiku-4-5","reasoning":true}]},
+ "openai-codex":{"models":[
+  {"id":"gpt-5.6-sol","reasoning":true,"thinkingLevelMap":{"xhigh":"xhigh","max":"max","minimal":"low"}},
+  {"id":"gpt-5.5","reasoning":true,"thinkingLevelMap":{"xhigh":null}}]},
+ "opencode-go":{"models":[{"id":"plain-model","reasoning":false}]}}

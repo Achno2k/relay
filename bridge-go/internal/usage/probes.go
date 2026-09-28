@@ -20,8 +20,8 @@ func defaultProbeDir() string { return filepath.Join(config.Home(), "usage-probe
 // LiveCodex spawns `codex app-server`, asks `account/rateLimits/read` once over JSON-RPC/stdio and
 // returns the raw response line, or nil. The child is always reaped: SIGTERM after 6 s, SIGKILL
 // 2 s later.
-func LiveCodex() []byte {
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+func LiveCodex(ctx context.Context) []byte {
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 	cmd, ok := agentcli.Command(ctx, "", nil, "codex", "app-server")
 	if !ok {
@@ -71,20 +71,20 @@ func LiveCodex() []byte {
 }
 
 // LiveClaudeUsage runs `claude -p "/usage"` (structured usage_report) from dir.
-func LiveClaudeUsage(dir string) []byte {
-	return agentcli.Output([]string{"claude", "-p", "/usage", "--output-format", "stream-json", "--verbose", "--no-session-persistence"},
+func LiveClaudeUsage(ctx context.Context, dir string) []byte {
+	return agentcli.Output(ctx, []string{"claude", "-p", "/usage", "--output-format", "stream-json", "--verbose", "--no-session-persistence"},
 		dir, 20*time.Second, false)
 }
 
 // LiveClaudeAuth runs `claude auth status --json` (plan name).
-func LiveClaudeAuth() []byte {
-	return agentcli.Output([]string{"claude", "auth", "status", "--json"}, "", 8*time.Second, false)
+func LiveClaudeAuth(ctx context.Context) []byte {
+	return agentcli.Output(ctx, []string{"claude", "auth", "status", "--json"}, "", 8*time.Second, false)
 }
 
 // LivePiAuth runs `pi auth check --provider <id> --json`: whether pi has a valid stored credential,
 // never the credential itself.
-func LivePiAuth(provider string) []byte {
-	return agentcli.Output([]string{"pi", "auth", "check", "--provider", provider, "--json"}, "", 8*time.Second, false)
+func LivePiAuth(ctx context.Context, provider string) []byte {
+	return agentcli.Output(ctx, []string{"pi", "auth", "check", "--provider", provider, "--json"}, "", 8*time.Second, false)
 }
 
 // PiReady is true only for `{"status":"ready"}`. Any failure (pi missing, timeout, non-JSON) is

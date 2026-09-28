@@ -196,13 +196,13 @@ type probes struct {
 func monitor(t *testing.T, hub Hub, p probes, o Options) *Monitor {
 	t.Helper()
 	if o.Codex == nil {
-		o.Codex = func() []byte { return p.codex }
+		o.Codex = func(context.Context) []byte { return p.codex }
 	}
-	o.ClaudeUsage = func(string) []byte { return p.usage }
-	o.ClaudeAuth = func() []byte { return p.auth }
+	o.ClaudeUsage = func(context.Context, string) []byte { return p.usage }
+	o.ClaudeAuth = func(context.Context) []byte { return p.auth }
 	// ready names the providers `pi auth check` reports ready; everything else is invalid, which
 	// matches "pi not installed".
-	o.PiAuth = func(provider string) []byte {
+	o.PiAuth = func(_ context.Context, provider string) []byte {
 		if p.ready[provider] {
 			return []byte(`{"status":"ready"}`)
 		}
@@ -274,7 +274,7 @@ func TestOnlyPollsWhileAClientIsConnected(t *testing.T) {
 	hub := &fakeHub{}
 	var calls atomic.Int32
 	m := monitor(t, hub, probes{}, Options{
-		Codex:        func() []byte { calls.Add(1); return nil },
+		Codex:        func(context.Context) []byte { calls.Add(1); return nil },
 		Tick:         50 * time.Millisecond,
 		BaseInterval: 10 * time.Millisecond,
 		MaxInterval:  50 * time.Millisecond,
@@ -332,4 +332,29 @@ func TestBroadcastsOnlyChanges(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	requestRefreshAndWait(m)
 	eq(t, "events after an unchanged poll", len(hub.events), first)
+}
+
+// Run returns promptly when its context ends, even while a probe is running, and the probe's
+// context is cancelled with it (the live probes kill their child process on that).
+func TestRunStopsDuringAProbe(t *testing.T) {
+	probeCancelled := make(chan struct{})
+	m := monitor(t, &fakeHub{}, probes{}, Options{Codex: func(ctx context.Context) []byte {
+		<-ctx.Done()
+		close(probeCancelled)
+		return nil
+	}})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { m.Run(ctx); close(done) }()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Run didn't return")
+	}
+	<-probeCancelled
+	if find(m.Snapshot(), "codex") != nil {
+		t.Error("recorded a cancelled probe")
+	}
 }

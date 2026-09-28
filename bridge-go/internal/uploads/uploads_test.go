@@ -332,3 +332,12 @@ func TestSentLogLineShape(t *testing.T) {
 		t.Errorf("line %s", data)
 	}
 }
+
+// MigrationTests.oldUploadMarkersStillResolve
+func TestOldUploadMarkersStillResolve(t *testing.T) {
+	s := NewStoreWithLegacy("/Users/dev/.relay/uploads", "/Users/dev/.herd/uploads")
+	parsed, ok := s.ParseMarker("look\n\nAttached files: /Users/dev/.herd/uploads/w1_p1/0123456789abcdef-a.png")
+	if !ok || len(parsed.Files) != 1 || parsed.Files[0].ID != "0123456789abcdef" {
+		t.Errorf("parsed %+v %v", parsed, ok)
+	}
+}

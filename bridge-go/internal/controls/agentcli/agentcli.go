@@ -91,9 +91,10 @@ func Command(ctx context.Context, dir string, extraEnv []string, args ...string)
 }
 
 // Output runs args with a timeout and returns stdout, or nil if it couldn't start or printed
-// nothing. With requireSuccess, a non-zero exit is nil too.
-func Output(args []string, dir string, timeout time.Duration, requireSuccess bool, extraEnv ...string) []byte {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+// nothing. With requireSuccess, a non-zero exit is nil too. Cancelling ctx stops the child the
+// same way the timeout does.
+func Output(ctx context.Context, args []string, dir string, timeout time.Duration, requireSuccess bool, extraEnv ...string) []byte {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd, ok := Command(ctx, dir, extraEnv, args...)
 	if !ok {
