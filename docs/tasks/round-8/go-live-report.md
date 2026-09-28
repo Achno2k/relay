@@ -19,20 +19,23 @@ Owns `bridge-go/internal/live` and `bridge-go/internal/approval`.
   - R8-14: wrapped approval labels were cut at the line break.
   - R8-22 (found live by me, filed by qa-bridge): tool output whose header had scrolled off leaked as text or as a junk "Tool" summary.
   - R8-23 (same): fullscreen Claude's "N new messages (click) ↓" / "Jump to bottom (click)" leaked into text.
+  - R8-24: Claude's single-file label (`Reading notes.txt`, no count) went out as tool `Tool`; now `Read`/`Write`/`Edit` with the transcript's summary.
+  - Found by go-parity: Claude's startup logo went out as live text on a fresh session (Swift has the same gap). The turn now starts below the logo.
+    - The same report exposed a regression in my R8-10 fix: a user prompt starting "1. " was skipped as if it were a dialog's cursor. It's now skipped only while a dialog footer is on screen.
   - R8-11 helpers for go-server: `approval.InputFor(kind, screen, ansi)` and `ClearKeysFor`. pi's box is between its last two rules. codex's is the `›` composer; a composer whose text is all dim is the empty placeholder.
 - **Race fixed, not filed:** a screen read still in flight when the agent stopped could reopen the preview after the stop had cleared it, and nothing would clear it again. The monitor now drops a read unless the agent is still working. This is the same lock `Update` uses.
 
 ## Tests: Swift → Go
 | Swift suite | Swift | Go (same names) | Go extra |
 |---|---|---|---|
-| LiveReplyParserTests | 34 | 34 | 4 (R8-10, R8-22 ×2, R8-23) |
+| LiveReplyParserTests | 34 | 34 | 7 (R8-10, R8-22 ×2, R8-23, R8-24, logo, numbered prompt) |
 | LiveReplyTrackerTests + LiveReplySequenceTests | 25 | 25 | – |
 | LiveReplyMonitorTests | 2 | 2 | 2 (in-flight read after stop, ANSI read params) |
 | – (banner) | – | – | 8 (`ScreenText`) |
 | ApprovalParserTests | 18 | 18 | 3 (R8-14) |
 | InputBoxTests | 3 | 3 | 3 (R8-11: pi, codex, others) |
 | FuzzTests (approval, picker, input box) | 3 | 3 | – |
-| **Total** | **85** | **85** | **20** (105 Go tests) |
+| **Total** | **85** | **85** | **23** (108 Go tests) |
 
 Notes:
 - The monitor tests drive `Monitor.Update` directly with a `herdrtest` fake. Swift went through AgentMonitor, which is go-server's.
@@ -50,7 +53,11 @@ Notes:
 - `internal/service` builds against both packages and wires `Update`/`Landed`/`Run`.
 
 ## What's left
-- qa-bridge is re-verifying R8-10, R8-14, R8-22 and R8-23 on 7880.
+- qa-bridge verified R8-10 and R8-14 live. R8-22, R8-23 and R8-24 are waiting on its re-check.
+- go-parity saw fewer `reply.live` frames from Go than from Swift (22 vs 75 in 40 s).
+  - Read speed is the same (13 ms either way).
+  - My guess is the junk frames Go no longer sends: R8-22's ticking tool timers, the banner, R8-23 and dialog footers.
+  - go-parity is confirming with controlled e2e turns.
 - The banner's default colour covers Claude's dark themes only. Other themes rely on an intact "Update available" somewhere on screen to learn the colour.
 - Known Swift-vs-Go gaps, all in inputs herdr doesn't produce:
   - ICU `$` also matches before a trailing `\r`; RE2's doesn't.
