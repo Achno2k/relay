@@ -6,30 +6,30 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 
 | id | severity | owner | status | title |
 |---|---|---|---|---|
-| R8-1 | P1 | go-drivers | verified (Go, 7891): claude card fresh, not stale | Claude usage card stale for days: `claude -p /usage` outlives the 20 s watchdog |
-| R8-2 | P1 | go-drivers | verified (Go, 7891): GET /usage 0.5 ms during a refresh | `GET /usage` blocks for the whole poll (64 s measured) |
-| R8-3 | P1 | go-server | verified (Go, 7891): herdr message says cwd=e2e | Error messages leak full paths (herdr messages and screen quotes passed verbatim) |
-| R8-4 | P2 | go-server | verified (Go, 7891): no tab left in w14 | `POST /agents` leaves an orphan shell tab when `agent.start` fails |
-| R8-5 | P2 | go-core, go-server | verified (Go, 7891): 400 in 33 ms, 409 in 41 ms | herdr client errors (`unsupported_agent_kind`, `agent_name_taken`) become `502` after ~6.6 s of retries |
+| R8-1 | P1 | go-drivers | verified (Go, 7891 and 7880): claude card fresh, not stale | Claude usage card stale for days: `claude -p /usage` outlives the 20 s watchdog |
+| R8-2 | P1 | go-drivers | verified (Go, 7891 and 7880): GET /usage 0.5 ms during a refresh | `GET /usage` blocks for the whole poll (64 s measured) |
+| R8-3 | P1 | go-server | verified (Go, 7891 and 7880): herdr message says cwd=e2e | Error messages leak full paths (herdr messages and screen quotes passed verbatim) |
+| R8-4 | P2 | go-server | verified (Go, 7891 and 7880): no tab left in w14 | `POST /agents` leaves an orphan shell tab when `agent.start` fails |
+| R8-5 | P2 | go-core, go-server | verified (Go, 7891 and 7880): 400 in 33 ms, 409 in 41 ms | herdr client errors (`unsupported_agent_kind`, `agent_name_taken`) become `502` after ~6.6 s of retries |
 | R8-6 | P2 | go-core | verified (Go, fake herdr): 503 herdr_unavailable | herdr dying mid-request answers `502 herdr_error`, api.md says `503 herdr_unavailable` |
 | R8-7 | P2 | go-core, go-server | verified (Go, fake herdr): 504 in 3.0 s, /health unavailable, 5 ms after recovery | Hung herdr: `504` after 15 s, `/health` stays `connected`, calls starve 13 s after recovery |
-| R8-8 | P2 | go-transcripts | verified (Go, 7891): no /Users or file:/// blocks on the wire | Path leak: `file:///Users/...` and `host:/Users/...` are not scrubbed |
-| R8-9 | P2 | go-transcripts | verified (Go, 7891): no raw-tag user bubbles; `! cmd` in package test | `<task-notification>` (and `<bash-input>`/`<bash-stdout>`) user lines show as raw-XML user bubbles |
-| R8-10 | P2 | go-live | verified (Go, 7891): no chrome in any reply.live frame | Permission dialog footer "Esc to cancel · Tab to amend" is sent as `reply.live` text |
-| R8-11 | P2 | go-server, go-drivers | verified (Go, 7891) on pi: prompt arrived without LEFTOVER; codex not run live (quota) | pi/codex prompts and slash-command controls glue onto leftover input text |
+| R8-8 | P2 | go-transcripts | verified (Go, 7891 and 7880): no /Users or file:/// blocks on the wire | Path leak: `file:///Users/...` and `host:/Users/...` are not scrubbed |
+| R8-9 | P2 | go-transcripts | verified (Go, 7891 and 7880): no raw-tag user bubbles; `! cmd` in package test | `<task-notification>` (and `<bash-input>`/`<bash-stdout>`) user lines show as raw-XML user bubbles |
+| R8-10 | P2 | go-live | verified (Go, 7891 and 7880): no chrome in any reply.live frame | Permission dialog footer "Esc to cancel · Tab to amend" is sent as `reply.live` text |
+| R8-11 | P2 | go-server, go-drivers | verified (Go, 7891 and 7880) on pi: prompt arrived without LEFTOVER; codex not run live (quota) | pi/codex prompts and slash-command controls glue onto leftover input text |
 | R8-12 | P2 | go-server, go-core | verified (Go): exits 0.04 s after SIGTERM with a WS client | SIGTERM is ignored: the bridge is still alive 60 s later |
-| R8-13 | P2 | go-server | verified (Go, 7891): updatedAt equals transcript mtime | `Agent.updatedAt` goes stale (cached mtime); found by go-parity |
-| R8-14 | P3 | go-live | verified (Go, 7891): wrapped label joined, cwd scrubbed, hint gone | Wrapped approval option labels are cut at the line break |
+| R8-13 | P2 | go-server | verified (Go, 7891 and 7880): updatedAt equals transcript mtime | `Agent.updatedAt` goes stale (cached mtime); found by go-parity |
+| R8-14 | P3 | go-live | verified (Go, 7891 and 7880): wrapped label joined, cwd scrubbed, hint gone | Wrapped approval option labels are cut at the line break |
 | R8-15 | P3 | go-transcripts | fixed f460552 (package tests); not load-tested live | Tailer (re)start reads the whole transcript into memory, no cap |
 | R8-16 | P3 | go-transcripts | fixed f460552 (package tests) | Tailer: bytes written between the seed read and the watcher start wait for the next write |
 | R8-17 | P3 | go-drivers | fixed 083c18c (package tests); not run live (would delete settings.json) | `/model`/`/effort` from the phone persist as default when `~/.claude/settings.json` didn't exist |
-| R8-18 | P3 | go-server | verified (Go, 7891): 401 + JSON | WS with a bad token gets a bodiless `400`, not `401` JSON |
+| R8-18 | P3 | go-server | verified (Go, 7891 and 7880): 401 + JSON | WS with a bad token gets a bodiless `400`, not `401` JSON |
 | R8-19 | P3 | go-server | fixed 3414f33 (package tests) | Per-agent state maps are never pruned when agents close |
 | R8-20 | P3 | go-core | verified (Go): exit 78 with a clear message | Too-long `HERDR_SOCKET_PATH` fails every request with `502 herdr_error` instead of at startup |
 | R8-21 | P3 | go-core | verified (Go): home and token 0700/0600 | `~/.relay` keeps loose permissions (0744) if it already exists |
 | R8-22 | P2 | go-live | fixed 352be0c (package tests); not reproduced live | Claude tool output whose header scrolled off leaks into `reply.live` (as text, or as a junk `Tool`) |
 | R8-23 | P3 | go-live | fixed 352be0c (package tests); not reproduced live | Claude fullscreen chrome (`1 new message (click) ↓`, `Jump to bottom (click)`) shows up in `reply.live` text |
-| R8-24 | P3 | go-live | fixed 7fed37f, QA cases pass (package); live check after go-parity's slot | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
+| R8-24 | P3 | go-live | verified (Go, 7880): tool `Read`, summary `Read qa-read-r8.txt` | Claude's single-file label `Reading <file>` goes out as tool `Tool`, not `Read` |
 
 How these were found: code review of `bridge/Sources/RelayCore`, live probes against 7878 with the e2e agents (`w14:p2` claude, `w14:p4` pi), and a throwaway Swift bridge (`RELAY_HOME` temp, port 7890) on a fake herdr socket that can answer, drop the connection, or hang. Paths below are synthetic.
 
@@ -166,6 +166,7 @@ Checked and fine (no bug): WS auto-ping is on (Hummingbird default 30 s), so dea
 | R8-i3 | P2 | ios-bugs | fixed, verified (sim) | Background keeps a socket the app can't read; foreground and network-back wait out a backoff of up to 30 s |
 | R8-i4 | P3 | ios-bugs | fixed, verified (sim) | Files picker reads every file in full on the main thread, even a 600 MB one it then rejects |
 | R8-i5 | P3 | ios-bugs | fixed, unit-tested | Every resync replaces the open chat with the last 50 messages: scrolled-up history is lost, a message that lands mid-request vanishes |
+| R8-i6 | P2 | ios-bugs | fixed, UI-tested (mock) | A failed send looks exactly like a pending one forever: no "not sent", no retry, no delete |
 
 How these were found: code review of `ios/`, the mock UI tests, and the simulator (iPhone 17 Pro) against the live bridge through a local proxy on 7881 that can drop every connection ("bridge down") or answer like a bridge with a rotated token (`401` JSON on REST, bare `400` on the WS upgrade, as the Swift bridge does today). The live bridge was never restarted and its token never changed.
 
@@ -209,3 +210,10 @@ Details below, one section per bug: repro, expected, actual, fix, how verified.
   - A message the socket delivered while the page request was in flight (e.g. the user's own prompt echo) was overwritten by the older snapshot and vanished until the next full load.
 - Fix: `RelayState.mergeLatestPage`: if the page overlaps what's loaded, keep the older messages and their `hasMore`; keep loaded messages newer than the page's last; the page's copy wins for ids in both. No overlap (more than a page arrived while away) still replaces.
 - Verified: unit tests `resyncKeepsOlderPagesTheUserScrolledTo`, `resyncKeepsAMessageTheSocketDeliveredMidRequest`, `resyncAfterALongGapReplacesTheChat`.
+
+### R8-i6: failed sends have no UI
+- Repro: bridge down (or offline), send a message.
+- Expected: the bubble says it wasn't sent and offers retry or delete (round 5 added `failedPending`, `retry` and `discardFailed` to `AppStore` for this).
+- Actual: nothing in the views used them. `UserBubble` only knows "pending", so the failed bubble stays dimmed forever, VoiceOver reads it as "pending", and the only sign is a 4 s error banner. It can't be resent or removed.
+- Fix: a failed bubble shows "Not sent. Tap to retry." in red; its context menu and VoiceOver actions offer Retry and Delete; its value reads "not sent".
+- Verified: `Round8UITests` (mock bridge; prompts starting "unsent" fail once): retry lands the real message with no duplicate bubble, and Delete removes it.

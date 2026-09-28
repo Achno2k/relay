@@ -17,8 +17,8 @@
   - Read all of `bridge/Sources/RelayCore` line by line.
   - Live probes against 7878, sending prompts, keys and controls only to the e2e agents (w14:p2 claude, w14:p4 pi); other agents got read-only GETs.
   - A throwaway Swift bridge (temp `RELAY_HOME`, port 7890) on a fake herdr socket that answers, drops or hangs. The live bridge was never restarted.
-- Re-verification ran on my own Go build (temp home), not on 7880, because the Go bridge wasn't serving there yet:
-  - Port 7891 against real herdr and the e2e agents: R8-1/2/3/4/5/8/9/10/11 (pi)/13/14/18.
+- Re-verification ran on my own Go build with a temp home, on 7891 first and again on 7880 (dcb77f1) once go-parity freed it:
+  - Against real herdr and the e2e agents, on both ports: R8-1/2/3/4/5/8/9/10/11 (pi)/13/14/18. R8-24 on 7880.
   - Port 7891 against the fake herdr: R8-6/7/12/20/21.
   - Package tests only (not reproduced live): R8-15/16/17/19/22/23.
 - Checked and not a bug:
@@ -28,7 +28,6 @@
 - Not filed because it didn't reproduce: after an approval, text that had already landed would reappear as live text. It doesn't happen, because Claude writes that text only after the approval.
 
 ## What's left
-- R8-24 (go-live): fixed in 7fed37f and my parser cases pass. A live check waits until go-parity hands back the e2e agents.
 - R8-11 on codex: not run live, to save codex quota. The code path is the same as pi's, and go-server tested codex's input box by typing into it.
 - R8-17: not run live, because the test would delete `~/.claude/settings.json`.
-- Re-run the live checks on 7880 once the Go bridge serves there (or after cutover). Each `docs/qa/round8.md` entry says how.
+- Nothing else open on the bridge side.
