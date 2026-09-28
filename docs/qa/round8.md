@@ -6,23 +6,23 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 
 | id | severity | owner | status | title |
 |---|---|---|---|---|
-| R8-1 | P1 | go-drivers | open | Claude usage card stale for days: `claude -p /usage` outlives the 20 s watchdog |
-| R8-2 | P1 | go-drivers | open | `GET /usage` blocks for the whole poll (64 s measured) |
+| R8-1 | P1 | go-drivers | fixed 083c18c, live check pending (7880) | Claude usage card stale for days: `claude -p /usage` outlives the 20 s watchdog |
+| R8-2 | P1 | go-drivers | fixed 083c18c, live check pending (7880) | `GET /usage` blocks for the whole poll (64 s measured) |
 | R8-3 | P1 | go-server | open | Error messages leak full paths (herdr messages and screen quotes passed verbatim) |
 | R8-4 | P2 | go-server | open | `POST /agents` leaves an orphan shell tab when `agent.start` fails |
 | R8-5 | P2 | go-core, go-server | open | herdr client errors (`unsupported_agent_kind`, `agent_name_taken`) become `502` after ~6.6 s of retries |
 | R8-6 | P2 | go-core | open | herdr dying mid-request answers `502 herdr_error`, api.md says `503 herdr_unavailable` |
 | R8-7 | P2 | go-core, go-server | open | Hung herdr: `504` after 15 s, `/health` stays `connected`, calls starve 13 s after recovery |
-| R8-8 | P2 | go-transcripts | open | Path leak: `file:///Users/...` and `host:/Users/...` are not scrubbed |
-| R8-9 | P2 | go-transcripts | open (api.md decided, c28fd33) | `<task-notification>` (and `<bash-input>`/`<bash-stdout>`) user lines show as raw-XML user bubbles |
+| R8-8 | P2 | go-transcripts | fixed f460552, QA cases pass (package); live pending | Path leak: `file:///Users/...` and `host:/Users/...` are not scrubbed |
+| R8-9 | P2 | go-transcripts | fixed f460552, QA cases pass (package); live pending | `<task-notification>` (and `<bash-input>`/`<bash-stdout>`) user lines show as raw-XML user bubbles |
 | R8-10 | P2 | go-live | open | Permission dialog footer "Esc to cancel · Tab to amend" is sent as `reply.live` text |
 | R8-11 | P2 | go-server, go-drivers | open (api.md decided, c28fd33) | pi/codex prompts and slash-command controls glue onto leftover input text |
 | R8-12 | P2 | go-server, go-core | open | SIGTERM is ignored: the bridge is still alive 60 s later |
 | R8-13 | P2 | go-server | open | `Agent.updatedAt` goes stale (cached mtime); found by go-parity |
 | R8-14 | P3 | go-live | open | Wrapped approval option labels are cut at the line break |
-| R8-15 | P3 | go-transcripts | open | Tailer (re)start reads the whole transcript into memory, no cap |
-| R8-16 | P3 | go-transcripts | open | Tailer: bytes written between the seed read and the watcher start wait for the next write |
-| R8-17 | P3 | go-drivers | open | `/model`/`/effort` from the phone persist as default when `~/.claude/settings.json` didn't exist |
+| R8-15 | P3 | go-transcripts | fixed f460552, live check pending (7880) | Tailer (re)start reads the whole transcript into memory, no cap |
+| R8-16 | P3 | go-transcripts | fixed f460552, live check pending (7880) | Tailer: bytes written between the seed read and the watcher start wait for the next write |
+| R8-17 | P3 | go-drivers | fixed 083c18c, live check pending (7880) | `/model`/`/effort` from the phone persist as default when `~/.claude/settings.json` didn't exist |
 | R8-18 | P3 | go-server | open | WS with a bad token gets a bodiless `400`, not `401` JSON |
 | R8-19 | P3 | go-server | open | Per-agent state maps are never pruned when agents close |
 | R8-20 | P3 | go-core | open | Too-long `HERDR_SOCKET_PATH` fails every request with `502 herdr_error` instead of at startup |
