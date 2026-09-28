@@ -535,3 +535,28 @@ func TestClaudeScrollOverlayIsNotText(t *testing.T) {
 	screen = "⏺ Short answer.   Jump to bottom (click) ↓\n\n" + claudeBottom
 	expectEqual(t, Parse(screen, "claude").Text, strPtr("Short answer."))
 }
+
+func TestClaudeSingleFileLabelIsTheTranscriptTool(t *testing.T) {
+	// R8-24: the one-file label has no count (`Reading 2 files` has one).
+	scrubber := transcript.NewScrubber("/Users/dev/shop-api")
+	for _, c := range []struct{ block, name, summary string }{
+		{"⏺ Reading qa-note-r8.txt\n  ⎿  qa-note-r8.txt", "Read", "Read qa-note-r8.txt"},
+		{"  Reading Sources/App.swift…", "Read", "Read Sources/App.swift"},
+		{"⏺ Writing notes.txt", "Write", "Wrote notes.txt"},
+		{"⏺ Updating /Users/dev/shop-api/README.md\n  ⎿  Running…", "Edit", "Edited README.md"},
+	} {
+		parsed := Parse(claudeMidTool(c.block, defaultSpinner), "claude")
+		expectEqual(t, parsed.Text, (*string)(nil))
+		tool := toolOf(t, parsed)
+		expectEqual(t, tool.Name, c.name)
+		expectEqual(t, tool.Summary(scrubber), c.summary)
+	}
+	// Prose that happens to start with the verb stays prose.
+	for _, prose := range []string{"⏺ Reading the docs now.", "⏺ Reading main.go.", "⏺ Editing is done"} {
+		parsed := Parse(claudeMidTool(prose, defaultSpinner), "claude")
+		expectEqual(t, parsed.Tool, (*ToolCall)(nil))
+		if parsed.Text == nil {
+			t.Fatalf("%q lost its text", prose)
+		}
+	}
+}

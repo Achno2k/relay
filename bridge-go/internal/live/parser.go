@@ -255,8 +255,30 @@ func isClaudeTool(content []string) bool {
 	if _, _, ok := callSignature(header); ok {
 		return true
 	}
+	if _, _, ok := claudeSingleFile(header); ok {
+		return true
+	}
 	_, ok := claudeGroupLabel(header)
 	return ok
+}
+
+var claudeFileLabel = icu(`^(Reading|Writing|Editing|Updating) ([^\t\n\f\r\p{Z}…]+)…?$`)
+
+// claudeSingleFile reads Claude's label for a tool on one file, e.g. `Reading notes.txt` (the
+// grouped form has a count: `Reading 2 files`). Only a single path-like word counts, so a reply
+// that starts "Reading the docs…" stays prose.
+func claudeSingleFile(header string) (name, path string, ok bool) {
+	m := groups(claudeFileLabel, header)
+	if m == nil || !strings.ContainsAny(m[1], "./") || strings.ContainsAny(m[1][len(m[1])-1:], ".,;:") {
+		return "", "", false
+	}
+	switch m[0] {
+	case "Reading":
+		return "Read", m[1], true
+	case "Writing":
+		return "Write", m[1], true
+	}
+	return "Edit", m[1], true
 }
 
 var claudeTimer = icu(`\s+·\s+\d+(?:m\s*\d+)?s$`)
@@ -337,6 +359,9 @@ func claudeToolCall(content []string) *ToolCall {
 		default:
 			return genericTool(name)
 		}
+	}
+	if name, path, ok := claudeSingleFile(header); ok {
+		return newTool(name, map[string]string{"file_path": path})
 	}
 	if name, ok := claudeGroupLabel(header); ok {
 		return genericTool(name)
