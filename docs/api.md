@@ -371,10 +371,10 @@ auth check reports it's actively using that subscription; it is never guessed.
 
 Three provider entries:
 
-- `claude`: spawns `claude -p "/usage" --output-format stream-json --verbose --no-session-persistence`
+- `claude`: spawns `claude -p "/usage" --output-format stream-json --verbose --no-session-persistence --strict-mcp-config`
   from a dedicated cwd (`~/.relay/usage-probe`), and parses the assistant message's structured
   `usage_report.rate_limits.limits[]` (not the prose). `--no-session-persistence` and the dedicated cwd
-  keep this out of the user's normal Claude Code history; `windows` are built from the `session` and
+  keep this out of the user's normal Claude Code history, and `--strict-mcp-config` skips the user's MCP servers so the probe doesn't hang on them. The bridge stops reading at the first `usage_report` line (45 s backstop). `windows` are built from the `session` and
   `weekly_all` entries. `plan` comes from a second, much cheaper call, `claude auth status --json`
   (`subscriptionType`). `usedBy` always includes `"claude"`; it includes `"pi"` only when
   `pi auth check --provider anthropic --json` reports `status: "ready"` — pi's `/login` Anthropic
