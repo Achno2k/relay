@@ -221,3 +221,37 @@ func TestEdges_WSBadTokenIs401WithBody(t *testing.T) {
 		t.Errorf("%d %s", res.StatusCode, body)
 	}
 }
+
+// R8-25: a client that stops answering pings (gone without a close frame) is unsubscribed.
+func TestEdges_WSDropsAClientThatStopsAnsweringPings(t *testing.T) {
+	hub := NewHub()
+	ts := newTestServer(t, Options{Hub: hub, PingInterval: 50 * time.Millisecond, PingTimeout: 100 * time.Millisecond})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(ts.URL, "http")+"/ws?token="+testToken, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.CloseNow()
+	// Answering pings: stays connected across several intervals.
+	readCtx, stopReading := context.WithCancel(ctx)
+	go func() {
+		for {
+			if _, _, err := c.Read(readCtx); err != nil {
+				return
+			}
+		}
+	}()
+	time.Sleep(400 * time.Millisecond)
+	if hub.Count() != 1 {
+		t.Fatalf("dropped a live client")
+	}
+	// Stop reading: pongs stop, the server gives up on the client.
+	stopReading()
+	for hub.Count() != 0 {
+		if ctx.Err() != nil {
+			t.Fatal("ghost client still subscribed")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}

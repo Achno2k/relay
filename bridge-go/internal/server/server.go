@@ -71,6 +71,8 @@ type Options struct {
 	Usage          Usage // nil = no usage
 	Machine        func() api.Machine
 	StartedAt      time.Time
+	// WebSocket keepalive; 0 = 30 s interval, 15 s pong timeout.
+	PingInterval, PingTimeout time.Duration
 }
 
 type Server struct {
@@ -80,6 +82,12 @@ type Server struct {
 func New(opt Options) *Server {
 	if opt.StartedAt.IsZero() {
 		opt.StartedAt = time.Now()
+	}
+	if opt.PingInterval <= 0 {
+		opt.PingInterval = defaultPingInterval
+	}
+	if opt.PingTimeout <= 0 {
+		opt.PingTimeout = defaultPingTimeout
 	}
 	return &Server{opt: opt}
 }

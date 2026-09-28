@@ -15,6 +15,13 @@ import (
 // hangs on a dead TCP connection.
 const wsWriteTimeout = 30 * time.Second
 
+// Keepalive defaults: Hummingbird pinged every 30 s. A pong must come back within the timeout
+// or the client is dropped.
+const (
+	defaultPingInterval = 30 * time.Second
+	defaultPingTimeout  = 15 * time.Second
+)
+
 // serveWS streams hub events, server → client only, starting with `hello`.
 func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
@@ -40,6 +47,27 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 		for {
 			if _, _, err := c.Read(ctx); err != nil {
 				return
+			}
+		}
+	}()
+
+	// Keepalive: a client that vanished without a close frame would otherwise stay subscribed
+	// forever and keep usage and live polling running. Pongs arrive through the read loop.
+	go func() {
+		defer cancel()
+		t := time.NewTicker(s.opt.PingInterval)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				pctx, done := context.WithTimeout(ctx, s.opt.PingTimeout)
+				err := c.Ping(pctx)
+				done()
+				if err != nil {
+					return
+				}
 			}
 		}
 	}()
