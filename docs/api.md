@@ -191,6 +191,12 @@ Machine {
 }
 ```
 - One bridge serves one machine. The app keeps its own list of machines (bridges) and calls `GET /machine` on each.
+- The comments above are macOS. On Linux:
+  - `id`: `/etc/machine-id` (32 hex characters, no dashes).
+  - `name`: the hostname.
+  - `kind`: `laptop` if `/sys/class/power_supply/BAT*` exists, else `desktop`.
+  - `model`: `/sys/class/dmi/id/product_name`, falling back to `uname -m`.
+  - `os`: `PRETTY_NAME` from `/etc/os-release` (e.g. `Ubuntu 24.04.1 LTS`), else `Linux`.
 
 ## Controls
 
