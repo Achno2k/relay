@@ -581,9 +581,9 @@ func (s *Service) Text(ctx context.Context, id, text string, submit bool) error 
 	return s.herdr.SendKeys(ctx, a.PaneID, []string{"enter"})
 }
 
-// clearInput empties Claude's input box with ctrl+u until the screen shows it empty. It polls
-// up to wait for text to appear (the restored prompt shows up shortly after Esc). It never
-// touches a blocked agent: keys there would answer a dialog.
+// clearInput empties the agent's input box (claude, pi, codex) with ctrl+u until the screen shows
+// it empty. It polls up to wait for text to appear (Claude puts the prompt back shortly after Esc).
+// It never touches a blocked agent: keys there would answer a dialog.
 func (s *Service) clearInput(ctx context.Context, id string, wait time.Duration) error {
 	deadline := time.Now().Add(wait)
 	cleared := false
@@ -592,14 +592,18 @@ func (s *Service) clearInput(ctx context.Context, id string, wait time.Duration)
 		if err != nil {
 			return err
 		}
-		if a.AgentStatus == api.StatusBlocked || (a.Agent != "" && a.Agent != "claude") {
+		kind := s.kindOf(a)
+		if kind == "" {
+			kind = "claude"
+		}
+		if a.AgentStatus == api.StatusBlocked || !clearableKinds[kind] {
 			return nil
 		}
-		read, err := s.herdr.Read(ctx, a.PaneID, herdr.SourceDetection, 0, false)
+		screen, ansi, err := s.inputScreen(ctx, a.PaneID, kind)
 		if err != nil {
 			return err
 		}
-		content, ok := approval.InputBoxContent(read.Text)
+		content, ok := approval.InputFor(kind, screen, ansi)
 		if !ok {
 			return nil
 		}
@@ -612,7 +616,7 @@ func (s *Service) clearInput(ctx context.Context, id string, wait time.Duration)
 			}
 			continue
 		}
-		if err := s.herdr.SendKeys(ctx, a.PaneID, approval.ClearKeys(content)); err != nil {
+		if err := s.herdr.SendKeys(ctx, a.PaneID, approval.ClearKeysFor(kind, content)); err != nil {
 			return err
 		}
 		cleared = true
@@ -621,6 +625,23 @@ func (s *Service) clearInput(ctx context.Context, id string, wait time.Duration)
 		}
 	}
 	return nil
+}
+
+var clearableKinds = map[string]bool{"claude": true, "pi": true, "codex": true}
+
+// inputScreen reads what the kind's input detection needs. codex's empty composer shows a dim
+// placeholder that only the colours tell apart from typed text, so it's read with ANSI too.
+func (s *Service) inputScreen(ctx context.Context, pane, kind string) (screen, ansi string, err error) {
+	if kind == "claude" {
+		r, err := s.herdr.Read(ctx, pane, herdr.SourceDetection, 0, false)
+		return r.Text, "", err
+	}
+	r, err := s.herdr.Read(ctx, pane, herdr.SourceVisible, 0, false)
+	if err != nil || kind != "codex" {
+		return r.Text, "", err
+	}
+	c, err := s.herdr.Read(ctx, pane, herdr.SourceVisible, 0, true)
+	return r.Text, c.Text, err
 }
 
 func sleep(ctx context.Context, d time.Duration) error {
