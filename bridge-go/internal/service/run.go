@@ -103,14 +103,25 @@ func Run(ctx context.Context, opt Options) error {
 	case runErr = <-errs:
 	}
 	cancel()
-	shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
 	for _, s := range servers {
 		_ = s.Shutdown(shutdownCtx)
 	}
-	wg.Wait()
+	// Background work stops with ctx, but a probe mid-subprocess may take a while to notice;
+	// don't hold the exit for it.
+	stopped := make(chan struct{})
+	go func() { wg.Wait(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(backgroundGrace):
+		log.Warn("background work still running at shutdown; exiting anyway")
+	}
 	return runErr
 }
+
+// backgroundGrace is how long Run waits for the monitors to stop after ctx is done.
+const backgroundGrace = 1500 * time.Millisecond
 
 func liveAgents(snaps []Snapshot) []live.Agent {
 	out := make([]live.Agent, len(snaps))

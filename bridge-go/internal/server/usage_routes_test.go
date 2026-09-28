@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"relay/internal/usage"
 )
 
-func notReadyPi(string) []byte { return []byte(`{"status":"invalid"}`) }
+func notReadyPi(context.Context, string) []byte { return []byte(`{"status":"invalid"}`) }
 
 // Swift: UsageRoutesTests.
 func TestUsageRoutes_GetUsageServesTheCacheWithoutFetching(t *testing.T) {
@@ -21,8 +22,8 @@ func TestUsageRoutes_GetUsageServesTheCacheWithoutFetching(t *testing.T) {
 	}
 	hub := NewHub()
 	m := usage.NewMonitorWith(hub, usage.Options{
-		Codex: func() []byte { return codex }, ClaudeUsage: func(string) []byte { return nil },
-		ClaudeAuth: func() []byte { return nil }, PiAuth: notReadyPi, ProbeDir: t.TempDir(),
+		Codex: func(context.Context) []byte { return codex }, ClaudeUsage: func(context.Context, string) []byte { return nil },
+		ClaudeAuth: func(context.Context) []byte { return nil }, PiAuth: notReadyPi, ProbeDir: t.TempDir(),
 	})
 	m.RequestRefresh()
 	time.Sleep(150 * time.Millisecond)
@@ -56,8 +57,8 @@ func TestUsageRoutes_GetUsageWithNoMonitorReturnsEmptyProviders(t *testing.T) {
 func TestUsageRoutes_RefreshIsThrottledAfterFirstCall(t *testing.T) {
 	hub := NewHub()
 	m := usage.NewMonitorWith(hub, usage.Options{
-		Codex: func() []byte { return nil }, ClaudeUsage: func(string) []byte { return nil },
-		ClaudeAuth: func() []byte { return nil }, PiAuth: notReadyPi, ProbeDir: t.TempDir(),
+		Codex: func(context.Context) []byte { return nil }, ClaudeUsage: func(context.Context, string) []byte { return nil },
+		ClaudeAuth: func(context.Context) []byte { return nil }, PiAuth: notReadyPi, ProbeDir: t.TempDir(),
 	})
 	ts := newTestServer(t, Options{Hub: hub, Usage: m})
 	if r := do(t, ts, "POST", "/usage/refresh", "", auth); r.status != http.StatusAccepted {
