@@ -527,6 +527,7 @@ func main() {
 	agentsFlag := flag.String("agents", "", "comma-separated agent ids to limit per-agent probes to")
 	wsSeconds := flag.Int("ws-seconds", 20, "seconds to watch both /ws streams passively (0 skips)")
 	e2e := flag.String("e2e", "", "comma-separated e2e agent ids to prompt through both bridges, e.g. w14:p2,w14:p4,w14:p5 (reserve them with qa-bridge first)")
+	e2eControls := flag.Bool("e2e-controls", false, "with -e2e: also change each agent's effort through Go and back through Swift")
 	verbose := flag.Bool("v", false, "print passing probes too")
 	dump := flag.String("dump", "", "directory to write each WS window's raw frames to (local only: they hold real transcript text)")
 	flag.Parse()
@@ -576,6 +577,9 @@ func main() {
 		for _, id := range strings.Split(*e2e, ",") {
 			if id = strings.TrimSpace(id); id != "" {
 				rn.runE2E(ctx, id)
+				if *e2eControls {
+					rn.runControls(ctx, id)
+				}
 			}
 		}
 	}

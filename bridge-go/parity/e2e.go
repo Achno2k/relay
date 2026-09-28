@@ -163,3 +163,70 @@ func (rn *runner) waitTurn(ctx context.Context, id string, via *bridge, d time.D
 	}
 	rn.rep.add(result{name: "e2e " + id, diffs: []string{"turn didn't finish in time"}})
 }
+
+// runControls checks POST /agents/:id/control on an e2e agent: bad values give the same error on
+// both bridges, then the effort is changed through Go and put back through Swift. After each
+// change both bridges' reads must agree once Go's 15 s hold on what it just set has expired.
+func (rn *runner) runControls(ctx context.Context, id string) {
+	path := "/agents/" + esc(id)
+	fmt.Printf("\n-- controls %s\n", id)
+	for _, body := range []string{`{"effort":"not-an-effort"}`, `{"model":"not-a-model"}`, `{"permissionMode":"not-a-mode"}`, `{"command":"nope"}`} {
+		rn.check(ctx, post(path+"/control", body))
+	}
+	var ag struct {
+		Effort  *string `json:"effort"`
+		CwdName string  `json:"cwdName"`
+	}
+	var cs struct {
+		Efforts []struct {
+			ID string `json:"id"`
+		} `json:"efforts"`
+		Supports struct {
+			Effort bool `json:"effort"`
+		} `json:"supports"`
+	}
+	if json.Unmarshal(rn.swift.do(ctx, get(path)).body, &ag) != nil || json.Unmarshal(rn.swift.do(ctx, get(path+"/controls")).body, &cs) != nil {
+		rn.rep.add(result{name: "controls " + id, diffs: []string{"couldn't read the agent or its controls from swift"}})
+		return
+	}
+	if ag.CwdName != "e2e" {
+		fmt.Fprintf(os.Stderr, "parity: refusing controls on %s: cwdName %q is not the e2e folder\n", id, ag.CwdName)
+		os.Exit(2)
+	}
+	if !cs.Supports.Effort || ag.Effort == nil || len(cs.Efforts) < 2 {
+		fmt.Printf("   (no effort to flip: current %v, %d efforts)\n", ag.Effort, len(cs.Efforts))
+		return
+	}
+	orig, target := *ag.Effort, ""
+	for _, e := range cs.Efforts {
+		if e.ID != orig && e.ID != "max" && e.ID != "ultra" {
+			target = e.ID
+			break
+		}
+	}
+	if target == "" {
+		return
+	}
+	if !rn.waitReady(ctx, id, 60*time.Second) {
+		rn.rep.add(result{name: "controls " + id, diffs: []string{"agent not idle, skipped"}})
+		return
+	}
+	for _, step := range []struct {
+		via   *bridge
+		value string
+	}{{rn.gov, target}, {rn.swift, orig}} {
+		name := fmt.Sprintf("controls %s effort %s via %s", id, step.value, step.via.name)
+		r := step.via.do(ctx, post(path+"/control", mustJSON(map[string]string{"effort": step.value})))
+		var got struct {
+			Effort *string `json:"effort"`
+		}
+		res := result{name: name}
+		if r.status != 202 || json.Unmarshal(r.body, &got) != nil || got.Effort == nil || *got.Effort != step.value {
+			res.diffs = append(res.diffs, fmt.Sprintf("%s answered %d %s, want 202 with effort %q", step.via.name, r.status, clip(r.body), step.value))
+		}
+		rn.rep.add(res)
+		time.Sleep(16 * time.Second)
+		rn.check(ctx, probe{name: name + ", then both read", method: "GET", path: path, idempotent: true})
+		rn.check(ctx, probe{name: name + ", then both read", method: "GET", path: path + "/controls", idempotent: true})
+	}
+}
