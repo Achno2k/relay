@@ -1,0 +1,7 @@
+  ⎿  Interrupted · What should Claude do instead?
+──────────────────────────────────────────────────────────────────
+❯ Write a 400 word essay about rivers.
+  Second line of the prompt.
+──────────────────────────────────────────────────────────────────
+  68.6k/1.0M · in 68.6k out 16
+  ⏵⏵ auto mode on (shift+tab to cycle)

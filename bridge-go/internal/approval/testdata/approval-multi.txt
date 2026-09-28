@@ -1,0 +1,15 @@
+❯ Ask me two questions.
+──────────────────────────────────────────────────────────────────
+←  ☒ Delivery  ☐ Focus  ✔ Submit  →
+
+When do you focus best?
+
+  1. Morning
+     Morning
+❯ 2. Night
+     Night
+  3. Type something.
+──────────────────────────────────────────────────────────────────
+  4. Chat about this
+
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel

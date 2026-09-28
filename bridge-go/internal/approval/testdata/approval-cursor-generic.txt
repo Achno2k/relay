@@ -1,0 +1,8 @@
+──────────────────────────────────────────────────────────────────
+ Resume a previous session?
+
+   Start fresh
+   Resume "fix flaky tests"
+ ❯ Resume "landing hero"
+
+ Enter to confirm · Esc to cancel
