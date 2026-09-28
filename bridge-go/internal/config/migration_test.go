@@ -107,3 +107,21 @@ func TestTokenIsCreatedOnceWith0600(t *testing.T) {
 		t.Fatal("rotate kept the token")
 	}
 }
+
+// QA R8-21: a home launchd created 0744 for its log becomes 0700, the log 0600.
+func TestEnsureHomeTightensAnExistingHome(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	t.Setenv("RELAY_HOME", home)
+	os.MkdirAll(home, 0o744)
+	os.Chmod(home, 0o744)
+	os.WriteFile(LogPath(), []byte("x"), 0o644)
+	if err := EnsureHome(); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := os.Stat(home); st.Mode().Perm() != 0o700 {
+		t.Fatalf("home %v", st.Mode())
+	}
+	if st, _ := os.Stat(LogPath()); st.Mode().Perm() != 0o600 {
+		t.Fatalf("log %v", st.Mode())
+	}
+}

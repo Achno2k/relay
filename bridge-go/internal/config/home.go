@@ -87,8 +87,20 @@ func MigrateIfNeeded(legacy, target string) string {
 	return fmt.Sprintf("moved %s from %s into %s", strings.Join(moved, ", "), legacy, target)
 }
 
-// EnsureHome creates Home() with mode 0700.
-func EnsureHome() error { return os.MkdirAll(Home(), 0o700) }
+// EnsureHome creates Home() and makes it 0700 even if launchd/systemd created it first for the
+// log (QA R8-21). An existing log is made 0600 too.
+func EnsureHome() error {
+	if err := os.MkdirAll(Home(), 0o700); err != nil {
+		return err
+	}
+	if err := os.Chmod(Home(), 0o700); err != nil {
+		return err
+	}
+	if err := os.Chmod(LogPath(), 0o600); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
 
 // TokenPath is `<home>/token`.
 func TokenPath() string { return filepath.Join(Home(), "token") }

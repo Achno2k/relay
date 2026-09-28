@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type Client interface {
 	SendText(ctx context.Context, paneID, text string) error
 	// CreateTab creates a tab in workspaceID and returns its root pane. "" cwd/label = not sent.
 	CreateTab(ctx context.Context, workspaceID, cwd, label string) (Pane, error)
+	// CloseTab closes a tab and everything in it.
+	CloseTab(ctx context.Context, tabID string) error
 	// StartAgent starts an agent; timeoutMs <= 0 means 30000.
 	StartAgent(ctx context.Context, name, kind, paneID string, args []string, timeoutMs int) (Agent, error)
 }
@@ -43,8 +46,13 @@ func DefaultSocketPath() string {
 	return filepath.Join(home, ".config/herdr/herdr.sock")
 }
 
-// DefaultTimeout is how long a normal call waits for herdr's answer.
-const DefaultTimeout = 15 * time.Second
+// How long a call waits for herdr (connect, write and answer together). herdr answers reads
+// and lists in milliseconds, so a hung herdr surfaces as 504 within a few seconds instead of
+// piling up requests (QA R8-7). Actions get longer; agent.start waits its own timeout + 10 s.
+const (
+	ReadTimeout   = 3 * time.Second
+	ActionTimeout = 10 * time.Second
+)
 
 // SocketClient uses one short-lived connection per request so a slow call (agent.start)
 // never blocks others.
@@ -66,7 +74,7 @@ func (c *SocketClient) Agents(ctx context.Context) ([]Agent, error) {
 	var r struct {
 		Agents []Agent `json:"agents"`
 	}
-	err := c.Call(ctx, "agent.list", map[string]any{}, &r, DefaultTimeout)
+	err := c.Call(ctx, "agent.list", map[string]any{}, &r, ReadTimeout)
 	return r.Agents, err
 }
 
@@ -74,7 +82,7 @@ func (c *SocketClient) Agent(ctx context.Context, target string) (Agent, error) 
 	var r struct {
 		Agent *Agent `json:"agent"`
 	}
-	if err := c.Call(ctx, "agent.get", map[string]any{"target": target}, &r, DefaultTimeout); err != nil {
+	if err := c.Call(ctx, "agent.get", map[string]any{"target": target}, &r, ReadTimeout); err != nil {
 		return Agent{}, err
 	}
 	if r.Agent == nil {
@@ -87,7 +95,7 @@ func (c *SocketClient) Workspaces(ctx context.Context) ([]Workspace, error) {
 	var r struct {
 		Workspaces []Workspace `json:"workspaces"`
 	}
-	err := c.Call(ctx, "workspace.list", map[string]any{}, &r, DefaultTimeout)
+	err := c.Call(ctx, "workspace.list", map[string]any{}, &r, ReadTimeout)
 	return r.Workspaces, err
 }
 
@@ -99,7 +107,7 @@ func (c *SocketClient) Panes(ctx context.Context, workspaceID string) ([]Pane, e
 	if workspaceID != "" {
 		params["workspace_id"] = workspaceID
 	}
-	err := c.Call(ctx, "pane.list", params, &r, DefaultTimeout)
+	err := c.Call(ctx, "pane.list", params, &r, ReadTimeout)
 	return r.Panes, err
 }
 
@@ -115,7 +123,7 @@ func (c *SocketClient) Read(ctx context.Context, target string, source ReadSourc
 	if lines > 0 {
 		params["lines"] = lines
 	}
-	if err := c.Call(ctx, "agent.read", params, &r, DefaultTimeout); err != nil {
+	if err := c.Call(ctx, "agent.read", params, &r, ReadTimeout); err != nil {
 		return Read{}, err
 	}
 	if r.Read == nil {
@@ -125,18 +133,18 @@ func (c *SocketClient) Read(ctx context.Context, target string, source ReadSourc
 }
 
 func (c *SocketClient) Prompt(ctx context.Context, target, text string) error {
-	return c.Call(ctx, "agent.prompt", map[string]any{"target": target, "text": text}, nil, DefaultTimeout)
+	return c.Call(ctx, "agent.prompt", map[string]any{"target": target, "text": text}, nil, ActionTimeout)
 }
 
 func (c *SocketClient) SendKeys(ctx context.Context, target string, keys []string) error {
 	if keys == nil {
 		keys = []string{}
 	}
-	return c.Call(ctx, "agent.send_keys", map[string]any{"target": target, "keys": keys}, nil, DefaultTimeout)
+	return c.Call(ctx, "agent.send_keys", map[string]any{"target": target, "keys": keys}, nil, ActionTimeout)
 }
 
 func (c *SocketClient) SendText(ctx context.Context, paneID, text string) error {
-	return c.Call(ctx, "pane.send_text", map[string]any{"pane_id": paneID, "text": text}, nil, DefaultTimeout)
+	return c.Call(ctx, "pane.send_text", map[string]any{"pane_id": paneID, "text": text}, nil, ActionTimeout)
 }
 
 func (c *SocketClient) CreateTab(ctx context.Context, workspaceID, cwd, label string) (Pane, error) {
@@ -151,13 +159,17 @@ func (c *SocketClient) CreateTab(ctx context.Context, workspaceID, cwd, label st
 	if label != "" {
 		params["label"] = label
 	}
-	if err := c.Call(ctx, "tab.create", params, &r, DefaultTimeout); err != nil {
+	if err := c.Call(ctx, "tab.create", params, &r, ActionTimeout); err != nil {
 		return Pane{}, err
 	}
 	if r.Tab == nil || r.RootPane == nil {
 		return Pane{}, Decoding("tab.create: missing tab or root_pane")
 	}
 	return *r.RootPane, nil
+}
+
+func (c *SocketClient) CloseTab(ctx context.Context, tabID string) error {
+	return c.Call(ctx, "tab.close", map[string]any{"tab_id": tabID}, nil, ActionTimeout)
 }
 
 func (c *SocketClient) StartAgent(ctx context.Context, name, kind, paneID string, args []string, timeoutMs int) (Agent, error) {
@@ -219,6 +231,9 @@ func (c *SocketClient) Call(ctx context.Context, method string, params map[strin
 
 // Dial connects to herdr's socket, mapping failure to ErrUnavailable.
 func Dial(ctx context.Context, socketPath string) (net.Conn, error) {
+	if err := CheckSocketPath(socketPath); err != nil {
+		return nil, err
+	}
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "unix", socketPath)
 	if err != nil {
@@ -228,18 +243,24 @@ func Dial(ctx context.Context, socketPath string) (net.Conn, error) {
 }
 
 func roundTrip(ctx context.Context, socketPath string, body []byte, timeout time.Duration) ([]byte, error) {
-	conn, err := Dial(ctx, socketPath)
+	deadline := time.Now().Add(timeout)
+	dctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+	conn, err := Dial(dctx, socketPath)
 	if err != nil {
+		if ctx.Err() == nil && dctx.Err() != nil {
+			return nil, Timeout()
+		}
 		return nil, err
 	}
 	defer conn.Close()
 	// Cancelling ctx unblocks the read by closing the connection.
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	defer stop()
+	_ = conn.SetDeadline(deadline)
 	if _, err := conn.Write(append(body, '\n')); err != nil {
 		return nil, ioErr("write", ctx, err)
 	}
-	_ = conn.SetReadDeadline(time.Now().Add(timeout))
 	line, err := readLine(bufio.NewReaderSize(conn, 64*1024))
 	if err != nil {
 		return nil, ioErr("read", ctx, err)
@@ -263,8 +284,9 @@ func ioErr(op string, ctx context.Context, err error) *Error {
 		return IOError(op + ": " + ctx.Err().Error())
 	case errors.As(err, &ne) && ne.Timeout():
 		return Timeout()
-	case errors.Is(err, io.EOF):
-		return IOError("herdr closed the connection")
+	case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF), errors.Is(err, syscall.ECONNRESET), errors.Is(err, syscall.EPIPE):
+		// herdr went away before answering: same as not being there (QA R8-6).
+		return Unavailable("herdr closed the connection")
 	}
 	return IOError(op + ": " + errText(err))
 }
@@ -275,4 +297,13 @@ func errText(err error) string {
 		return op.Err.Error()
 	}
 	return err.Error()
+}
+
+// CheckSocketPath rejects paths that don't fit a unix socket address (sun_path is 104 bytes
+// on macOS, 108 on Linux, including the NUL), so `relay serve` can refuse to start (QA R8-20).
+func CheckSocketPath(p string) error {
+	if len(p) >= maxSocketPath {
+		return Unavailable(fmt.Sprintf("herdr socket path is %d bytes, longer than the %d this OS allows: %s", len(p), maxSocketPath-1, p))
+	}
+	return nil
 }

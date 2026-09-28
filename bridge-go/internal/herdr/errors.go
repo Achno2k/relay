@@ -50,6 +50,10 @@ func (e *Error) APIError() *api.Error {
 			return api.NewError(http.StatusNotFound, "not_found", e.Message)
 		case e.Code == "agent_blocked":
 			return api.NewError(http.StatusConflict, "agent_blocked", e.Message)
+		case strings.HasSuffix(e.Code, "_taken"): // agent_name_taken (QA R8-5)
+			return api.NewError(http.StatusConflict, e.Code, e.Message)
+		case strings.HasPrefix(e.Code, "unsupported"): // unsupported_agent_kind (QA R8-5)
+			return api.NewError(http.StatusBadRequest, "unsupported", e.Message)
 		case strings.HasPrefix(e.Code, "invalid"):
 			return api.NewError(http.StatusBadRequest, e.Code, e.Message)
 		}

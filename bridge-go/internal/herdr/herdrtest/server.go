@@ -23,6 +23,9 @@ type Error struct {
 	Message string
 }
 
+// Hangup makes the fake close the connection without answering, like herdr dying mid-request.
+type Hangup struct{}
+
 // Call is one request the fake received. Params is the params object as JSON with sorted keys.
 type Call struct {
 	Method string
@@ -178,6 +181,9 @@ func (s *Server) serve(c net.Conn) {
 		s.calls = append(s.calls, Call{req.Method, marshal(req.Params)})
 		s.mu.Unlock()
 		out := s.handler(req.Method, req.Params)
+		if _, ok := out.(Hangup); ok {
+			return
+		}
 		if req.ID == nil {
 			req.ID = ""
 		}

@@ -90,8 +90,16 @@ func serve(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	socketPath := herdr.DefaultSocketPath()
+	if err := herdr.CheckSocketPath(socketPath); err != nil {
+		fmt.Fprintln(os.Stderr, "relay: "+err.Error()+"; set HERDR_SOCKET_PATH to a shorter path")
+		return exitCode(78) // EX_CONFIG
+	}
 	tok, err := config.LoadToken()
 	if err != nil {
+		return err
+	}
+	if err := config.EnsureHome(); err != nil {
 		return err
 	}
 	hosts := []string{"127.0.0.1"}
@@ -107,11 +115,13 @@ func serve(args []string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	// After the first signal, a second one kills the process the default way.
+	context.AfterFunc(ctx, stop)
 	return service.Run(ctx, service.Options{
 		Port:       *port,
 		Hosts:      hosts,
 		Token:      tok,
-		SocketPath: herdr.DefaultSocketPath(),
+		SocketPath: socketPath,
 		Logger:     slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	})
 }
