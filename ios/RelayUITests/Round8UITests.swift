@@ -64,6 +64,29 @@ final class Round8UITests: XCTestCase {
         wait(for: [gone], timeout: 5)
     }
 
+    /// R8-i7: at accessibility sizes the approval options wrap in full; none is cut off.
+    func testApprovalOptionsAreNotClippedAtAX3() throws {
+        app.terminate()
+        app.launchArguments = [
+            "-uitest", "-mock", "-replay", "off", "-resetSidebar", "-agent", "w1:p2",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL",
+        ]
+        app.launch()
+        let option = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Yes, and don'")).firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 10), "sheet never appeared")
+        sleep(1)
+        shot("round8-approval-ax3")
+        // "Yes, and don't ask again for npm test" needs three lines at this size; capped at two it read
+        // "…again for n…". Measured against the one-line "Yes" (the audit's text-clipped check flags the
+        // glass capsule either way).
+        // Buttons expose no text children, so compare whole buttons: same padding, one line vs three
+        // (about 2.1x the height; two lines would be about 1.5x).
+        let yes = app.buttons["Yes"].frame.height
+        let long = option.frame.height
+        XCTAssertGreaterThan(yes, 0)
+        XCTAssertGreaterThan(long, yes * 1.8, "the long option is cut to two lines (\(long) vs \(yes))")
+    }
+
     private func shot(_ name: String) {
         guard let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] else { return }
         sleep(1)

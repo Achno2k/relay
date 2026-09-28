@@ -89,8 +89,10 @@ struct ApprovalSheet: View {
                 if option.isFreeText {
                     Image(systemName: "character.cursor.ibeam")
                 }
+                // Never truncated: at large text sizes two lines cut "Yes, and don't ask again for …"
+                // before saying what for. The sheet scrolls when the options outgrow it.
                 Text(option.label)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .font(.body.weight(.semibold))
             .frame(maxWidth: .infinity)

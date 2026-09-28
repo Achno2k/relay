@@ -188,6 +188,7 @@ Checked and fine (no bug) in Swift: WS auto-ping is on (Hummingbird default 30 s
 | R8-i4 | P3 | ios-bugs | fixed, verified (sim) | Files picker reads every file in full on the main thread, even a 600 MB one it then rejects |
 | R8-i5 | P3 | ios-bugs | fixed, unit-tested | Every resync replaces the open chat with the last 50 messages: scrolled-up history is lost, a message that lands mid-request vanishes |
 | R8-i6 | P2 | ios-bugs | fixed, UI-tested (mock) | A failed send looks exactly like a pending one forever: no "not sent", no retry, no delete |
+| R8-i7 | P2 | ios-bugs | fixed, UI-tested (mock, AX3) | Approval options cut at two lines at large text sizes: "Yes, and don't ask again for n…" hides what you approve |
 
 How these were found: code review of `ios/`, the mock UI tests, and the simulator (iPhone 17 Pro) against the live bridge through a local proxy on 7881 that can drop every connection ("bridge down") or answer like a bridge with a rotated token (`401` JSON on REST, bare `400` on the WS upgrade, as the Swift bridge does today). The live bridge was never restarted and its token never changed.
 
@@ -238,3 +239,11 @@ Details below, one section per bug: repro, expected, actual, fix, how verified.
 - Actual: nothing in the views used them. `UserBubble` only knows "pending", so the failed bubble stays dimmed forever, VoiceOver reads it as "pending", and the only sign is a 4 s error banner. It can't be resent or removed.
 - Fix: a failed bubble shows "Not sent. Tap to retry." in red; its context menu and VoiceOver actions offer Retry and Delete; its value reads "not sent".
 - Verified: `Round8UITests` (mock bridge; prompts starting "unsent" fail once): retry lands the real message with no duplicate bubble, and Delete removes it.
+
+### R8-i7: approval options truncated at large text sizes
+- Repro: Dynamic Type AX3 (accessibility XL), a blocked Claude agent with "Yes, and don't ask again for npm test".
+- Expected: every option reads in full; for "don't ask again" the scope is the point.
+- Actual: `.lineLimit(2)` on the option label: "Yes, and don't ask again for n…", "No, tell Claude what to do diff…". Codex's longer "don't ask again for commands that start with …" rows can cut even at default size.
+- Fix: option labels wrap without a limit; the sheet already scrolls when they outgrow it.
+- Verified: `Round8UITests.testApprovalOptionsAreNotClippedAtAX3` (fails with the old limit: 155 pt button against 178 needed; passes with the fix). Screenshot checked: three full lines.
+- Found with the new opt-in `A11yAuditUITests` (chat, approval, New chat, Usage at default and AX3). Its other hits are contrast on glass and system text (accepted in round 7, R7-11) and the closed sidebar in the tree. That last one isn't a bug as far as the tools can tell: on iOS 26 XCUITest also lists the peek overlay, which is `.accessibilityHidden` the same way, so the snapshot ignores that modifier. A VoiceOver swipe on the device is the only real check (left open).
