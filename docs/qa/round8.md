@@ -14,9 +14,9 @@ Owners are round 8 sessions (see `docs/tasks/round-8/README.md`). Bridge bugs ar
 | R8-6 | P2 | go-core | open | herdr dying mid-request answers `502 herdr_error`, api.md says `503 herdr_unavailable` |
 | R8-7 | P2 | go-core, go-server | open | Hung herdr: `504` after 15 s, `/health` stays `connected`, calls starve 13 s after recovery |
 | R8-8 | P2 | go-transcripts | open | Path leak: `file:///Users/...` and `host:/Users/...` are not scrubbed |
-| R8-9 | P2 | go-transcripts (api.md: relay-lead) | open | `<task-notification>` (and `<bash-input>`/`<bash-stdout>`) user lines show as raw-XML user bubbles |
+| R8-9 | P2 | go-transcripts | open (api.md decided, c28fd33) | `<task-notification>` (and `<bash-input>`/`<bash-stdout>`) user lines show as raw-XML user bubbles |
 | R8-10 | P2 | go-live | open | Permission dialog footer "Esc to cancel · Tab to amend" is sent as `reply.live` text |
-| R8-11 | P2 | go-server, go-drivers | open | pi/codex prompts and slash-command controls glue onto leftover input text |
+| R8-11 | P2 | go-server, go-drivers | open (api.md decided, c28fd33) | pi/codex prompts and slash-command controls glue onto leftover input text |
 | R8-12 | P2 | go-server, go-core | open | SIGTERM is ignored: the bridge is still alive 60 s later |
 | R8-13 | P2 | go-server | open | `Agent.updatedAt` goes stale (cached mtime); found by go-parity |
 | R8-14 | P3 | go-live | open | Wrapped approval option labels are cut at the line break |
@@ -80,7 +80,7 @@ Checked and fine (no bug): WS auto-ping is on (Hummingbird default 30 s), so dea
 ### R8-9: `<task-notification>` user bubbles
 - Repro: a Claude agent that ran a background task. `/messages` has a user message whose text starts with `<task-notification>` (confirmed on the wire). Locally 121 such lines in two weeks, plus a few `<bash-input>`/`<bash-stdout>` (Claude's `!` shell mode).
 - Expected: Claude Code injects these; the user didn't type them. They shouldn't look like the user's own prompts.
-- Fix: add `<task-notification` to the dropped prefixes. `<bash-input>` could become a user text `$ cmd` and `<bash-stdout>` a code block, or be dropped. This changes the api.md transcript rules, so relay-lead decides first.
+- Fix: add `<task-notification` to the dropped prefixes. `<bash-input>` could become a user text `$ cmd` and `<bash-stdout>` a code block, or be dropped. Decided in api.md (c28fd33): drop `<task-notification`, `<bash-stdout>`, `<bash-stderr>`; `<bash-input>cmd</bash-input>` becomes a user text `! cmd`.
 
 ### R8-10: dialog footer sent as live text
 - Repro: e2e claude in `default` mode, prompt it to create a file with Write. WS: `reply.live` seq 56 `text: "Esc to cancel · Tab to amend"`, cleared 130 ms later when the agent turns `blocked`.
@@ -91,7 +91,7 @@ Checked and fine (no bug): WS auto-ping is on (Hummingbird default 30 s), so dea
 - Repro: `POST /agents/w14%3Ap4/text {"text":"LEFTOVER ","submit":false}`, then `POST …/prompt {"text":"Reply with just the word ok"}`. pi's transcript user message is `LEFTOVER Reply with just the word ok`.
 - Cause: `clearInput` returns early for any kind but claude, and controls use `submit` ("they start empty") for pi and codex. Codex runs the same code path (not run live, to save codex quota).
 - Expected: a prompt or `/model`, `/thinking`, `/compact`, `/new` never merges with text already in the box.
-- Fix: clear pi's and codex's input before `agent.prompt` too (find the right key per kind, e.g. `ctrl+u` repeated, and confirm from the screen like Claude's `InputBox`).
+- Fix: clear pi's and codex's input before `agent.prompt` too (find the right key per kind, e.g. `ctrl+u` repeated, and confirm from the screen like Claude's `InputBox`). Decided in api.md (c28fd33): every kind's input is emptied before a prompt and before slash-command controls.
 
 ### R8-12: SIGTERM ignored
 - Repro: start a bridge (temp home, port 7890), `kill -TERM`. Still alive after 60 s; needs `kill -9`. go-parity saw the same.
