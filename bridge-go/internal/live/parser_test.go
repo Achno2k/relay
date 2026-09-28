@@ -455,3 +455,80 @@ func TestPiReadBoxIsATool(t *testing.T) {
 func TestUnknownKindIsNotText(t *testing.T) {
 	expectNoText(t, "⏺ hi", "gemini")
 }
+
+// MARK: Round 8 fixes
+
+// claudeDialog is Claude's permission dialog for an edit, drawn where the input box was.
+const claudeDialog = `────────────────────────────────────────────────────────────────
+ Edit file
+ docs/api.md
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  12 - old line
+  12 + new line
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to make this edit to api.md?
+ ❯ 1. Yes
+   2. Yes, allow all edits during this session (shift+tab)
+   3. No, and tell Claude what to do differently (esc)
+
+ Esc to cancel · Tab to amend`
+
+func TestClaudePermissionDialogIsNotText(t *testing.T) {
+	// R8-10: the dialog's `❯ 1. Yes` isn't the prompt echo, so its footer isn't the turn's text.
+	screen := "❯ Change the api doc.\n\n⏺ I'll update the doc.\n\n⏺ Update(docs/api.md)\n\n" + claudeDialog
+	parsed := Parse(screen, "claude")
+	expectEqual(t, parsed.Text, strPtr("I'll update the doc."))
+	expectEqual(t, toolOf(t, parsed).Name, "Edit")
+
+	// Echo scrolled off: still nothing from the dialog.
+	parsed = Parse("⏺ Update(docs/api.md)\n\n"+claudeDialog, "claude")
+	expectEqual(t, parsed.Text, (*string)(nil))
+	expectEqual(t, toolOf(t, parsed).Name, "Edit")
+}
+
+func TestClaudeScrolledOffToolOutputIsNotText(t *testing.T) {
+	// R8-22: the tool's header and `⎿` line are above the viewport; only its output is left.
+	screen := `     b = '''the picker reopens
+     wherever it was last. Browse
+     root… (24s)
+     (ctrl+b to run in background)
+
+✶ Whirring… (23m 37s)
+──────────────────────────────────
+❯
+──────────────────────────────────`
+	expectEqual(t, Parse(screen, "claude"), Screen{})
+}
+
+func TestClaudeScrolledOffDiffIsNotAToolSummary(t *testing.T) {
+	// R8-22: an Edit's diff lines, header scrolled off, must not become the tool's summary.
+	screen := `      96  ### R8-12: SIGTER
+          M ignored
+      97  - Repro: start a
+          bridge (temp home
+  ⎿  Allowed by auto mode
+
+✳ Pontificating… (17s)
+──────────────────────────────────
+❯
+──────────────────────────────────`
+	parsed := Parse(screen, "claude")
+	expectEqual(t, parsed.Text, (*string)(nil))
+	expectEqual(t, toolOf(t, parsed).Summary(noCwd), "Tool")
+
+	// Prose after the orphan output still shows.
+	screen = "     (ctrl+b to run in background)\n\n⏺ The tests pass.\n\n" + claudeBottom
+	expectEqual(t, Parse(screen, "claude").Text, strPtr("The tests pass."))
+}
+
+func TestClaudeScrollOverlayIsNotText(t *testing.T) {
+	// R8-23: fullscreen Claude's "scrolled up" hint lands on a content row.
+	screen := `⏺ The loopback interface answered every ping, so
+  the network stack is fine. 1 new message (click) ↓
+
+✻ Crafting… (3s)
+` + claudeBottom
+	expectEqual(t, Parse(screen, "claude").Text, strPtr("The loopback interface answered every ping, so the network stack is fine."))
+	screen = "⏺ Short answer.   Jump to bottom (click) ↓\n\n" + claudeBottom
+	expectEqual(t, Parse(screen, "claude").Text, strPtr("Short answer."))
+}

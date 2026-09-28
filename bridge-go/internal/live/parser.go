@@ -98,6 +98,9 @@ type block struct {
 }
 
 func claude(lines []string) Screen {
+	for i, l := range lines {
+		lines[i] = claudeOverlay.ReplaceAllString(l, "")
+	}
 	region := claudeTurn(lines)
 	var blocks []block
 	for _, chunk := range chunks(region) {
@@ -106,6 +109,15 @@ func claude(lines []string) Screen {
 		content := slices.Clone(chunk)
 		if marked {
 			content[0] = trimWS(dropChars(first, 1))
+		} else if len(blocks) == 0 {
+			// Output of a tool whose header scrolled off the top: indented like `⎿` output, and
+			// neither prose nor something to name the tool by.
+			for len(content) > 0 && indent(content[0]) >= toolOutputIndent {
+				content = content[1:]
+			}
+			if len(content) == 0 {
+				continue
+			}
 		}
 		tool := isClaudeTool(content)
 		if marked || tool || len(blocks) == 0 {
@@ -173,7 +185,8 @@ outer:
 	}
 	start := 0
 	for i := end - 1; i >= 0; i-- {
-		if strings.HasPrefix(trimWS(lines[i]), "❯") {
+		// A dialog's `❯ 1. Yes` row is its menu cursor, not the user's prompt.
+		if t := trimWS(lines[i]); strings.HasPrefix(t, "❯") && !menuCursor.MatchString(t) {
 			start = i + 1
 			for start < end && trimWS(lines[start]) != "" {
 				start++
@@ -192,6 +205,28 @@ outer:
 		region = region[:i]
 	}
 	return region
+}
+
+var (
+	menuCursor = icu(`^❯\s*\d{1,2}[.)]\s`)
+	// claudeOverlay is fullscreen Claude's scroll hint, drawn over whatever row is at the bottom
+	// of the transcript view while the pane is scrolled up.
+	claudeOverlay = icu(`\s*(?:\d+ new messages?|Jump to bottom) \(click\)(?: ↓)?`)
+)
+
+// toolOutputIndent is where Claude's tool output text starts (`  ⎿  `); reply prose sits at 2.
+const toolOutputIndent = 5
+
+// indent counts a line's leading blanks.
+func indent(line string) int {
+	n := 0
+	for _, r := range line {
+		if !isWS(r) {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // isClaudeSpinner matches spinner/status lines: `✻ Crafting… (3s)`, `· Crafting…`, `✻ Cooked for 3s · done`.
@@ -330,7 +365,7 @@ func claudeGroupLabel(header string) (string, bool) {
 	return "WebFetch", true
 }
 
-var claudeFooterMarkers = []string{"Update available!", "auto mode on"}
+var claudeFooterMarkers = []string{"Update available!", "auto mode on", "Esc to cancel"}
 
 func isClaudeChrome(line string) bool {
 	t := trimWS(line)
