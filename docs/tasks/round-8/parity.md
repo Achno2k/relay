@@ -63,6 +63,10 @@ A GET that differs is retried, because agents keep changing between reads. It fa
   2. A stop: a `sleep 25` prompt through Go, then `POST /keys ["esc"]` through Go.
   3. `/agents/:id` and `/messages?limit=10` compared after each step.
   4. The same file uploaded to each bridge. Ids differ, the rest must match, and each bridge serves its own file back.
+  5. With `-e2e-controls`:
+     - invalid `effort`/`model`/`permissionMode`/`command` bodies go to both bridges, and the errors must match;
+     - then the effort goes to another level through Go, which must answer `202` with it, and back to the original through Swift;
+     - after each change, and once Go's 15 s hold has passed, `/agents/:id` and `/controls` must match.
 
   The tool refuses to run e2e on an agent whose `cwdName` isn't `e2e`. The live-tool comparison is strict here.
 
@@ -126,6 +130,7 @@ All runs are against the live Swift bridge (7878).
 | 11:56 | all agents + 60 s WS | 0 failed |
 | 11:57 | edge probes (HEAD, OPTIONS, slashes, auth variants) | 0 failed |
 | 12:10 | iOS Live* UI suite on the Go bridge (7880) | 11/11 pass |
+| 12:19 | final: e2e claude, pi, codex + `-e2e-controls` | 170 checks, 0 failed (4 min) |
 
 iOS live UI tests (ios-bugs, simulator, e2e agents, app at master 3391a48). The same 11 tests ran against each bridge:
 
@@ -139,7 +144,7 @@ iOS live UI tests (ios-bugs, simulator, e2e agents, app at master 3391a48). The 
 
 Totals: 11/11 on Swift and 11/11 on Go, all first try on Go.
 
-ios-bugs also noticed that `GET /controls?kind=claude` has no `defaultModel` when `~/.claude/settings.json` has no `model`. Go matches Swift (the key is absent on both), so it's a contract gap with api.md's "always sent" wording, not a regression. Sent to qa-bridge to file.
+ios-bugs also noticed (filed as R8-26, relay-lead to decide) that `GET /controls?kind=claude` has no `defaultModel` when `~/.claude/settings.json` has no `model`. Go matches Swift (the key is absent on both), so it's a contract gap with api.md's "always sent" wording, not a regression. Sent to qa-bridge to file.
 
 What the e2e turns showed:
 - The claude turn's `reply.live` frames are identical in content and order on both bridges: generic `Ran a command`, then `Ran echo parity-…`, then cleared. `message.upserted` and the status trails match for all three kinds, and so do the stop via Go and the uploads.
