@@ -27,7 +27,7 @@ func claudeANSI(rows ...string) string {
 		"❯ "+reset,
 		rule,
 		"  "+reset+amber+"⏵⏵ auto mode on"+reset+grey+" (shift+tab to cycle) · ← 1 agent"+reset,
-	), "\n")
+	), "\r\n")
 }
 
 func TestScreenTextMatchesThePlainRead(t *testing.T) {
@@ -36,6 +36,8 @@ func TestScreenTextMatchesThePlainRead(t *testing.T) {
 		"❯ " + reset + "\n" +
 		"\x1b[38;5;248m87.4k" + reset + "\x1b]8;;https://example.com\x1b\\link\x1b]8;;\x1b\\" + reset
 	expectEqual(t, ScreenText(ansi), "⏺ Hello there\n❯\n87.4klink\n")
+	// herdr ends an ANSI read's lines with CRLF; the text read has LF only.
+	expectEqual(t, ScreenText(strings.ReplaceAll(ansi, "\n", "\r\n")), "⏺ Hello there\n❯\n87.4klink\n")
 }
 
 func TestScreenTextBlanksTheBannerOnItsOwnRow(t *testing.T) {

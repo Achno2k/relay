@@ -26,7 +26,7 @@ type run struct {
 }
 
 // ScreenText turns an ANSI screen read into the plain text herdr's `format: text` read gives
-// (escapes stripped, trailing blanks trimmed per line, a final newline), with the "Update
+// (escapes stripped, CRLF as LF, trailing blanks trimmed per line, a final newline), with the "Update
 // available!" banner's cells blanked out of any row it sits on.
 func ScreenText(ansi string) string {
 	lines := splitRuns(ansi)
@@ -100,6 +100,8 @@ func splitRuns(s string) [][]run {
 	for i := 0; i < len(s); {
 		c := s[i]
 		switch {
+		case c == '\r' && i+1 < len(s) && s[i+1] == '\n':
+			i++ // herdr's ANSI read ends lines with CRLF
 		case c == '\n':
 			flush()
 			lines = append(lines, cur)
