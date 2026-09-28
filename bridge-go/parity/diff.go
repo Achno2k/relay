@@ -338,8 +338,9 @@ func usageRule(path []string, _ map[string]any, a, b any) verdict {
 	switch last(path) {
 	case "updatedAt", "resetsAt":
 		return when(sameKindOrNull(a, b) && timeOrNull(a) && timeOrNull(b))
-	case "windows":
-		// A window list that appeared or emptied between two independent fetches.
+	case "windows", "usedBy":
+		// A list that appeared, emptied or grew between two independent fetches (usedBy waits
+		// for the first `pi auth check`).
 		return when(kind(a) == "array" && kind(b) == "array")
 	case "usedPercent", "stale":
 		return when(sameKindOrNull(a, b))

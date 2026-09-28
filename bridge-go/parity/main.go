@@ -72,7 +72,7 @@ func (b *bridge) do(ctx context.Context, p probe) reply {
 		req.Header.Set("Authorization", "Bearer not-the-token")
 	}
 	for k, v := range p.header {
-		req.Header.Set(k, v)
+		req.Header.Set(k, strings.ReplaceAll(v, tokenPlaceholder, b.token))
 	}
 	res, err := b.hc.Do(req)
 	if err != nil {
@@ -329,6 +329,9 @@ func clip(b []byte) string {
 
 const fakeAgent = "w999%3Ap999" // never a live pane
 
+// tokenPlaceholder in a probe header becomes each bridge's own token.
+const tokenPlaceholder = "{{token}}"
+
 func get(path string) probe { return probe{method: "GET", path: path, idempotent: true} }
 
 func post(path, body string) probe {
@@ -464,6 +467,15 @@ func (rn *runner) errorProbes(ctx context.Context) {
 		get("/agents/%01bad"),
 		get("/agents/" + strings.Repeat("x", 200)),
 		{name: "wrong method", method: "DELETE", path: "/agents", idempotent: true},
+		{name: "HEAD", method: "HEAD", path: "/health", idempotent: true},
+		{name: "OPTIONS", method: "OPTIONS", path: "/agents", idempotent: true},
+		get("/agents/"),
+		get("//agents"),
+		get("/health?x=1"),
+		get("/agents/" + fakeAgent + "/"),
+		{name: "query token off /ws", method: "GET", path: "/agents?token=" + "x", auth: authNone, idempotent: true},
+		{name: "lowercase bearer, extra spaces", method: "GET", path: "/machine", header: map[string]string{"Authorization": "bearer   " + tokenPlaceholder + "  "}, idempotent: true},
+		{name: "wrong scheme", method: "GET", path: "/machine", auth: authNone, header: map[string]string{"Authorization": "Token " + tokenPlaceholder}, idempotent: true},
 		{name: "wrong method health", method: "POST", path: "/health", idempotent: true},
 		post("/agents/"+fakeAgent+"/keys", `{"keys":`),
 		post("/agents/"+fakeAgent+"/keys", `{}`),
