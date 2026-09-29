@@ -1,13 +1,17 @@
 import RelayKit
 import SwiftUI
 
-/// Folder, agent kind, then that kind's Model and Effort from the bridge. The first message is typed in the
-/// chat that opens, not here.
+/// Machine (in All, with several paired), folder, agent kind, then that kind's Model and Effort from that
+/// machine's bridge. The first message is typed in the chat that opens, not here.
 struct NewChatSheet: View {
     let store: AppStore
+    /// A key; picks its machine too.
     let initialWorkspaceId: String?
     @Environment(\.dismiss) private var dismiss
 
+    /// The machine the last chat was started on; the default when nothing else decides.
+    @AppStorage("newChatMachine", store: AppDefaults.standard) private var lastMachineId = ""
+    @State private var machineId: String?
     @State private var workspaceId: String?
     @State private var kind = "claude"
     /// "" = the kind's saved default (shown as "Default (…)"), so nothing is overridden.
@@ -25,11 +29,47 @@ struct NewChatSheet: View {
         controls?.efforts(for: model.isEmpty ? controls?.defaultModel : model) ?? []
     }
 
+    /// Only in All: with one machine picked (or paired) the chat goes there.
+    private var choosesMachine: Bool { store.machineFilter == nil && store.hasSeveralMachines }
+
+    private var machine: MachineEntry? { machineId.flatMap { id in store.machines.first { $0.id == id } } }
+
+    /// The chosen machine's folders.
+    private var workspaces: [Workspace] { workspaces(on: machineId) }
+
+    private func workspaces(on machineId: String?) -> [Workspace] {
+        guard let machineId else { return store.state.workspaces }
+        return store.state.workspaces.filter { store.machineId(of: $0.id) == machineId }
+    }
+
+    private var machineIsDown: Bool { machine.map { $0.status == .offline || $0.status == .needsRePair } ?? false }
+
     var body: some View {
         NavigationStack {
             Form {
+                if choosesMachine {
+                    Section {
+                        Picker("Machine", selection: $machineId) {
+                            ForEach(store.machines) { machine in
+                                Text(machine.status == .online || machine.status == .connecting
+                                     ? machine.displayName : "\(machine.displayName) (\(machine.status.spoken))")
+                                    .tag(Optional(machine.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityIdentifier("newChatMachine")
+                    } footer: {
+                        if let machine, machineIsDown {
+                            Text("\(machine.displayName) is \(machine.status.spoken). Pick another machine or try again once it's back.")
+                        }
+                    }
+                }
                 Section("Folder") {
-                    ForEach(store.state.workspaces) { workspace in
+                    if workspaces.isEmpty {
+                        Text("No folders on this machine yet.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(workspaces) { workspace in
                         Button {
                             workspaceId = workspace.id
                         } label: {
@@ -105,14 +145,21 @@ struct NewChatSheet: View {
                     } label: {
                         if creating { ProgressView() } else { Label("Create", systemImage: "checkmark") }
                     }
-                    .disabled(workspaceId == nil || creating)
+                    .disabled(workspaceId == nil || creating || machineIsDown)
                 }
             }
         }
         .onAppear {
-            workspaceId = initialWorkspaceId ?? store.selectedAgent?.workspaceId ?? store.state.workspaces.first?.id
+            let machine = defaultMachine()
+            let folders = workspaces(on: machine)
+            let preferred = initialWorkspaceId ?? store.selectedAgent?.workspaceId
+            machineId = machine
+            workspaceId = folders.contains { $0.id == preferred } ? preferred : folders.first?.id
         }
-        .task(id: kind) { await loadControls() }
+        .onChange(of: machineId) { _, _ in
+            if !workspaces.contains(where: { $0.id == workspaceId }) { workspaceId = workspaces.first?.id }
+        }
+        .task(id: "\(kind)|\(machineId ?? "")") { await loadControls() }
         .onChange(of: model) {
             // pi and codex efforts depend on the model; drop a choice the new model doesn't offer.
             if !effort.isEmpty, !effortChoices.contains(where: { $0.id == effort }) { effort = "" }
@@ -140,12 +187,31 @@ struct NewChatSheet: View {
         return "Default (\(options.first { $0.id == id }?.label ?? id))"
     }
 
+    private func defaultMachine() -> String? {
+        Self.defaultMachine(
+            project: initialWorkspaceId.flatMap(store.machineId(of:)), filter: store.machineFilter,
+            lastUsed: choosesMachine ? lastMachineId : nil, openChat: store.selectedAgentId.flatMap(store.machineId(of:)),
+            machines: store.machines
+        )
+    }
+
+    /// The project's machine (its `+`), else the one picked in the menu, else the last used, else the open
+    /// chat's, else the first online, else the first. Only machines still paired count.
+    static func defaultMachine(
+        project: String?, filter: String?, lastUsed: String?, openChat: String?, machines: [MachineEntry]
+    ) -> String? {
+        let paired = Set(machines.map(\.id))
+        let candidates = [project, filter, lastUsed, openChat, machines.first { $0.status == .online }?.id, machines.first?.id]
+        return candidates.lazy.compactMap(\.self).first { paired.contains($0) }
+    }
+
     private func loadControls() async {
         model = ""
         effort = ""
         controls = nil
+        guard let machineId else { return }
         loading = true
-        controls = await store.kindControls(kind)
+        controls = await store.kindControls(kind, machineId: machineId)
         loading = false
     }
 
@@ -158,7 +224,10 @@ struct NewChatSheet: View {
                 model: model.isEmpty ? nil : model, effort: effort.isEmpty ? nil : effort
             )
             creating = false
-            if ok { dismiss() }
+            if ok {
+                if let machineId { lastMachineId = machineId }
+                dismiss()
+            }
         }
     }
 }

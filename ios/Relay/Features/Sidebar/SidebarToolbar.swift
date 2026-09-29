@@ -5,13 +5,14 @@ import SwiftUI
 /// the right. 52 pt tall, 16 pt side padding (design B · Grouped).
 struct SidebarToolbar: View {
     @Bindable var store: AppStore
-    let onUnpair: () -> Void
     let onUsage: () -> Void
+    let onAddMachine: () -> Void
+    let onMachines: () -> Void
 
     var body: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
-                MachineMenu(store: store)
+                MachineMenu(store: store, onAddMachine: onAddMachine, onManageMachines: onMachines)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) {
                     SidebarFilterMenu(selection: $store.filter, needsInput: store.sidebar.needsInputCount > 0)
@@ -36,9 +37,11 @@ struct SidebarToolbar: View {
                 .accessibilityIdentifier("sidebarUsage")
             }
             Section {
-                Button(role: .destructive, action: onUnpair) {
-                    Label("Unpair", systemImage: "link")
+                // Unpairing is per machine now: Remove, on the Machines screen.
+                Button(action: onMachines) {
+                    Label("Machines", systemImage: "desktopcomputer")
                 }
+                .accessibilityIdentifier("sidebarMachines")
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -55,34 +58,63 @@ struct SidebarToolbar: View {
     }
 }
 
-/// "● LT-MBP-457 ⌄": the paired Mac and its connection. The menu lists the machines the bridge reports.
-/// Status is monochrome, so the dot is filled when connected and hollow while reconnecting.
+/// "● All machines ⌄" or "● Test VM ⌄": which machine's chats the sidebar shows. The menu picks All or one
+/// machine (with its status), and leads to adding and managing machines. Status is monochrome: the dot is
+/// filled when online, hollow while connecting, grey when offline, and orange when the token was refused.
 private struct MachineMenu: View {
-    let store: AppStore
+    @Bindable var store: AppStore
+    let onAddMachine: () -> Void
+    let onManageMachines: () -> Void
 
-    private var connected: Bool { store.connection == .connected }
-    private var name: String { store.machines.first?.name ?? store.hostLabel }
+    private var name: String { store.filteredMachine?.displayName ?? "All machines" }
+
+    /// One machine's status, or for All the one that needs attention most.
+    private var status: MachineStatus {
+        if let machine = store.filteredMachine { return machine.status }
+        let all = store.machines.map(\.status)
+        for worst in [MachineStatus.needsRePair, .offline, .connecting] where all.contains(worst) { return worst }
+        return .online
+    }
+
+    /// "online", or for All the machines that aren't: "Test VM offline".
+    private var spokenStatus: String {
+        if let machine = store.filteredMachine { return machine.status.spoken }
+        let down = store.machines.filter { $0.status != .online }
+        if down.isEmpty { return store.hasSeveralMachines ? "all online" : "online" }
+        return down.map { "\($0.displayName) \($0.status.spoken)" }.joined(separator: ", ")
+    }
 
     var body: some View {
         Menu {
-            Section {
+            Picker("Machine", selection: $store.machineFilter) {
+                Label("All machines", systemImage: "square.stack")
+                    .tag(String?.none)
+                    .accessibilityIdentifier("machineMenuAll")
                 ForEach(store.machines) { machine in
-                    Label(machine.name, systemImage: machine.kind == .laptop ? "laptopcomputer" : "desktopcomputer")
-                    if let os = machine.os { Label(os, systemImage: "apple.logo") }
+                    // Menu pickers drop a subtitle, so a machine that isn't online says so in its title.
+                    Label(
+                        machine.status == .online ? machine.displayName : "\(machine.displayName) · \(machine.status.title)",
+                        systemImage: machine.status.symbol
+                    )
+                    .tag(Optional(machine.id))
+                    .accessibilityLabel("Machine: \(machine.displayName), \(machine.status.spoken)")
+                    .accessibilityIdentifier("machineMenuItem-\(machine.id)")
                 }
-                Label(store.hostLabel, systemImage: "network")
             }
+            .pickerStyle(.inline)
             Section {
-                Label(connected ? "Connected" : "Reconnecting…",
-                      systemImage: connected ? "checkmark.circle" : "wifi.exclamationmark")
+                Button(action: onAddMachine) {
+                    Label("Add machine…", systemImage: "plus")
+                }
+                .accessibilityIdentifier("machineMenuAdd")
+                Button(action: onManageMachines) {
+                    Label("Manage machines…", systemImage: "desktopcomputer")
+                }
+                .accessibilityIdentifier("machineMenuManage")
             }
         } label: {
             HStack(spacing: 8) {
-                // UIColor.label: the menu label dims `.primary` to grey.
-                Circle()
-                    .strokeBorder(Color(.label), lineWidth: connected ? 0 : 1.5)
-                    .background(Circle().fill(connected ? Color(.label) : .clear))
-                    .frame(width: 7, height: 7)
+                MachineDot(status: status)
                 Text(name)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
@@ -102,7 +134,26 @@ private struct MachineMenu: View {
             Label(name, systemImage: "desktopcomputer")
         }
         .accessibilityLabel("Machine: \(name)")
-        .accessibilityValue(connected ? "Connected" : "Reconnecting")
+        .accessibilityValue(spokenStatus)
         .accessibilityIdentifier("sidebarMachineMenu")
+    }
+}
+
+/// The 7 pt status dot beside a machine's name.
+struct MachineDot: View {
+    let status: MachineStatus
+
+    var body: some View {
+        // UIColor.label: a menu label dims `.primary` to grey.
+        let color: Color = switch status {
+        case .online, .connecting: Color(.label)
+        case .offline: Color(.tertiaryLabel)
+        case .needsRePair: .orange
+        }
+        Circle()
+            .strokeBorder(color, lineWidth: status == .connecting ? 1.5 : 0)
+            .background(Circle().fill(status == .connecting ? .clear : color))
+            .frame(width: 7, height: 7)
+            .accessibilityHidden(true)
     }
 }

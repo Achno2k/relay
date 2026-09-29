@@ -2,29 +2,37 @@ import RelayKit
 import SwiftUI
 import VisionKit
 
-/// First launch: scan the QR from `relay pair` or type the URL and token.
+/// Scan the QR from `relay pair` or type the URL and token. Three uses, one flow:
+/// - first launch (the app's root while nothing is paired);
+/// - Add machine (a sheet over the sidebar);
+/// - re-pair one machine (a sheet, with `AppModel.rePairMachineId` set).
+/// As a sheet it closes itself once the bridge has answered.
 struct PairingView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.isPresented) private var isSheet
+    @Environment(\.dismiss) private var dismiss
     @State private var scanning = false
     @State private var manual = false
+
+    private enum Mode { case firstLaunch, add, rePair(name: String) }
+
+    private var mode: Mode {
+        if let id = model.rePairMachineId {
+            return .rePair(name: model.store?.machines.first { $0.id == id }?.displayName ?? "this machine")
+        }
+        return isSheet ? .add : .firstLaunch
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            RelayMark()
-                .padding(.bottom, 28)
-            Text("Relay")
-                .font(.largeTitle.weight(.bold))
-            Text("Your coding agents, in your pocket.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 6)
+            header
             Spacer()
 
             VStack(alignment: .leading, spacing: 18) {
-                Step(number: 1, text: "On your Mac, run **relay serve**.")
-                Step(number: 2, text: "Then run **relay pair** and scan the code it shows.")
+                ForEach(Array(steps.enumerated()), id: \.offset) { index, text in
+                    Step(number: index + 1, text: text)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 32)
@@ -36,6 +44,7 @@ struct PairingView: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 12)
+                    .accessibilityIdentifier("pairingError")
             }
 
             VStack(spacing: 12) {
@@ -48,21 +57,37 @@ struct PairingView: View {
                         .padding(.vertical, 8)
                 }
                 .buttonStyle(.glassProminent)
+                .accessibilityIdentifier("pairingScan")
 
                 Button {
                     manual = true
                 } label: {
-                    Text("Enter manually")
+                    Text(isSheet ? "Enter or paste link" : "Enter manually")
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
                 .buttonStyle(.glass)
+                .accessibilityIdentifier("pairingManual")
             }
             .controlSize(.large)
             .disabled(model.isPairing)
             .padding(.horizontal, 24)
             .padding(.bottom, 12)
+        }
+        .overlay(alignment: .topTrailing) {
+            if isSheet {
+                Button(role: .cancel) { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: .circle)
+                .padding()
+                .accessibilityLabel("Cancel")
+                .accessibilityIdentifier("pairingCancel")
+            }
         }
         .overlay {
             if model.isPairing {
@@ -71,14 +96,82 @@ struct PairingView: View {
                     .glassEffect(.regular, in: .rect(cornerRadius: 24))
             }
         }
+        .onAppear { if isSheet { model.pairingError = nil } }
         .fullScreenCover(isPresented: $scanning) {
             ScannerScreen { link in
                 scanning = false
-                model.handle(url: link)
+                pair(link: link)
             }
         }
         .sheet(isPresented: $manual) {
-            ManualPairingSheet()
+            ManualPairingSheet(onPaired: { if isSheet { dismiss() } })
+        }
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        switch mode {
+        case .firstLaunch:
+            RelayMark()
+                .padding(.bottom, 28)
+            Text("Relay")
+                .font(.largeTitle.weight(.bold))
+            subtitle("Your coding agents, in your pocket.")
+        case .add:
+            Image(systemName: "desktopcomputer.and.macbook")
+                .font(.system(size: 56, weight: .regular))
+                .foregroundStyle(.tint)
+                .padding(.bottom, 20)
+                .accessibilityHidden(true)
+            Text("Add a machine")
+                .font(.largeTitle.weight(.bold))
+                .accessibilityAddTraits(.isHeader)
+            subtitle("Drive the agents on another computer too.")
+        case .rePair(let name):
+            Image(systemName: "key.horizontal")
+                .font(.system(size: 56, weight: .regular))
+                .foregroundStyle(.tint)
+                .padding(.bottom, 20)
+                .accessibilityHidden(true)
+            Text("Re-pair \(name)")
+                .font(.largeTitle.weight(.bold))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .accessibilityAddTraits(.isHeader)
+            subtitle("Its address or token changed. Scan a fresh code from it.")
+        }
+    }
+
+    private func subtitle(_ text: String) -> some View {
+        Text(text)
+            .font(.title3)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+            .padding(.top, 6)
+    }
+
+    private var steps: [LocalizedStringKey] {
+        switch mode {
+        case .firstLaunch:
+            ["On your Mac, run **relay serve**.", "Then run **relay pair** and scan the code it shows."]
+        case .add:
+            ["On the other machine, run **relay serve** (on Linux, see docs/remote-setup.md).",
+             "Then run **relay pair** there and scan the code it shows."]
+        case .rePair(let name):
+            ["On \(name), run **relay pair**.", "Scan the code it shows, or paste its link."]
+        }
+    }
+
+    /// Same path as first launch; as a sheet, closes once it worked.
+    private func pair(link: URL) {
+        guard let pairing = Pairing(link: link) else {
+            model.handle(url: link)
+            return
+        }
+        Task {
+            await model.pair(pairing)
+            if isSheet && model.pairingError == nil { dismiss() }
         }
     }
 }
@@ -122,6 +215,7 @@ private struct RelayMark: View {
 }
 
 private struct ManualPairingSheet: View {
+    var onPaired: () -> Void = {}
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var url = ""
@@ -139,6 +233,7 @@ private struct ManualPairingSheet: View {
             Form {
                 Section {
                     TextField("http://100.64.0.1:7878", text: $url)
+                        .accessibilityIdentifier("pairingURL")
                         .keyboardType(.URL)
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
@@ -146,10 +241,11 @@ private struct ManualPairingSheet: View {
                 } header: {
                     Text("Bridge URL")
                 } footer: {
-                    Text("Your Mac's Tailscale address. Pasting the whole relay:// link also works.")
+                    Text("The machine's Tailscale address. Pasting the whole relay:// link also works.")
                 }
                 Section("Token") {
                     SecureField("Token", text: $token)
+                        .accessibilityIdentifier("pairingToken")
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
@@ -170,12 +266,16 @@ private struct ManualPairingSheet: View {
                         guard let pairing else { return }
                         Task {
                             await model.pair(pairing)
-                            if model.pairingError == nil { dismiss() }
+                            if model.pairingError == nil {
+                                dismiss()
+                                onPaired()
+                            }
                         }
                     } label: {
                         if model.isPairing { ProgressView() } else { Label("Connect", systemImage: "checkmark") }
                     }
                     .disabled(pairing == nil || model.isPairing)
+                    .accessibilityIdentifier("pairingConnect")
                 }
             }
         }

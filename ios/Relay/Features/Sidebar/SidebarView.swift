@@ -4,15 +4,19 @@ import SwiftUI
 /// The drawer, design B · Grouped: a pinned glass toolbar, a large title, then the "Now" card and one card
 /// per project on a grouped ground (filter All), or a flat list for another filter or a search. Search and
 /// New chat float at the bottom. The cards and rows come from SidebarNowCard, SidebarProjectSection and
-/// SidebarSessionList; this view only lays them out.
+/// SidebarSessionList; this view only lays them out. It also presents the Machines screen and Add machine.
 struct SidebarView: View {
     @Bindable var store: AppStore
     let onSelect: (String) -> Void
     let onNewChat: (_ workspaceId: String?) -> Void
-    let onUnpair: () -> Void
+    /// Unused since round 9: unpairing is Remove on the Machines screen, per machine.
+    var onUnpair: () -> Void = {}
     let onUsage: () -> Void
 
     @State private var query = ""
+    /// `-demo machines` / `-demo addMachine` open these for screenshots.
+    @State private var showMachines = LaunchOptions.current.isDemo("machines")
+    @State private var showAddMachine = LaunchOptions.current.isDemo("addMachine")
     @State private var searching = false
     @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,8 +26,17 @@ struct SidebarView: View {
         // The toolbar sits above the list rather than floating over it: scrolled rows never show through the
         // status bar or the toolbar (R7-13), and VoiceOver reads toolbar, list, bottom bar in that order (R7-4).
         VStack(spacing: 0) {
-            SidebarToolbar(store: store, onUnpair: onUnpair, onUsage: onUsage)
+            SidebarToolbar(
+                store: store, onUsage: onUsage,
+                onAddMachine: { showAddMachine = true }, onMachines: { showMachines = true }
+            )
             list
+        }
+        .sheet(isPresented: $showMachines) {
+            MachinesView(store: store)
+        }
+        .sheet(isPresented: $showAddMachine) {
+            PairingView()
         }
         .background(Color(.systemGroupedBackground))
         // Reduce Motion: switching filter or search swaps the list without rows sliding around.
@@ -41,6 +54,7 @@ struct SidebarView: View {
                     emptyText: "No chats match \u{201C}\(query)\u{201D}.", store: store, onSelect: onSelect
                 )
             } else if store.filter == .all {
+                SidebarMachineNotices(store: store) { showMachines = true }
                 SidebarNowCard(store: store, onSelect: onSelect)
                 ForEach(sidebar.grouped().sections) { section in
                     SidebarProjectSection(store: store, section: section, onSelect: onSelect, onNewChat: { onNewChat($0) })
@@ -68,7 +82,8 @@ struct SidebarView: View {
                 query: $query, searching: $searching, searchFocused: $searchFocused,
                 iconOnly: typeSize >= .accessibility3
             ) {
-                onNewChat(store.selectedAgent?.workspaceId)
+                // Across machines the sheet starts on the last used one, not wherever the open chat is.
+                onNewChat(store.showsMachineTags ? nil : store.selectedAgent?.workspaceId)
             }
             .padding(.horizontal, 16)
             // 30 pt above the screen's bottom edge; just clear of the keyboard while typing.

@@ -36,11 +36,10 @@ final class SidebarShellUITests: XCTestCase {
         XCTAssertTrue(app.buttons["sidebarNewChat"].exists)
     }
 
-    /// The machine menu lists the paired Mac and its connection; ••• still holds Usage.
+    /// The machine menu lists All and the paired Mac, and leads to adding a machine; ••• still holds Usage.
     func testToolbarMenus() throws {
         app.buttons["sidebarMachineMenu"].tap()
-        XCTAssertTrue(app.buttons["Connected"].waitForExistence(timeout: 3) || app.staticTexts["Connected"].exists,
-                      "machine menu has no connection row")
+        XCTAssertTrue(app.buttons["machineMenuAdd"].waitForExistence(timeout: 3), "machine menu has no Add machine")
         app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
 
         app.buttons["sidebarMore"].tap()

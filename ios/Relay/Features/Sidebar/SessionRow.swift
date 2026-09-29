@@ -5,6 +5,8 @@ import SwiftUI
 /// - `showsProject`: 60 pt, status glyph, title over "project · 2m" (Now, filter and search lists).
 /// - otherwise: 50 pt, title with a trailing age (project cards). Idle chats get no glyph.
 /// Swipe or long-press to archive; long-press to stop a working agent.
+/// In All with several machines the two-line subtitle names the machine too. An agent on a machine that's
+/// offline (or needs re-pairing) stays listed, greyed, with "offline" in place of its status.
 struct SessionRow: View {
     let agent: Agent
     let store: AppStore
@@ -27,6 +29,7 @@ struct SessionRow: View {
             Group {
                 if showsProject { twoLine(unseen: unseen) } else { compact(unseen: unseen) }
             }
+            .opacity(isOffline ? 0.45 : 1)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -36,7 +39,7 @@ struct SessionRow: View {
         .accessibilityLabel(agent.displayTitle)
         .accessibilityValue(accessibilityValue(unseen: unseen))
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityIdentifier("session-\(agent.id)")
+        .accessibilityIdentifier("session-\(store.accessibilityKey(agent.id))")
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button { setArchived(!archived) } label: {
                 Label(archived ? "Unarchive" : "Archive", systemImage: archived ? "tray.and.arrow.up" : "archivebox")
@@ -50,24 +53,41 @@ struct SessionRow: View {
             Button(role: .destructive) { store.interrupt(agent.id) } label: {
                 Label("Stop", systemImage: "stop.circle")
             }
-            .disabled(agent.status != .working)
+            .disabled(agent.status != .working || isOffline)
         } preview: {
             AgentPreview(agent: agent)
         }
     }
 
+    /// Its machine can't be reached: the row is last known, not live.
+    private var isOffline: Bool {
+        guard let status = store.machine(of: agent.id)?.status else { return false }
+        return status == .offline || status == .needsRePair
+    }
+
+    /// "website · Test VM · 2m": the machine only when tags are on, "offline" in place of the age. The
+    /// project and machine truncate; the age always shows.
+    private var subtitle: some View {
+        let lead = [agent.workspaceName, store.machineTag(agent.id)].compactMap(\.self).joined(separator: " · ")
+        return HStack(alignment: .lastTextBaseline, spacing: 0) {
+            Text(lead)
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+            Text(" · " + (isOffline ? "offline" : RelativeTime.compact(agent.updatedAt)))
+                .fixedSize()
+        }
+    }
+
     private func twoLine(unseen: Bool) -> some View {
         HStack(spacing: 14) {
-            StatusGlyph(status: agent.status, unseen: unseen)
+            StatusGlyph(status: agent.status, unseen: unseen, offline: isOffline)
             // SwiftUI's line heights run taller than the design's; -2 brings the gap back to it.
             VStack(alignment: .leading, spacing: -2) {
                 Text(agent.displayTitle)
                     .font(.body)
                     .lineLimit(titleLines)
-                Text("\(agent.workspaceName) · \(RelativeTime.compact(agent.updatedAt))")
+                subtitle
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
             }
             Spacer(minLength: 0)
         }
@@ -77,7 +97,7 @@ struct SessionRow: View {
 
     private func compact(unseen: Bool) -> some View {
         HStack(spacing: 8) {
-            if agent.status != .idle {
+            if agent.status != .idle && !isOffline {
                 StatusGlyph(status: agent.status, unseen: unseen)
                     .padding(.trailing, 2)
             }
@@ -85,7 +105,7 @@ struct SessionRow: View {
                 .font(.body)
                 .lineLimit(titleLines)
             Spacer(minLength: 0)
-            Text(RelativeTime.compact(agent.updatedAt))
+            Text(isOffline ? "offline" : RelativeTime.compact(agent.updatedAt))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -94,9 +114,10 @@ struct SessionRow: View {
     }
 
     private func accessibilityValue(unseen: Bool) -> String {
-        var parts = [StatusGlyph.label(agent.status, unseen: unseen)]
+        var parts = [isOffline ? "offline" : StatusGlyph.label(agent.status, unseen: unseen)]
         if showsProject { parts.append(agent.workspaceName) }
-        parts.append(RelativeTime.compact(agent.updatedAt))
+        if showsProject, let machine = store.machineTag(agent.id) { parts.append("on \(machine)") }
+        if !isOffline { parts.append(RelativeTime.compact(agent.updatedAt)) }
         return parts.joined(separator: ", ")
     }
 

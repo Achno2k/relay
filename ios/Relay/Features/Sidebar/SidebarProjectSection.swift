@@ -3,7 +3,8 @@ import SwiftUI
 
 /// One project on the home screen: a header with `+` (new chat there) over a card of its chats that
 /// aren't running (those are in Now). Seen, finished chats fold into "✓ N completed". A project whose
-/// chats are all in Now is a single "name · N running ›" card that opens into the full section.
+/// chats are all in Now is a single "name · N running ›" card that opens into the full section. In All with
+/// several machines, the header carries the machine's name, so two machines' "website" never read as one.
 struct SidebarProjectSection: View {
     let store: AppStore
     let section: SidebarModel.ProjectSection
@@ -91,6 +92,9 @@ struct SidebarProjectSection: View {
             .accessibilityLabel(section.name)
             .accessibilityAddTraits(.isHeader)
             .accessibilityIdentifier("project-\(section.name)")
+            if let machine = store.machine(of: section.id), store.showsMachineTags {
+                MachineTag(machine: machine)
+            }
             Spacer(minLength: 8)
             Button { onNewChat(section.id) } label: {
                 Image(systemName: "plus")
@@ -104,7 +108,7 @@ struct SidebarProjectSection: View {
             // the card's edge), as in the design.
             .padding(.vertical, -4)
             .padding(.trailing, -12)
-            .accessibilityLabel("New chat in \(section.name)")
+            .accessibilityLabel(store.machineTag(section.id).map { "New chat in \(section.name) on \($0)" } ?? "New chat in \(section.name)")
             .accessibilityIdentifier("newChat-\(section.name)")
         }
     }
@@ -116,11 +120,13 @@ struct SidebarProjectSection: View {
                 if typeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(section.name).font(.headline).lineLimit(2)
+                        machineTag
                         runningCount
                     }
                     Spacer(minLength: 8)
                 } else {
                     Text(section.name).font(.headline).lineLimit(1)
+                    machineTag
                     Spacer(minLength: 8)
                     runningCount
                 }
@@ -134,10 +140,17 @@ struct SidebarProjectSection: View {
         }
         .buttonStyle(.plain)
         .sidebarCardRow(leading: 20, separator: nil)
-        .accessibilityLabel(section.name)
+        .accessibilityLabel(store.machineTag(section.id).map { "\(section.name), \($0)" } ?? section.name)
         .accessibilityValue("\(section.running.count) running, in Now")
         .accessibilityHint("Shows this project")
         .accessibilityIdentifier("project-\(section.name)")
+    }
+
+    @ViewBuilder
+    private var machineTag: some View {
+        if let machine = store.machine(of: section.id), store.showsMachineTags {
+            MachineTag(machine: machine)
+        }
     }
 
     private var runningCount: some View {
@@ -184,5 +197,29 @@ struct SidebarProjectSection: View {
 
     private func toggleOpen() {
         withAnimation(reduceMotion ? nil : .smooth) { projectsOpen = ExpansionSet(raw: projectsOpen).toggled(section.id) }
+    }
+}
+
+/// The small secondary machine name beside a project's name, with its status dot once it isn't online.
+struct MachineTag: View {
+    let machine: MachineEntry
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if machine.status != .online { MachineDot(status: machine.status) }
+            Text(machine.displayName)
+                .lineLimit(1)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(Color(.tertiarySystemFill), in: .capsule)
+        .fixedSize(horizontal: false, vertical: true)
+        .layoutPriority(-1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(machine.displayName)
+        .accessibilityValue(machine.status == .online ? "" : machine.status.spoken)
+        .accessibilityIdentifier("sectionMachineTag")
     }
 }

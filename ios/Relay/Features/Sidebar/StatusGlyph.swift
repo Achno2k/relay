@@ -2,16 +2,20 @@ import RelayKit
 import SwiftUI
 
 /// Leading status glyph. Monochrome: the shape carries the state, not a colour.
-/// spinner = working, hand = needs input, eye = ready for review, circle+check = completed, circle = idle.
+/// spinner = working, hand = needs input, eye = ready for review, circle+check = completed, circle = idle,
+/// struck-through circle = its machine is offline (whatever the last known status was).
 struct StatusGlyph: View {
     let status: AgentStatus
     let unseen: Bool
+    var offline = false
     /// The glyph's box; symbols scale with Dynamic Type from this.
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 18
 
     var body: some View {
         Group {
             switch status {
+            case _ where offline:
+                Image(systemName: "circle.slash").foregroundStyle(.secondary)
             case .working:
                 Spinner()
             case .blocked:
@@ -28,7 +32,7 @@ struct StatusGlyph: View {
         }
         .font(.system(size: size * 0.95, weight: .medium))
         .frame(width: size, height: size)
-        .accessibilityLabel(Self.label(status, unseen: unseen))
+        .accessibilityLabel(offline ? "offline" : Self.label(status, unseen: unseen))
     }
 
     static func label(_ status: AgentStatus, unseen: Bool) -> String {
