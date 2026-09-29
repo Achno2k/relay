@@ -63,6 +63,9 @@
 
 ## What's left
 - Done: MainView no longer passes `onUnpair`. SidebarView still has the defaulted param (mm-ui's file).
-- The banner still says "Reconnecting…" for an offline focus machine. Copy for offline vs reconnecting could differ; I left it as is.
 - ChatView drafts are `@State`, so they aren't persisted per agent. Nothing to migrate.
 - If a legacy machine stays unreachable while another machine loads, the old bare selection is replaced by the other machine's first chat. Its seen and archive state still migrate later.
+
+## Bugs fixed after the first report
+- R9-3: the banner said "Reconnecting…" for a machine the menu showed as offline. `store.connectionNotice` now gives "<name> is offline" for an offline machine and "Reconnecting…" only while a dropped socket retries. Verified by mm-qa.
+- R9-4: a migrated pairing whose bridge was down at launch never retried, because it has no socket until it's re-keyed. It now retries `/machine` with the socket backoff (1, 2, 4 … 30 s). Unit test added. Live check: a legacy pairing seeded to a stopped test bridge re-keyed within 40 s of the bridge starting, with no relaunch.
