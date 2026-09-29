@@ -397,6 +397,7 @@ final class AppStore {
                 c.hasAttempted = true
                 markLoadedIfAllTried()
                 resolvePendingLink()
+                selectFirstIfNeeded()
                 return
             }
         }
@@ -424,12 +425,14 @@ final class AppStore {
             c.hasAttempted = true
             markLoadedIfAllTried()
             resolvePendingLink()
+            selectFirstIfNeeded()
             report(error, machine: c, quiet: true)
             return
         }
         c.hasAttempted = true
         hasLoadedAgents = true
         resolvePendingLink()
+        selectFirstIfNeeded()
         Task { await usage.load(machineId: c.id, backend: raw) }
         if c.controls == nil { c.controls = try? await backend.controls() }
         if let id = selectedAgentId, c.owns(id) {
@@ -460,9 +463,7 @@ final class AppStore {
         state = s
         unarchiveIfBlocked(a)
         // Reselect only when the open chat was this machine's and closed, or its machine is gone.
-        if let id = selectedAgentId {
-            if (c.owns(id) && !live.contains(id)) || connection(for: id) == nil { selectedAgentId = firstAgentId() }
-        } else if pendingAgentLink == nil {
+        if let id = selectedAgentId, (c.owns(id) && !live.contains(id)) || connection(for: id) == nil {
             selectedAgentId = firstAgentId()
         }
     }
@@ -548,7 +549,20 @@ final class AppStore {
             if !c.hasAttempted { return }
         }
         pendingAgentLink = nil
-        if selectedAgentId == nil { selectedAgentId = firstAgentId() }
+        selectFirstIfNeeded()
+    }
+
+    /// With nothing open, open the first chat of the first machine in pair order that has one, waiting for
+    /// earlier machines to answer first so the default doesn't depend on which bridge is fastest.
+    private func selectFirstIfNeeded() {
+        guard selectedAgentId == nil, pendingAgentLink == nil else { return }
+        for c in connections {
+            guard c.hasAttempted else { return }
+            if visibleState.agents.contains(where: { c.owns($0.id) }) {
+                selectedAgentId = firstAgentId()
+                return
+            }
+        }
     }
 
     // MARK: - Machines (actions)

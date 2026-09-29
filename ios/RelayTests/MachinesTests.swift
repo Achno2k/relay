@@ -22,6 +22,9 @@ actor FakeBridge: Backend {
         self.workspaceList = workspaces
     }
 
+    /// How long `agents()` takes.
+    var delay: Duration = .zero
+    func setDelay(_ d: Duration) { delay = d }
     func setFailure(_ f: Failure) { failure = f }
     func setId(_ id: String) { self.id = id }
     func send(_ event: ConnectionEvent) { continuation?.yield(event) }
@@ -35,7 +38,11 @@ actor FakeBridge: Backend {
     }
 
     func workspaces() async throws -> [Workspace] { try check(); return workspaceList }
-    func agents() async throws -> [Agent] { try check(); return agentList }
+    func agents() async throws -> [Agent] {
+        try await Task.sleep(for: delay)
+        try check()
+        return agentList
+    }
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage {
         try check()
         messageFetches.append(agentId)
@@ -396,5 +403,13 @@ struct MachinesTests {
         #expect(store.selectedAgentId == "mac/w1:p1")
         store.select(link: "vm/w1:p1")
         #expect(store.selectedAgentId == "vm/w1:p1")
+    }
+
+    @Test func defaultSelectionFollowsPairOrderNotSpeed() async throws {
+        let mac = bridge("mac", title: "m")
+        await mac.setDelay(.milliseconds(150))
+        let store = makeStore([connection(mac, id: "mac"), connection(bridge("vm", title: "v"), id: "vm")])
+        await store.refresh()
+        #expect(store.selectedAgentId == "mac/w1:p1")
     }
 }
