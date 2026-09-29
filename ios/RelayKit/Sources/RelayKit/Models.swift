@@ -243,7 +243,27 @@ public struct Attachment: Codable, Hashable, Identifiable, Sendable {
     public var ref: AttachmentRef { AttachmentRef(id: id, name: name, kind: kind) }
 }
 
-/// `GET /machine`: the Mac a bridge runs on.
+/// `GET /health` (no auth).
+public struct Health: Codable, Hashable, Sendable {
+    public var ok: Bool
+    public var name: String?
+    public var version: String?
+    /// `connected` | `unavailable`; nil on older bridges.
+    public var herdr: String?
+    public var uptimeSeconds: Int?
+
+    public init(ok: Bool, name: String? = nil, version: String? = nil, herdr: String? = nil, uptimeSeconds: Int? = nil) {
+        self.ok = ok
+        self.name = name
+        self.version = version
+        self.herdr = herdr
+        self.uptimeSeconds = uptimeSeconds
+    }
+
+    public var herdrAvailable: Bool? { herdr.map { $0 == "connected" } }
+}
+
+/// `GET /machine`: the machine a bridge runs on.
 public struct Machine: Codable, Hashable, Identifiable, Sendable {
     public enum Kind: String, Codable, Hashable, Sendable {
         case laptop, desktop

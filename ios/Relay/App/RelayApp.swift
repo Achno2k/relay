@@ -7,7 +7,7 @@ struct RelayApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if let store = model.store {
+                if let store = model.store, model.isPaired {
                     // Re-pairing swaps in a new store; a new identity re-runs MainView's `.task` so it starts.
                     MainView(store: store)
                         .id(ObjectIdentifier(store))

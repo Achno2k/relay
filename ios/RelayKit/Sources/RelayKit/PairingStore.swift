@@ -44,33 +44,187 @@ public struct Pairing: Hashable, Sendable {
     }
 }
 
-/// Stores the pairing where app extensions can read it: the token in the Keychain under the
-/// App Group access group, the URL in the App Group's defaults.
-public enum PairingStore {
+/// One paired machine as the app remembers it. The token isn't here; it lives in the Keychain under the machine id.
+public struct MachineRecord: Codable, Hashable, Identifiable, Sendable {
+    /// `GET /machine` id, or `PairingStore.provisionalId` until a migrated pairing has been reached once.
+    public var id: String
+    public var url: URL
+    /// Local rename; nil shows the machine's own name.
+    public var label: String?
+    public var provisional: Bool
+    /// Last `GET /machine`, so an offline machine still has a name and OS.
+    public var machine: Machine?
+    /// Last `GET /health` version.
+    public var bridgeVersion: String?
+
+    public init(id: String, url: URL, label: String? = nil, provisional: Bool = false, machine: Machine? = nil, bridgeVersion: String? = nil) {
+        self.id = id
+        self.url = url
+        self.label = label
+        self.provisional = provisional
+        self.machine = machine
+        self.bridgeVersion = bridgeVersion
+    }
+}
+
+/// Where tokens live. The app uses the Keychain; tests use `.memory()`.
+public struct TokenVault: Sendable {
+    public var read: @Sendable (_ account: String) -> String?
+    public var write: @Sendable (_ token: String, _ account: String) throws -> Void
+    public var delete: @Sendable (_ account: String) -> Void
+
+    public init(
+        read: @escaping @Sendable (String) -> String?,
+        write: @escaping @Sendable (String, String) throws -> Void,
+        delete: @escaping @Sendable (String) -> Void
+    ) {
+        self.read = read
+        self.write = write
+        self.delete = delete
+    }
+
+    public static func keychain(service: String) -> TokenVault {
+        TokenVault(
+            read: { Keychain.read(service: service, account: $0) },
+            write: { try Keychain.write($0, service: service, account: $1) },
+            delete: { Keychain.delete(service: service, account: $0) }
+        )
+    }
+
+    public static func memory() -> TokenVault {
+        final class Box: @unchecked Sendable {
+            let lock = NSLock()
+            var values: [String: String] = [:]
+        }
+        let box = Box()
+        return TokenVault(
+            read: { account in box.lock.withLock { box.values[account] } },
+            write: { token, account in box.lock.withLock { box.values[account] = token } },
+            delete: { account in _ = box.lock.withLock { box.values.removeValue(forKey: account) } }
+        )
+    }
+}
+
+/// The paired machines, keyed by machine id (api.md "Multiple machines"): the list in the App Group's
+/// defaults, each token in the Keychain (App Group access group) under the machine id, so extensions can read both.
+public struct PairingStore: Sendable {
     public static let appGroup = "group.dev.amansingh.herd"
     static let service = "dev.amansingh.herd.bridge"
-    static let urlKey = "bridgeURL"
+    static let listKey = "machines"
+    /// The pre-round-9 single pairing: its URL here, its token under account = that URL.
+    static let legacyURLKey = "bridgeURL"
+    /// A migrated pairing whose bridge hasn't answered `/machine` yet.
+    public static let provisionalId = "provisional-legacy"
 
     public static var sharedDefaults: UserDefaults { UserDefaults(suiteName: appGroup) ?? .standard }
 
-    public static func load() -> Pairing? {
-        guard let s = sharedDefaults.string(forKey: urlKey), let url = URL(string: s),
-              let token = Keychain.read(service: service, account: s)
-        else { return nil }
-        return Pairing(url: url, token: token)
+    /// The app's real store.
+    public static var shared: PairingStore { PairingStore(defaults: sharedDefaults, vault: .keychain(service: service)) }
+
+    nonisolated(unsafe) let defaults: UserDefaults
+    let vault: TokenVault
+
+    public init(defaults: UserDefaults, vault: TokenVault) {
+        self.defaults = defaults
+        self.vault = vault
     }
 
-    public static func save(_ pairing: Pairing) throws {
-        clear()
-        try Keychain.write(pairing.token, service: service, account: pairing.url.absoluteString)
-        sharedDefaults.set(pairing.url.absoluteString, forKey: urlKey)
+    /// Every paired machine, in pair order. Moves the old single pairing into the list first.
+    public func records() -> [MachineRecord] {
+        migrateLegacy()
+        return stored()
     }
 
-    public static func clear() {
-        if let s = sharedDefaults.string(forKey: urlKey) {
-            Keychain.delete(service: service, account: s)
+    public func token(_ id: String) -> String? { vault.read(id) }
+
+    public func pairing(_ id: String) -> Pairing? {
+        guard let record = stored().first(where: { $0.id == id }), let token = token(id) else { return nil }
+        return Pairing(url: record.url, token: token)
+    }
+
+    /// Adds a machine, or replaces the url and token of the one with the same id (keeping its place and label).
+    public func upsert(_ record: MachineRecord, token: String) throws {
+        try vault.write(token, record.id)
+        var list = stored()
+        if let i = list.firstIndex(where: { $0.id == record.id }) {
+            var merged = record
+            merged.label = record.label ?? list[i].label
+            list[i] = merged
+        } else {
+            list.append(record)
         }
-        sharedDefaults.removeObject(forKey: urlKey)
+        save(list)
+    }
+
+    /// Metadata only (label, last machine, version). No-op for an unknown id.
+    public func update(_ record: MachineRecord) {
+        var list = stored()
+        guard let i = list.firstIndex(where: { $0.id == record.id }) else { return }
+        list[i] = record
+        save(list)
+    }
+
+    /// Moves a provisional entry to its real id. If that id is already paired, the existing entry takes the
+    /// provisional's url and token (the app never keeps two entries for one machine).
+    public func rekey(_ oldId: String, to record: MachineRecord) throws {
+        guard let token = token(oldId) else { return }
+        try vault.write(token, record.id)
+        if oldId != record.id { vault.delete(oldId) }
+        var list = stored()
+        let i = list.firstIndex { $0.id == oldId }
+        if let existing = list.firstIndex(where: { $0.id == record.id }), existing != i {
+            list[existing].url = record.url
+            if let i { list.remove(at: i) }
+        } else if let i {
+            list[i] = record
+        } else {
+            list.append(record)
+        }
+        save(list)
+    }
+
+    public func remove(_ id: String) {
+        vault.delete(id)
+        save(stored().filter { $0.id != id })
+    }
+
+    public func removeAll() {
+        for record in stored() { vault.delete(record.id) }
+        defaults.removeObject(forKey: Self.listKey)
+    }
+
+    /// Old single pairing → list entry under `provisionalId`. Runs once; old keys go once the list is written.
+    @discardableResult
+    public func migrateLegacy() -> MachineRecord? {
+        guard let s = defaults.string(forKey: Self.legacyURLKey) else { return nil }
+        defer {
+            vault.delete(s)
+            defaults.removeObject(forKey: Self.legacyURLKey)
+        }
+        guard let url = URL(string: s), let token = vault.read(s) else { return nil }
+        var list = stored()
+        // A list that already has this URL wins (a crash between writing the list and deleting the old keys).
+        if list.contains(where: { $0.url == url }) { return nil }
+        let record = MachineRecord(id: Self.provisionalId, url: url, provisional: true)
+        guard (try? vault.write(token, record.id)) != nil else { return nil }
+        list.append(record)
+        save(list)
+        return record
+    }
+
+    /// Writes the pre-round-9 keys, for UI-testing the migration.
+    public func writeLegacy(_ pairing: Pairing) throws {
+        try vault.write(pairing.token, pairing.url.absoluteString)
+        defaults.set(pairing.url.absoluteString, forKey: Self.legacyURLKey)
+    }
+
+    private func stored() -> [MachineRecord] {
+        guard let data = defaults.data(forKey: Self.listKey) else { return [] }
+        return (try? JSONDecoder().decode([MachineRecord].self, from: data)) ?? []
+    }
+
+    private func save(_ list: [MachineRecord]) {
+        if let data = try? JSONEncoder().encode(list) { defaults.set(data, forKey: Self.listKey) }
     }
 }
 

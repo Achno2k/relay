@@ -21,33 +21,76 @@ actor MockBackend: Backend {
     private var usageSnapshot: UsageSnapshot
     /// Prompts starting "unsent" fail once, like a send while offline; the retry goes through.
     private var failedOnce: Set<String> = []
+    let profile: MockMachine
+    /// Every call throws `unreachable` and the socket stays down; `setOffline(false)` brings it back.
+    private var offline: Bool
+    /// Every call throws `unauthorized` (a mock pair link with token `bad`).
+    private let rejectsToken: Bool
 
-    init(replayInterval: Duration? = .seconds(4)) {
+    init(replayInterval: Duration? = .seconds(4), profile: MockMachine = .mac, offline: Bool = false, rejectsToken: Bool = false) {
         let fixtures = Fixtures()
-        agentList = MockControls.extraAgents(fixtures.agents) + MockSidebar.agents()
-        workspaceList = fixtures.workspaces + MockSidebar.workspaces
-        MockSidebar.markCompletedSeen(agentList)
-        approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
-        replay = fixtures.events
+        self.profile = profile
+        self.offline = offline
+        self.rejectsToken = rejectsToken
         catalog = fixtures.controls
         self.fixtures = fixtures
-        self.replayInterval = replayInterval
-        chats = MockChats.all(fixtureMessages: fixtures.messages)
         usageSnapshot = fixtures.usage
+        switch profile.variant {
+        case .mac:
+            agentList = MockControls.extraAgents(fixtures.agents) + MockSidebar.agents()
+            workspaceList = fixtures.workspaces + MockSidebar.workspaces
+            MockSidebar.markCompletedSeen(agentList, machineId: profile.machine.id)
+            approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
+            replay = fixtures.events
+            self.replayInterval = replayInterval
+            chats = MockChats.all(fixtureMessages: fixtures.messages)
+        case .vm, .blank:
+            let other = MockMachines.content(for: profile)
+            agentList = other.agents
+            workspaceList = other.workspaces
+            approvals = other.approvals
+            replay = []
+            self.replayInterval = nil
+            chats = other.chats
+        }
+    }
+
+    /// Mock machines only: goes offline (socket drops, calls fail) or comes back (socket reconnects).
+    func setOffline(_ value: Bool) {
+        guard value != offline else { return }
+        offline = value
+        continuation?.yield(value ? .disconnected : .connected)
+        // Like WSClient: the first retry (after 1 s) fails too, so the machine reads offline, not reconnecting.
+        if value { Task { await failedRetry() } }
+    }
+
+    private func failedRetry() async {
+        try? await Task.sleep(for: .seconds(1))
+        if offline { continuation?.yield(.disconnected) }
+    }
+
+    private func check() throws {
+        if rejectsToken { throw RelayError.unauthorized }
+        if offline { throw RelayError.unreachable(timedOut: false) }
     }
 
     func workspaces() async throws -> [Workspace] {
-        workspaceList.map { w in
+        try check()
+        return workspaceList.map { w in
             var w = w
             w.agentCount = agentList.filter { $0.workspaceId == w.id }.count
             return w
         }
     }
 
-    func agents() async throws -> [Agent] { agentList }
+    func agents() async throws -> [Agent] {
+        try check()
+        return agentList
+    }
 
     func messages(agentId: String, before: String?, limit: Int) async throws -> MessagePage {
         try await Task.sleep(for: latency)
+        try check()
         // A new agent has no transcript yet: the bridge sends nothing rather than a read of the screen.
         if agentList.first(where: { $0.id == agentId })?.transcript == .pending {
             return MessagePage(messages: [], hasMore: false)
@@ -58,17 +101,25 @@ actor MockBackend: Backend {
     }
 
     func machine() async throws -> Machine {
-        Machine(id: "mock-mac", name: "Mock MacBook Pro", kind: .laptop, model: "Mac15,9", os: "macOS 26.4")
+        try check()
+        return profile.machine
+    }
+
+    func health() async throws -> Health {
+        if offline { throw RelayError.unreachable(timedOut: false) }
+        return Health(ok: true, name: "relay", version: "0.9.0-mock", herdr: "connected", uptimeSeconds: 42)
     }
 
     func usage() async throws -> UsageSnapshot {
         try await Task.sleep(for: latency)
+        try check()
         return usageSnapshot
     }
 
     /// Bumps every window's `usedPercent` a bit and pushes `usage.updated`, like a real refresh landing.
     func refreshUsage() async throws {
         try await Task.sleep(for: latency)
+        try check()
         usageSnapshot.providers = usageSnapshot.providers.map { p in
             var p = p
             p.updatedAt = Date()
@@ -88,6 +139,7 @@ actor MockBackend: Backend {
         agentId: String, data: Data, filename: String, contentType: String,
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> Attachment {
+        try check()
         guard !data.isEmpty else { throw RelayError.http(status: 400, code: "bad_request", message: "Empty body.") }
         guard data.count <= 20 * 1024 * 1024 else { throw RelayError.http(status: 413, code: "too_large", message: "Over 20 MB.") }
         for step in 1...4 {
@@ -95,7 +147,7 @@ actor MockBackend: Backend {
             progress(Double(step) / 4)
         }
         counter += 1
-        let id = String(format: "%016x", counter)
+        let id = String(format: "%016x", counter + profile.idOffset)
         let ext = (filename as NSString).pathExtension.lowercased()
         let kind: AttachmentKind = ["jpg", "jpeg", "png", "heic", "gif", "webp"].contains(ext) ? .image : ext == "pdf" ? .pdf : .file
         let attachment = Attachment(id: id, name: filename, kind: kind, size: data.count)
@@ -109,6 +161,7 @@ actor MockBackend: Backend {
     }
 
     func prompt(agentId: String, text: String, attachments: [String]) async throws {
+        try check()
         if text.lowercased().hasPrefix("unsent"), failedOnce.insert(text).inserted {
             throw RelayError.unreachable(timedOut: false)
         }
@@ -145,6 +198,7 @@ actor MockBackend: Backend {
     }
 
     func sendKeys(agentId: String, keys: [String]) async throws {
+        try check()
         guard let agent = agentList.first(where: { $0.id == agentId }) else { return }
         if agent.status == .blocked {
             approvals[agentId] = nil
@@ -155,6 +209,7 @@ actor MockBackend: Backend {
     }
 
     func sendText(agentId: String, text: String, submit: Bool) async throws {
+        try check()
         guard submit else { return }
         let reply = Message(id: nextId(), role: .assistant, createdAt: Date(), blocks: [.text("Got it: \(text)")])
         Task {
@@ -176,13 +231,18 @@ actor MockBackend: Backend {
     }
 
     func approval(agentId: String) async throws -> Approval? {
+        try check()
         guard agentList.first(where: { $0.id == agentId })?.status == .blocked else { return nil }
         return approvals[agentId]
     }
 
-    func controls() async throws -> ControlsCatalog { catalog }
+    func controls() async throws -> ControlsCatalog {
+        try check()
+        return catalog
+    }
 
     func kindControls(kind: String) async throws -> AgentControlsInfo {
+        try check()
         guard ["claude", "codex", "pi"].contains(kind) else {
             throw RelayError.http(status: 400, code: "unsupported", message: "No controls for \(kind).")
         }
@@ -190,6 +250,7 @@ actor MockBackend: Backend {
     }
 
     func agentControls(agentId: String) async throws -> AgentControlsInfo {
+        try check()
         guard let agent = agentList.first(where: { $0.id == agentId }) else {
             throw RelayError.http(status: 404, code: "not_found", message: "No such agent.")
         }
@@ -199,6 +260,7 @@ actor MockBackend: Backend {
     /// Mirrors the bridge: 409 while busy, 400 for non-Claude agents and for bypass (not in this cycle),
     /// then a short "confirm on screen" delay before the updated agent comes back.
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
+        try check()
         guard let i = agentList.firstIndex(where: { $0.id == agentId }) else {
             throw RelayError.http(status: 404, code: "not_found", message: "No such agent.")
         }
@@ -245,6 +307,7 @@ actor MockBackend: Backend {
     }
 
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
+        try check()
         // Like the bridge: model/effort must come from the kind's lists; left out means the saved default.
         let kindInfo = MockControls.kindInfo(for: request.kind, fixtures: fixtures)
         let model = request.model ?? kindInfo.defaultModel
@@ -286,7 +349,13 @@ actor MockBackend: Backend {
 
     private func attach(_ continuation: AsyncStream<ConnectionEvent>.Continuation) {
         self.continuation = continuation
-        continuation.yield(.connected)
+        if rejectsToken {
+            continuation.yield(.rejected(status: 401))
+            continuation.yield(.disconnected)
+            return
+        }
+        continuation.yield(offline ? .disconnected : .connected)
+        if offline { Task { await failedRetry() } }
         guard let replayInterval else { return }
         let events = replay
         Task {
@@ -361,9 +430,10 @@ actor MockBackend: Backend {
         continuation?.yield(.event(.agentUpdated(agentList[i])))
     }
 
+    /// Per machine, so two mock machines never hand out the same message or attachment id.
     private func nextId() -> String {
         counter += 1
-        return "mock-\(counter)"
+        return "\(profile.machine.id)-\(counter)"
     }
 }
 

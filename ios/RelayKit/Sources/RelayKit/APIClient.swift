@@ -8,6 +8,8 @@ public enum RelayError: LocalizedError, Equatable, Sendable {
     /// The request never reached the bridge (offline, host unreachable, timed out). Never the raw
     /// `URLError` text: its wording varies by OS version and can look like debug output.
     case unreachable(timedOut: Bool)
+    /// The link reaches a different machine than the one being re-paired (api.md "Multiple machines").
+    case differentMachine
 
     public var errorDescription: String? {
         switch self {
@@ -15,6 +17,7 @@ public enum RelayError: LocalizedError, Equatable, Sendable {
         case .http(let status, _, let message): message ?? "The bridge returned HTTP \(status)."
         case .badResponse: "The bridge sent something unexpected."
         case .invalidPairingLink: "That isn't a Relay pairing code."
+        case .differentMachine: "That code is for a different machine. Pair it with Add machine instead."
         case .unreachable(let timedOut):
             timedOut
                 ? "The bridge didn't respond in time. Check that it's running and reachable."
@@ -35,11 +38,7 @@ public struct APIClient: Sendable {
         self.session = session
     }
 
-    public func health() async throws -> Bool {
-        struct Health: Decodable { var ok: Bool }
-        let h: Health = try await send("GET", "/health")
-        return h.ok
-    }
+    public func health() async throws -> Health { try await send("GET", "/health") }
 
     public func workspaces() async throws -> [Workspace] { try await send("GET", "/workspaces") }
 

@@ -39,9 +39,11 @@ enum MockSidebar {
 
     /// Marks `completedIds` as seen in the (test-isolated under UI tests) defaults the store reads at start.
     /// A second later than `updatedAt`: the 1970/2001 epoch round trip can lose the last bit and read as unseen.
-    static func markCompletedSeen(_ agents: [Agent]) {
+    static func markCompletedSeen(_ agents: [Agent], machineId: String) {
         var seen = AppDefaults.standard.dictionary(forKey: "seenAgents") as? [String: Double] ?? [:]
-        for a in agents where completedIds.contains(a.id) { seen[a.id] = a.updatedAt.timeIntervalSince1970 + 1 }
+        for a in agents where completedIds.contains(a.id) {
+            seen[MachineKey.make(machineId, a.id)] = a.updatedAt.timeIntervalSince1970 + 1
+        }
         AppDefaults.standard.set(seen, forKey: "seenAgents")
     }
 }

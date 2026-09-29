@@ -13,6 +13,8 @@ public protocol Backend: Sendable {
     ) async throws -> Attachment
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data
     func machine() async throws -> Machine
+    /// `GET /health`: version and herdr state.
+    func health() async throws -> Health
     func sendKeys(agentId: String, keys: [String]) async throws
     /// Types `text` literally into the agent's current input (no clearing), then Enter if `submit`.
     func sendText(agentId: String, text: String, submit: Bool) async throws
@@ -33,6 +35,11 @@ public protocol Backend: Sendable {
     func usage() async throws -> UsageSnapshot
     /// `POST /usage/refresh`: throws `RelayError.http(status: 429, ...)` if throttled.
     func refreshUsage() async throws
+}
+
+public extension Backend {
+    /// Test doubles that don't care about `/health`.
+    func health() async throws -> Health { Health(ok: true) }
 }
 
 public struct LiveBackend: Backend {
@@ -62,6 +69,7 @@ public struct LiveBackend: Backend {
         try await client.attachmentData(agentId: agentId, attachmentId: attachmentId)
     }
     public func machine() async throws -> Machine { try await client.machine() }
+    public func health() async throws -> Health { try await client.health() }
     public func sendKeys(agentId: String, keys: [String]) async throws { try await client.sendKeys(agentId: agentId, keys: keys) }
     public func sendText(agentId: String, text: String, submit: Bool) async throws {
         try await client.sendText(agentId: agentId, text: text, submit: submit)

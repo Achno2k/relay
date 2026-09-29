@@ -16,6 +16,8 @@ struct MainView: View {
     @State private var dragging = false
     @State private var newChatWorkspace: NewChatRequest?
     @State private var showUsage = false
+    /// The banner's "pair again" for the machine whose token was rejected.
+    @State private var showRePair = false
 
     var body: some View {
         GeometryReader { geo in
@@ -94,7 +96,12 @@ struct MainView: View {
                 .offset(x: reduceMotion ? 0 : (width + peekGap) * progress)
             }
         }
-        .overlay(alignment: .top) { ConnectionBanner(store: store) }
+        .overlay(alignment: .top) {
+            ConnectionBanner(store: store) {
+                model.rePairMachineId = store.rePairMachineId
+                showRePair = true
+            }
+        }
         .sheet(item: $newChatWorkspace) { request in
             NewChatSheet(store: store, initialWorkspaceId: request.workspaceId)
         }
@@ -104,6 +111,13 @@ struct MainView: View {
                     store.answer(option, text: text)
                 }
             }
+        }
+        .sheet(isPresented: $showRePair, onDismiss: { model.rePairMachineId = nil }) {
+            PairingView()
+        }
+        .onChange(of: model.rePairMachineId) { _, id in
+            // Re-paired: the model clears the id, which closes the sheet.
+            if id == nil { showRePair = false }
         }
         .sheet(isPresented: $showUsage) {
             UsageView(store: store.usage)
@@ -225,7 +239,15 @@ private struct NewChatRequest: Identifiable {
 /// rejected, and transient errors otherwise.
 private struct ConnectionBanner: View {
     @Bindable var store: AppStore
-    @Environment(AppModel.self) private var model
+    let onRePair: () -> Void
+
+    /// The machine whose token was rejected, named when there's more than one.
+    private var rePairText: String {
+        guard store.machines.count > 1, let id = store.rePairMachineId, let name = store.connection(id: id)?.entry.displayName else {
+            return "Token rejected. Tap to pair again."
+        }
+        return "\(name) rejected the token. Tap to pair again."
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -242,8 +264,8 @@ private struct ConnectionBanner: View {
             // retry, so hiding it after a few seconds would leave the person staring at a chat that
             // silently can't do anything until they re-pair.
             if store.needsRePairing {
-                Button { model.unpair() } label: {
-                    Label("Token rejected. Tap to pair again.", systemImage: "key.slash")
+                Button(action: onRePair) {
+                    Label(rePairText, systemImage: "key.slash")
                         .font(.footnote.weight(.semibold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)

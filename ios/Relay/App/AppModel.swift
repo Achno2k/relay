@@ -4,9 +4,12 @@ import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
 /// `-demo sidebar|tools|top|card|newChat|usage|pairing`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
+/// Machines (docs/tasks/round-9/interfaces.md): `-mockVM`, `-mockOffline <id>`, `-mockOnlineAfter <s>`, `-mockDrop <id> <s>`,
+/// `-seedLegacyPairing <link>`.
 struct LaunchOptions {
     var mock = false
     var demo: String?
+    /// A key (`mock-mac/w2:p1`) or a bare pane id (the first machine that has it).
     var agent: String?
     var replay = true
     /// A `relay://pair` (or `herd://pair`) link handled at launch, same path as `onOpenURL`.
@@ -19,14 +22,24 @@ struct LaunchOptions {
     var isUITest = false
     /// `-resetSidebar` (with `-uitest`): start from empty test state.
     var resetTestState = false
+    /// `-mockVM`: a second mock machine, "Mock VM".
+    var mockVM = false
+    /// `-mockOffline <machineId>`: that mock machine starts offline.
+    var mockOffline: String?
+    /// `-mockOnlineAfter <seconds>`: the `-mockOffline` machine comes back after that long.
+    var mockOnlineAfter: Double?
+    /// `-mockDrop <machineId> <seconds>`: that mock machine goes offline after that long.
+    var mockDrop: (id: String, after: Double)?
+    /// `-seedLegacyPairing <link>` (with `-uitest`): write the pre-round-9 single pairing before launch.
+    var seedLegacyPairing: URL?
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
     init(arguments: [String]) {
         #if DEBUG
-        func value(_ flag: String) -> String? {
-            guard let i = arguments.firstIndex(of: flag), i + 1 < arguments.count else { return nil }
-            return arguments[i + 1]
+        func value(_ flag: String, _ offset: Int = 1) -> String? {
+            guard let i = arguments.firstIndex(of: flag), i + offset < arguments.count else { return nil }
+            return arguments[i + offset]
         }
         mock = arguments.contains("-mock")
         demo = value("-demo")
@@ -37,57 +50,129 @@ struct LaunchOptions {
         testWord = value("-testWord")
         isUITest = arguments.contains("-uitest")
         resetTestState = arguments.contains("-resetSidebar")
+        mockVM = arguments.contains("-mockVM")
+        mockOffline = value("-mockOffline")
+        mockOnlineAfter = value("-mockOnlineAfter").flatMap(Double.init)
+        if let id = value("-mockDrop"), let after = value("-mockDrop", 2).flatMap(Double.init) { mockDrop = (id, after) }
+        seedLegacyPairing = value("-seedLegacyPairing").flatMap(URL.init(string:))
         #endif
     }
 
     func isDemo(_ name: String) -> Bool { demo == name }
 }
 
-/// Paired or not. Builds an `AppStore` once there's a bridge (or the mock) to talk to.
+/// Paired or not. Builds one `AppStore` for all paired machines (or the mock ones).
 @MainActor
 @Observable
 final class AppModel {
     private(set) var store: AppStore?
     var pairingError: String?
     var isPairing = false
+    /// When set, the pairing screen re-pairs this machine instead of adding one.
+    var rePairMachineId: String?
+    @ObservationIgnored private let pairingStore: PairingStore?
+    @ObservationIgnored private let makeBackend: BackendFactory
+    @ObservationIgnored private var agentLinkApplied = false
+
+    /// At least one machine is paired; otherwise the app shows pairing.
+    var isPaired: Bool { store?.connections.isEmpty == false }
 
     init(options: LaunchOptions = .current) {
         if options.resetTestState { AppDefaults.resetTestState() }
         #if DEBUG
         if options.mock {
+            pairingStore = nil
+            let replay: Duration? = options.replay ? .seconds(4) : nil
+            makeBackend = { pairing in
+                // `http://mock-third:7878` pairs a made-up machine; token `bad` is refused.
+                if let host = pairing.url.host(), host.hasPrefix("mock-") {
+                    return MockBackend(replayInterval: nil, profile: .extra(host: host), rejectsToken: pairing.token == "bad")
+                }
+                return LiveBackend(pairing: pairing)
+            }
             if !options.isDemo("pairing") {
-                let backend = MockBackend(replayInterval: options.replay ? .seconds(4) : nil)
-                let store = AppStore(backend: backend, hostLabel: "Mock bridge")
-                if let agent = options.agent { store.selectedAgentId = agent }
-                self.store = store
+                store = Self.makeMockStore(options, replay: replay, makeBackend: makeBackend)
             }
             return
         }
+        if options.isUITest, let link = options.seedLegacyPairing, let pairing = Pairing(link: link) {
+            PairingStore.shared.removeAll()
+            try? PairingStore.shared.writeLegacy(pairing)
+        }
         #endif
-        if let pairing = PairingStore.load() {
-            store = Self.makeStore(pairing)
+        let pairingStore = PairingStore.shared
+        self.pairingStore = pairingStore
+        makeBackend = { LiveBackend(pairing: $0) }
+        let connections = pairingStore.records().map { record in
+            // A token lost from the Keychain can only be fixed by pairing again.
+            let token = pairingStore.token(record.id)
+            let c = MachineConnection(record: record, raw: LiveBackend(pairing: Pairing(url: record.url, token: token ?? "")))
+            if token == nil { c.status = .needsRePair }
+            return c
+        }
+        if !connections.isEmpty {
+            let store = AppStore(connections: connections, pairingStore: pairingStore, makeBackend: makeBackend)
+            if let agent = options.agent {
+                store.select(link: agent)
+                agentLinkApplied = true
+            }
+            self.store = store
         }
         if let link = options.pairLink { handle(url: link) }
     }
 
-    private static func makeStore(_ pairing: Pairing) -> AppStore {
-        let store = AppStore(backend: LiveBackend(pairing: pairing), hostLabel: pairing.url.host() ?? pairing.url.absoluteString)
-        #if DEBUG
-        if let agent = LaunchOptions.current.agent { store.selectedAgentId = agent }
-        #endif
+    #if DEBUG
+    private static func makeMockStore(_ options: LaunchOptions, replay: Duration?, makeBackend: @escaping BackendFactory) -> AppStore {
+        var profiles = [MockMachine.mac]
+        if options.mockVM { profiles.append(.vm) }
+        let connections = profiles.map { profile in
+            let backend = MockBackend(replayInterval: profile == .mac ? replay : nil, profile: profile, offline: options.mockOffline == profile.machine.id)
+            let url = URL(string: "http://\(profile.machine.id):7878")!
+            return MachineConnection(record: MachineRecord(id: profile.machine.id, url: url, machine: profile.machine), raw: backend)
+        }
+        let store = AppStore(connections: connections, pairingStore: nil, makeBackend: makeBackend)
+        if let agent = options.agent {
+            // Mock ids are known up front: a bare id means the Mac's.
+            store.selectedAgentId = MachineKey.machineId(agent) == nil ? MachineKey.make(MockMachine.mac.machine.id, agent) : agent
+        }
+        if let id = options.mockOffline, let after = options.mockOnlineAfter {
+            Task { @MainActor [weak store] in
+                try? await Task.sleep(for: .seconds(after))
+                await store?.setMockOffline(id, false)
+            }
+        }
+        if let drop = options.mockDrop {
+            Task { @MainActor [weak store] in
+                try? await Task.sleep(for: .seconds(drop.after))
+                await store?.setMockOffline(drop.id, true)
+            }
+        }
         return store
     }
+    #endif
 
-    /// Checks the token against `/agents` before saving it.
+    /// Pairs a machine: adds it (or updates the one with the same id), or re-pairs `rePairMachineId`.
+    /// The bridge must answer `/machine` with this token before anything is saved.
     func pair(_ pairing: Pairing) async {
         isPairing = true
         pairingError = nil
         defer { isPairing = false }
+        let store = self.store ?? AppStore(connections: [], pairingStore: pairingStore, makeBackend: makeBackend)
         do {
-            _ = try await APIClient(baseURL: pairing.url, token: pairing.token).agents()
-            try PairingStore.save(pairing)
-            store?.stop()
-            store = Self.makeStore(pairing)
+            if let id = rePairMachineId {
+                try await store.rePair(id, pairing: pairing)
+                rePairMachineId = nil
+            } else {
+                try await store.addMachine(pairing)
+            }
+            if self.store == nil { self.store = store }
+            #if DEBUG
+            // `-pair <link> -agent <id>` (live UI tests): the store only exists once the pairing has worked.
+            if !agentLinkApplied, let agent = LaunchOptions.current.agent {
+                agentLinkApplied = true
+                store.select(link: agent)
+            }
+            #endif
         } catch {
             // Only RelayError's curated copy ever reaches the pairing screen; anything else
             // (a decode failure, etc.) is already normalized to RelayError by APIClient.
@@ -104,9 +189,12 @@ final class AppModel {
         Task { await pair(pairing) }
     }
 
+    /// Forgets every machine.
     func unpair() {
-        store?.stop()
-        store = nil
-        PairingStore.clear()
+        guard let store else { return }
+        for machine in store.machines { store.remove(machine.id) }
+        store.stop()
+        self.store = nil
+        pairingStore?.removeAll()
     }
 }

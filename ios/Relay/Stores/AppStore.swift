@@ -7,28 +7,37 @@ enum ConnectionState: Equatable {
     case connecting, connected, reconnecting
 }
 
-/// Owns the backend, the reduced state and the chat that's open.
+/// Makes the bridge-facing backend for a pairing: `LiveBackend`, or a mock machine under `-mock`.
+typealias BackendFactory = @MainActor (Pairing) -> any Backend
+
+/// Owns the machines, the merged state of all of them and the chat that's open.
+///
+/// Every agent and workspace id in here is a key, `"<machineId>/<rawId>"` (`MachineKey`), so the per-agent maps
+/// below work across machines unchanged. Each machine's `NamespacedBackend` turns keys back into raw ids.
 @MainActor
 @Observable
 final class AppStore {
-    let backend: any Backend
-    /// Shown in the sidebar footer.
-    let hostLabel: String
-    /// Subscription usage (Claude, Codex/pi). Kept off the main `RelayState` reducer; fed by
-    /// `apply(_:)` below and refetched on every `refresh()` so it never needs its own socket.
+    /// The paired machines, in pair order.
+    private(set) var connections: [MachineConnection]
+    /// Where pairings persist; nil for mock and test stores.
+    @ObservationIgnored private let pairingStore: PairingStore?
+    @ObservationIgnored private let makeBackend: BackendFactory
+    /// Subscription usage, per machine. Kept off the main `RelayState` reducer; fed by `apply(_:)` below
+    /// and refetched on every machine's resync so it never needs its own socket.
     let usage: UsageStore
 
     private(set) var state = RelayState()
-    private(set) var connection: ConnectionState = .connecting
-    /// False until the first `/agents` answer (or failure), so the UI doesn't flash "No agents".
+    /// False until the first `/agents` answer (or failure) from any machine, so the UI doesn't flash "No agents".
     private(set) var hasLoadedAgents = false
     var selectedAgentId: String? {
-        didSet { AppDefaults.standard.set(selectedAgentId, forKey: "selectedAgentId") }
+        didSet { AppDefaults.standard.set(selectedAgentId, forKey: PersistedKeys.selected) }
     }
-
-    /// Claude's global list from `GET /controls`; only used when the bridge has no per-agent route.
-    private(set) var controls: ControlsCatalog?
-    private var kindControlsCache: [String: AgentControlsInfo] = [:]
+    /// A bare `-agent` id: selected on the first machine (pair order) that has it once each has been tried.
+    @ObservationIgnored private var pendingAgentLink: String?
+    /// nil = All machines.
+    var machineFilter: String? {
+        didSet { AppDefaults.standard.set(machineFilter, forKey: PersistedKeys.machineFilter) }
+    }
     /// A just-created agent whose composer should take focus when its chat opens.
     var focusComposerFor: String?
     /// `GET /agents/:id/controls` per agent, with the kind and session it was fetched for.
@@ -58,44 +67,103 @@ final class AppStore {
     private var seen: [String: Date]
     /// Client-side archive (App Group defaults); it never closes the agent.
     private(set) var archived: Set<String>
-    /// The Macs we know about. One bridge serves one machine; a list so more can plug in later.
-    private(set) var machines: [Machine] = []
     var filter: SessionFilter {
         didSet { AppDefaults.standard.set(filter.rawValue, forKey: "sessionFilter") }
     }
-    /// The bridge rejected the token (rotated on the Mac, or a stale pairing). Sticky until a request
-    /// succeeds again or the person re-pairs; never auto-dismissed like a transient error.
-    private(set) var needsRePairing = false
     /// Thumbnails and files already fetched, by attachment id.
     private var attachmentCache: [String: Data] = [:]
     var errorMessage: String?
 
-    private var eventsTask: Task<Void, Never>?
-    /// The socket was closed for the background; `resume()` reopens it.
-    private var suspended = false
-    /// The next `hello` must resync: the socket was reopened, so frames may have been missed.
-    private var resyncOnConnect = false
+    /// Between `start()` and `stop()`: machines added meanwhile start right away.
+    private var isStarted = false
     private var pathMonitor: NWPathMonitor?
     /// Bumped every time a message load starts for an agent, so a reply from an earlier, slower
     /// request (a rapid agent switch, or a reconnect racing an `open()`) can't overwrite a newer one.
     private var messagesRequest: [String: Int] = [:]
-    /// Bumped every time a full resync starts, so an overlapping `refresh()` (foreground and a
-    /// reconnect can both trigger one at once) can't apply its agents/workspaces snapshot out of order.
-    private var refreshGeneration = 0
 
-    init(backend: any Backend, hostLabel: String) {
-        self.backend = backend
-        self.hostLabel = hostLabel
-        self.usage = UsageStore(backend: backend)
-        self.selectedAgentId = AppDefaults.standard.string(forKey: "selectedAgentId")
-        let raw = AppDefaults.standard.dictionary(forKey: "seenAgents") as? [String: Double] ?? [:]
+    init(connections: [MachineConnection], pairingStore: PairingStore?, makeBackend: @escaping BackendFactory) {
+        self.connections = connections
+        self.pairingStore = pairingStore
+        self.makeBackend = makeBackend
+        self.usage = UsageStore()
+        self.selectedAgentId = AppDefaults.standard.string(forKey: PersistedKeys.selected)
+        let raw = AppDefaults.standard.dictionary(forKey: PersistedKeys.seen) as? [String: Double] ?? [:]
         self.seen = raw.mapValues { Date(timeIntervalSince1970: $0) }
-        self.archived = Set(AppDefaults.shared.stringArray(forKey: "archivedAgents") ?? [])
+        self.archived = Set(AppDefaults.shared.stringArray(forKey: PersistedKeys.archived) ?? [])
         self.filter = SessionFilter(rawValue: AppDefaults.standard.string(forKey: "sessionFilter") ?? "") ?? .all
+        let savedFilter = AppDefaults.standard.string(forKey: PersistedKeys.machineFilter)
+        self.machineFilter = connections.contains { $0.id == savedFilter } ? savedFilter : nil
+        syncUsageMachines()
+    }
+
+    /// One machine whose ids stay raw: unit tests and previews that predate machines.
+    convenience init(backend: any Backend, hostLabel: String) {
+        let url = URL(string: "http://\(hostLabel.replacingOccurrences(of: " ", with: "-"))") ?? URL(string: "http://localhost")!
+        let record = MachineRecord(id: "local", url: url)
+        self.init(connections: [MachineConnection(record: record, raw: backend, keyed: false)], pairingStore: nil, makeBackend: { _ in backend })
+    }
+
+    // MARK: - Machines (read side)
+
+    var machines: [MachineEntry] { connections.map(\.entry) }
+
+    func connection(id: String) -> MachineConnection? { connections.first { $0.id == id } }
+
+    /// The machine an agent or workspace key belongs to.
+    func connection(for key: String) -> MachineConnection? { connections.first { $0.owns(key) } }
+
+    func machineId(of key: String) -> String? { connection(for: key)?.id }
+
+    func machine(of key: String) -> MachineEntry? { connection(for: key)?.entry }
+
+    /// Its machine is online, so the agent is live and can be prompted.
+    func isLive(_ agentKey: String) -> Bool { connection(for: agentKey)?.status == .online }
+
+    /// Routes each per-agent call to its machine's bridge.
+    var backend: any Backend {
+        var table: [String: any Backend] = [:]
+        var fallback: (any Backend)?
+        for c in connections {
+            if c.keyed { table[c.id] = c.backend } else { fallback = c.backend }
+        }
+        return RoutingBackend(table: table, fallback: fallback)
+    }
+
+    /// The machine the banner speaks for: the open chat's, else the filtered one, else any online, else the first.
+    private var focusConnection: MachineConnection? {
+        selectedAgentId.flatMap(connection(for:))
+            ?? machineFilter.flatMap(connection(id:))
+            ?? connections.first { $0.status == .online }
+            ?? connections.first
+    }
+
+    /// The focus machine's socket, for the "Reconnecting…" banner.
+    var connection: ConnectionState { focusConnection?.connection ?? .connecting }
+
+    /// The focus machine rejected its token (or now answers as another machine). Sticky until a request
+    /// succeeds again or the person re-pairs; never auto-dismissed like a transient error.
+    var needsRePairing: Bool { focusConnection?.status == .needsRePair }
+
+    /// The machine `needsRePairing` is about.
+    var rePairMachineId: String? { needsRePairing ? focusConnection?.id : nil }
+
+    /// Claude's `GET /controls` list from the focus machine (older call sites; per machine in `MachineConnection`).
+    var controls: ControlsCatalog? { focusConnection?.controls }
+
+    /// The focus machine's name (older call sites).
+    var hostLabel: String { focusConnection?.entry.displayName ?? "" }
+
+    /// What the sidebar shows: every machine in All, else only the filtered one.
+    var visibleState: RelayState {
+        guard let filter = machineFilter, let c = connection(id: filter) else { return state }
+        var s = state
+        s.agents = s.agents.filter { c.owns($0.id) }
+        s.workspaces = s.workspaces.filter { c.owns($0.id) }
+        return s
     }
 
     var sidebar: SidebarModel {
-        SidebarModel(state: state, archived: archived, isUnseen: { [seen, selectedAgentId] agent in
+        SidebarModel(state: visibleState, archived: archived, isUnseen: { [seen, selectedAgentId] agent in
             agent.status == .done && agent.id != selectedAgentId && (seen[agent.id] ?? .distantPast) < agent.updatedAt
         })
     }
@@ -136,60 +204,77 @@ final class AppStore {
     // MARK: - Lifecycle
 
     func start() {
-        guard eventsTask == nil else { return }
-        openSocket()
+        guard !isStarted else { return }
+        isStarted = true
+        for c in connections { start(c) }
         watchNetwork()
-        Task { await refresh() }
     }
 
     func stop() {
-        eventsTask?.cancel()
-        eventsTask = nil
+        isStarted = false
+        for c in connections { stopSocket(c) }
         pathMonitor?.cancel()
         pathMonitor = nil
     }
 
-    private func openSocket() {
-        let stream = backend.events()
-        eventsTask = Task { [weak self] in
+    /// A provisional (migrated) machine opens its socket only once `/machine` has told us its real id.
+    private func start(_ c: MachineConnection) {
+        if !c.record.provisional { openSocket(c) }
+        Task { await refresh(c) }
+    }
+
+    private func stopSocket(_ c: MachineConnection) {
+        c.eventsTask?.cancel()
+        c.eventsTask = nil
+    }
+
+    private func openSocket(_ c: MachineConnection) {
+        let stream = c.backend.events()
+        c.eventsTask = Task { [weak self, weak c] in
             for await event in stream {
-                guard let self else { return }
-                await self.handle(event)
+                guard let self, let c else { return }
+                await self.handle(event, from: c)
             }
         }
     }
 
     /// Opens a fresh socket now instead of waiting out the backoff (up to 30 s); its `hello` resyncs.
     func reconnect() {
-        eventsTask?.cancel()
-        resyncOnConnect = true
-        openSocket()
+        for c in connections { reconnect(c) }
     }
 
-    /// Background: close the socket. A suspended app can't read it anyway, it can come back as a
-    /// zombie that never errors, and while it looks open the bridge keeps reading screens and
+    private func reconnect(_ c: MachineConnection) {
+        guard !c.record.provisional else { return }
+        c.eventsTask?.cancel()
+        c.resyncOnConnect = true
+        openSocket(c)
+    }
+
+    /// Background: close the sockets. A suspended app can't read them anyway, they can come back as
+    /// zombies that never error, and while one looks open its bridge keeps reading screens and
     /// polling usage for nobody.
     func suspend() {
-        guard eventsTask != nil, !suspended else { return }
-        eventsTask?.cancel()
-        eventsTask = nil
-        suspended = true
+        for c in connections where c.eventsTask != nil && !c.suspended {
+            stopSocket(c)
+            c.suspended = true
+        }
     }
 
-    /// Foreground: reopen the socket if it was closed or is waiting to retry, and resync now so the
-    /// chat is current even before the socket is back.
+    /// Foreground: reopen each socket that was closed or is waiting to retry, and resync now so the
+    /// chat is current even before the sockets are back.
     func resume() async {
-        if suspended || connection == .reconnecting {
-            suspended = false
-            reconnect()
+        for c in connections where c.suspended || c.connection == .reconnecting {
+            c.suspended = false
+            reconnect(c)
         }
         await refresh()
     }
 
     /// The network came back (airplane mode off, Wi-Fi joined): retry now rather than after the backoff.
     func networkBecameAvailable() {
-        guard connection == .reconnecting, !suspended, eventsTask != nil else { return }
-        reconnect()
+        for c in connections where c.connection == .reconnecting && !c.suspended && c.eventsTask != nil {
+            reconnect(c)
+        }
     }
 
     private func watchNetwork() {
@@ -203,37 +288,46 @@ final class AppStore {
         pathMonitor = monitor
     }
 
-    private func handle(_ event: ConnectionEvent) async {
+    private func handle(_ event: ConnectionEvent, from c: MachineConnection) async {
+        guard connections.contains(where: { $0 === c }) else { return }  // removed meanwhile
         switch event {
         case .connected:
-            let wasDown = connection == .reconnecting || resyncOnConnect
-            connection = .connected
-            resyncOnConnect = false
+            let wasDown = c.connection == .reconnecting || c.resyncOnConnect
+            c.connection = .connected
+            c.resyncOnConnect = false
+            c.wasOnline = true
+            if c.status != .needsRePair { c.status = .online }
             // Frames sent while we were away are gone, and a restarted bridge starts `seq` over.
             if wasDown {
-                liveReplySeq = [:]
-                updateLive { $0.clearAll() }
+                for id in liveReplySeq.keys where c.owns(id) { liveReplySeq[id] = nil }
+                updateLive { live in for id in live.byAgent.keys where c.owns(id) { live.remove(agentId: id) } }
             }
             // The socket carries deltas only; resync after every (re)connect.
-            if wasDown { await refresh() }
+            if wasDown { await refresh(c) }
         case .disconnected:
-            connection = .reconnecting
+            c.connection = .reconnecting
+            // A drop from online is a reconnect; a retry that fails too means the bridge is out of reach.
+            if c.status != .needsRePair { c.status = c.wasOnline ? .connecting : .offline }
+            c.wasOnline = false
         case .rejected(let status):
             // Reachable but refused: usually a rotated token. Only REST says so for sure (the bridge
             // answers the upgrade with a bare 400), and without asking the app would sit on
             // "Reconnecting…" forever instead of offering to pair again.
-            connection = .reconnecting
+            c.connection = .reconnecting
             if status == 401 || status == 403 {
-                needsRePairing = true
-            } else if !needsRePairing {
-                await refresh()
+                c.status = .needsRePair
+            } else if c.status != .needsRePair {
+                await refresh(c)
             }
         case .event(let e):
-            apply(e)
+            // A bridge that now answers as another machine must never feed this one's state.
+            guard c.status != .needsRePair else { return }
+            apply(e, machineId: c.id)
         }
     }
 
-    func apply(_ event: ServerEvent) {
+    /// `machineId`: whose socket it came from (usage is per machine); nil means the first machine.
+    func apply(_ event: ServerEvent, machineId: String? = nil) {
         let before = selectedAgent?.status
         if case .agentUpdated(let updated) = event {
             dropPendingIfFinished(updated, previous: state.agent(updated.id)?.status)
@@ -267,7 +361,7 @@ final class AppStore {
         case .agentUpdated(let agent), .agentCreated(let agent):
             unarchiveIfBlocked([agent])
         case .usageUpdated(let provider):
-            usage.apply(provider)
+            if let id = machineId ?? connections.first?.id { usage.apply(provider, machineId: id) }
         default:
             break
         }
@@ -282,57 +376,308 @@ final class AppStore {
         if next != live { live = next }
     }
 
-    /// Full resync: agents, workspaces, then the open chat.
+    /// Full resync of every machine at once; a slow or offline one doesn't hold up the others.
     func refresh() async {
-        refreshGeneration += 1
-        let generation = refreshGeneration
+        await withDiscardingTaskGroup { group in
+            for c in connections {
+                group.addTask { await self.refresh(c) }
+            }
+        }
+    }
+
+    /// One machine's resync: who it is, its agents and workspaces, then the open chat if it's this machine's.
+    func refresh(_ c: MachineConnection) async {
+        c.refreshGeneration += 1
+        let generation = c.refreshGeneration
+        let isCurrent = { [weak self] in
+            c.refreshGeneration == generation && (self?.connections.contains { $0 === c } ?? false)
+        }
+        if c.record.provisional {
+            guard await adoptProvisional(c) else {
+                c.hasAttempted = true
+                hasLoadedAgents = true
+                resolvePendingLink()
+                return
+            }
+        }
+        let backend = c.backend
+        let raw = c.raw
         do {
+            async let identity = raw.machine()
+            async let health = try? raw.health()
             async let agents = backend.agents()
             async let workspaces = backend.workspaces()
-            let (a, w) = try await (agents, workspaces)
-            guard refreshGeneration == generation else { return }  // a newer refresh already landed
-            var s = state
-            for agent in a { s.upsert(agent) }  // drops chats whose session changed
-            s.agents = a
-            unarchiveIfBlocked(a)
-            s.workspaces = w
-            let live = Set(a.map(\.id))
-            s.messages = s.messages.filter { live.contains($0.key) }
-            state = s
-            if selectedAgentId.map({ !live.contains($0) }) ?? true {
-                selectedAgentId = firstAgentId()
+            let (info, h, a, w) = try await (identity, health, agents, workspaces)
+            guard isCurrent() else { return }
+            // The URL now reaches another bridge: never merge its data into this machine.
+            guard !c.keyed || info.id == c.id else {
+                c.status = .needsRePair
+                c.hasAttempted = true
+                return
             }
-            if connection == .connecting { connection = .connected }
-            needsRePairing = false
+            c.health = h
+            remember(c, machine: info, version: h?.version)
+            merge(agents: a, workspaces: w, of: c)
+            if c.status != .online { c.status = c.connection == .connected ? .online : .connecting }
         } catch {
-            guard refreshGeneration == generation else { return }
-            report(error)
+            guard isCurrent() else { return }
+            c.hasAttempted = true
+            hasLoadedAgents = true
+            resolvePendingLink()
+            report(error, machine: c, quiet: true)
+            return
         }
-        guard refreshGeneration == generation else { return }
+        c.hasAttempted = true
         hasLoadedAgents = true
-        Task { await usage.load() }
-        // Machine info doesn't depend on the selected agent, so fetch it alongside the open chat's
-        // controls/messages/approval instead of one round trip after another: on a slow Tailscale
-        // link that's the difference between the chat reappearing in ~1s after a long background
-        // and several seconds. (Claude's catalog stays ahead of `loadAgentControls`, which falls
-        // back to it for older bridges with no per-agent route.)
-        async let machineFetch: Machine? = try? await backend.machine()
-        if controls == nil { controls = try? await backend.controls() }
-        if let id = selectedAgentId {
+        resolvePendingLink()
+        Task { await usage.load(machineId: c.id, backend: raw) }
+        if c.controls == nil { c.controls = try? await backend.controls() }
+        if let id = selectedAgentId, c.owns(id) {
             async let controlsLoad: Void = loadAgentControls(id)
             async let messagesLoad: Void = loadMessages(id)
             async let approvalLoad: Void = refreshApproval()
             _ = await (controlsLoad, messagesLoad, approvalLoad)
-        } else {
+        } else if selectedAgentId == nil {
             await refreshApproval()
         }
-        guard refreshGeneration == generation else { return }
-        if let machine = await machineFetch { machines = [machine] }
+    }
+
+    /// One machine's fresh agents and workspaces replace its old ones; other machines' stay as they are
+    /// (an offline machine's last known agents stay listed). Machine order is kept.
+    private func merge(agents a: [Agent], workspaces w: [Workspace], of c: MachineConnection) {
+        var s = state
+        for agent in a { s.upsert(agent) }  // drops chats whose session changed
+        s.agents = connections.flatMap { other in other === c ? a : s.agents.filter { other.owns($0.id) } }
+        s.workspaces = connections.flatMap { other in other === c ? w : s.workspaces.filter { other.owns($0.id) } }
+        let live = Set(a.map(\.id))
+        s.messages = s.messages.filter { !c.owns($0.key) || live.contains($0.key) }
+        state = s
+        unarchiveIfBlocked(a)
+        // Reselect only when the open chat was this machine's and closed, or its machine is gone.
+        if let id = selectedAgentId {
+            if (c.owns(id) && !live.contains(id)) || connection(for: id) == nil { selectedAgentId = firstAgentId() }
+        } else if pendingAgentLink == nil {
+            selectedAgentId = firstAgentId()
+        }
+    }
+
+    /// Saves what `/machine` and `/health` said, so an offline machine still has a name, OS and version.
+    private func remember(_ c: MachineConnection, machine: Machine, version: String?) {
+        var record = c.record
+        guard record.machine != machine || (version != nil && record.bridgeVersion != version) else { return }
+        record.machine = machine
+        if let version { record.bridgeVersion = version }
+        c.replace(record: record)
+        pairingStore?.update(record)
+        syncUsageMachines()
+    }
+
+    /// A migrated pairing learns its real id from `/machine`, then moves its token, its entry and the old
+    /// bare-id UI state under that id and opens its socket. False while its bridge can't be reached.
+    private func adoptProvisional(_ c: MachineConnection) async -> Bool {
+        let info: Machine
+        do {
+            info = try await c.raw.machine()
+        } catch {
+            report(error, machine: c, quiet: true)
+            return false
+        }
+        guard c.record.provisional else { return true }  // another refresh got there first
+        let oldId = c.id
+        var record = c.record
+        record.id = info.id
+        record.provisional = false
+        record.machine = info
+        if let existing = connection(id: info.id), existing !== c {
+            // Paired again meanwhile under its real id: keep that one, drop the provisional.
+            try? pairingStore?.rekey(oldId, to: existing.record)
+            connections.removeAll { $0 === c }
+            stopSocket(c)
+            return false
+        }
+        try? pairingStore?.rekey(oldId, to: record)
+        c.replace(record: record)
+        PersistedKeys.migrateBare(to: info.id, standard: AppDefaults.standard, shared: AppDefaults.shared)
+        reloadPersistedKeys()
+        syncUsageMachines()
+        if isStarted { openSocket(c) }
+        return true
+    }
+
+    /// Re-reads saved selection, seen and archive after their keys were rewritten on disk.
+    private func reloadPersistedKeys() {
+        let raw = AppDefaults.standard.dictionary(forKey: PersistedKeys.seen) as? [String: Double] ?? [:]
+        seen = raw.mapValues { Date(timeIntervalSince1970: $0) }
+        archived = Set(AppDefaults.shared.stringArray(forKey: PersistedKeys.archived) ?? [])
+        let selected = AppDefaults.standard.string(forKey: PersistedKeys.selected)
+        if selected != selectedAgentId { selectedAgentId = selected }
     }
 
     private func firstAgentId() -> String? {
-        state.sections().first?.agents.first?.id
+        visibleState.sections().first?.agents.first?.id
     }
+
+    // MARK: - Deep links
+
+    /// `-agent`: a key opens that chat; a bare pane id opens it on the first machine, in pair order, that has it.
+    func select(link: String) {
+        if MachineKey.machineId(link) != nil || connections.contains(where: { !$0.keyed }) {
+            selectedAgentId = link
+        } else {
+            pendingAgentLink = link
+            resolvePendingLink()
+        }
+    }
+
+    private func resolvePendingLink() {
+        guard let raw = pendingAgentLink else { return }
+        for c in connections {
+            let key = c.key(raw)
+            if state.agent(key) != nil {
+                pendingAgentLink = nil
+                open(key)
+                return
+            }
+            // Pair order: an earlier machine that hasn't answered yet might still have it.
+            if !c.hasAttempted { return }
+        }
+        pendingAgentLink = nil
+        if selectedAgentId == nil { selectedAgentId = firstAgentId() }
+    }
+
+    // MARK: - Machines (actions)
+
+    /// Pairs a machine from a `relay://` (or `herd://`) link. See `addMachine(_:)`.
+    @discardableResult
+    func addMachine(link: URL) async throws -> String {
+        guard let pairing = Pairing(link: link) else { throw RelayError.invalidPairingLink }
+        return try await addMachine(pairing)
+    }
+
+    /// Asks the bridge who it is (`GET /machine`, which also checks the token). A known id gets the new url and
+    /// token and keeps its label and every per-agent key (api.md "Multiple machines"); a new one is appended.
+    /// Nothing is saved when the bridge can't be reached or refuses the token.
+    @discardableResult
+    func addMachine(_ pairing: Pairing) async throws -> String {
+        let raw = makeBackend(pairing)
+        let info = try await identify(raw)
+        if let existing = connection(id: info.id) {
+            try replacePairing(existing, pairing: pairing, raw: raw, machine: info)
+        } else {
+            let health = try? await raw.health()
+            let record = MachineRecord(id: info.id, url: pairing.url, machine: info, bridgeVersion: health?.version)
+            try pairingStore?.upsert(record, token: pairing.token)
+            let c = MachineConnection(record: record, raw: raw)
+            c.health = health
+            connections.append(c)
+            syncUsageMachines()
+            if isStarted { start(c) }
+        }
+        return info.id
+    }
+
+    /// New url or token for a machine already paired (new IP, rotated token). Throws `.differentMachine` when
+    /// the link reaches another bridge; nothing changes then.
+    func rePair(_ machineId: String, pairing: Pairing) async throws {
+        guard let c = connection(id: machineId) else { throw RelayError.http(status: 404, code: "not_found", message: "That machine isn't paired.") }
+        let raw = makeBackend(pairing)
+        let info = try await identify(raw)
+        guard info.id == machineId else { throw RelayError.differentMachine }
+        try replacePairing(c, pairing: pairing, raw: raw, machine: info)
+    }
+
+    func rePair(_ machineId: String, link: URL) async throws {
+        guard let pairing = Pairing(link: link) else { throw RelayError.invalidPairingLink }
+        try await rePair(machineId, pairing: pairing)
+    }
+
+    /// Local name only; nil or blank goes back to the machine's own name.
+    func rename(_ machineId: String, label: String?) {
+        guard let c = connection(id: machineId) else { return }
+        var record = c.record
+        let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        record.label = trimmed?.isEmpty == false ? trimmed : nil
+        c.replace(record: record)
+        pairingStore?.update(record)
+        syncUsageMachines()
+    }
+
+    /// Forgets a machine: its token, its agents and chats, and every saved key of it. Nothing is sent to the
+    /// bridge. Removing the last one leaves `machines` empty (the app shows pairing).
+    func remove(_ machineId: String) {
+        guard let c = connection(id: machineId) else { return }
+        stopSocket(c)
+        connections.removeAll { $0 === c }
+        pairingStore?.remove(machineId)
+        var s = state
+        s.agents.removeAll { c.owns($0.id) }
+        s.workspaces.removeAll { c.owns($0.id) }
+        s.messages = s.messages.filter { !c.owns($0.key) }
+        s.hasMore = s.hasMore.filter { !c.owns($0.key) }
+        state = s
+        for id in pending.keys where c.owns(id) {
+            for message in pending[id] ?? [] { failedPending.remove(message.id) }
+            pending[id] = nil
+        }
+        for id in liveReplySeq.keys where c.owns(id) { liveReplySeq[id] = nil }
+        updateLive { live in for id in live.byAgent.keys where c.owns(id) { live.remove(agentId: id) } }
+        agentControls = agentControls.filter { !c.owns($0.key) }
+        agentControlsKey = agentControlsKey.filter { !c.owns($0.key) }
+        pendingControls = pendingControls.filter { !c.owns($0.key) }
+        seen = seen.filter { !c.owns($0.key) }
+        archived = archived.filter { !c.owns($0) }
+        if machineFilter == machineId { machineFilter = nil }
+        let wasSelected = selectedAgentId.map(c.owns) ?? false
+        PersistedKeys.drop(machineId: machineId, standard: AppDefaults.standard, shared: AppDefaults.shared)
+        if wasSelected {
+            selectedAgentId = firstAgentId()
+            approval = nil
+            isApprovalSheetPresented = false
+        }
+        usage.remove(machineId: machineId)
+        syncUsageMachines()
+    }
+
+    /// `GET /machine` on a candidate pairing, with a curated error.
+    private func identify(_ raw: any Backend) async throws -> Machine {
+        do {
+            return try await raw.machine()
+        } catch let error as RelayError {
+            throw error
+        } catch {
+            throw RelayError.badResponse
+        }
+    }
+
+    private func replacePairing(_ c: MachineConnection, pairing: Pairing, raw: any Backend, machine: Machine) throws {
+        var record = c.record
+        record.url = pairing.url
+        record.machine = machine
+        try pairingStore?.upsert(record, token: pairing.token)
+        stopSocket(c)
+        c.replace(record: record)
+        c.replace(raw: raw)
+        c.status = .connecting
+        c.connection = .connecting
+        c.wasOnline = false
+        c.kindControls = [:]
+        c.controls = nil
+        syncUsageMachines()
+        if isStarted { start(c) }
+    }
+
+    /// UsageStore follows the machine list (order, names, removals).
+    private func syncUsageMachines() {
+        usage.setMachines(connections.map { (id: $0.id, name: $0.entry.displayName) })
+    }
+
+    #if DEBUG
+    /// `-mockOffline` / `-mockDrop` / `-mockOnlineAfter`: take a mock machine down or bring it back.
+    func setMockOffline(_ machineId: String, _ offline: Bool) async {
+        guard let mock = connection(id: machineId)?.raw as? MockBackend else { return }
+        await mock.setOffline(offline)
+    }
+    #endif
 
     // MARK: - Chat
 
@@ -359,7 +704,7 @@ final class AppStore {
             updateLive { $0.match(agentId: agentId, transcript: state.messages[agentId] ?? []) }
         } catch {
             guard messagesRequest[agentId] == generation else { return }
-            report(error)
+            report(error, agentId: agentId)
         }
     }
 
@@ -369,7 +714,7 @@ final class AppStore {
             let page = try await backend.messages(agentId: agentId, before: first.id, limit: 50)
             state.prependPage(page, agentId: agentId)
         } catch {
-            report(error)
+            report(error, agentId: agentId)
         }
     }
 
@@ -395,7 +740,7 @@ final class AppStore {
                 // Keep the bubble and flag it, so a failed send is visible and retryable rather than
                 // silently vanishing from the transcript (only the transient error banner would remain).
                 failedPending.insert(local.id)
-                report(error)
+                report(error, agentId: agentId)
             }
         }
     }
@@ -409,7 +754,7 @@ final class AppStore {
                 try await backend.prompt(agentId: agentId, text: message.plainText, attachments: message.attachments.map(\.id))
             } catch {
                 failedPending.insert(messageId)
-                report(error)
+                report(error, agentId: agentId)
             }
         }
     }
@@ -448,7 +793,7 @@ final class AppStore {
 
     func interrupt(_ agentId: String) {
         Task {
-            do { try await backend.sendKeys(agentId: agentId, keys: ["esc"]) } catch { report(error) }
+            do { try await backend.sendKeys(agentId: agentId, keys: ["esc"]) } catch { report(error, agentId: agentId) }
         }
     }
 
@@ -473,7 +818,7 @@ final class AppStore {
                 // status stays `blocked` and no change arrives to refetch it.
                 recentlyAnswered[approval.agentId] = nil
                 if selectedAgentId == approval.agentId, self.approval == nil { self.approval = approval }
-                report(error)
+                report(error, agentId: approval.agentId)
             }
         }
     }
@@ -504,17 +849,24 @@ final class AppStore {
             open(agent.id)
             return true
         } catch {
-            report(error)
+            report(error, agentId: workspaceId)
             return false
         }
     }
 
-    /// `GET /controls?kind=` for the New chat sheet, cached per kind for the session.
-    func kindControls(_ kind: String) async -> AgentControlsInfo? {
-        if let cached = kindControlsCache[kind] { return cached }
-        guard let info = try? await backend.kindControls(kind: kind) else { return nil }
-        kindControlsCache[kind] = info
+    /// `GET /controls?kind=` on one machine for the New chat sheet, cached per machine and kind for the session.
+    func kindControls(_ kind: String, machineId: String) async -> AgentControlsInfo? {
+        guard let c = connection(id: machineId) else { return nil }
+        if let cached = c.kindControls[kind] { return cached }
+        guard let info = try? await c.backend.kindControls(kind: kind) else { return nil }
+        c.kindControls[kind] = info
         return info
+    }
+
+    /// Older call site: the focus machine.
+    func kindControls(_ kind: String) async -> AgentControlsInfo? {
+        guard let id = focusConnection?.id else { return nil }
+        return await kindControls(kind, machineId: id)
     }
 
     // MARK: - Controls
@@ -535,7 +887,7 @@ final class AppStore {
             agentControls[agentId] = try await backend.agentControls(agentId: agentId)
             agentControlsKey[agentId] = key
         } catch RelayError.http(status: 404, _, _) {
-            if agent.kind == "claude", let catalog = controls {
+            if agent.kind == "claude", let catalog = connection(for: agentId)?.controls {
                 agentControls[agentId] = AgentControlsInfo(claudeCatalog: catalog)
                 agentControlsKey[agentId] = key
             }
@@ -557,7 +909,7 @@ final class AppStore {
                 await loadAgentControls(agent.id)
                 if case .command(.compact) = request { await loadMessages(agentId) }
             } catch {
-                report(error, prefix: ControlDisplay.failurePrefix(request, info: agentControls[agentId]))
+                report(error, prefix: ControlDisplay.failurePrefix(request, info: agentControls[agentId]), agentId: agentId)
             }
             pendingControls[agentId] = nil
         }
@@ -586,7 +938,7 @@ final class AppStore {
             approval = fetched
             if isNew && !LaunchOptions.current.isDemo("card") { isApprovalSheetPresented = true }
         } catch {
-            report(error)
+            report(error, agentId: agent.id)
         }
     }
 
@@ -636,14 +988,22 @@ final class AppStore {
         AppDefaults.standard.set(seen.mapValues(\.timeIntervalSince1970), forKey: "seenAgents")
     }
 
-    private func report(_ error: any Error, prefix: String? = nil) {
+    /// `agentId` or `machine` says whose bridge failed, so a rejected token marks only that machine.
+    /// `quiet` (background resyncs): an unreachable machine just shows as offline, with no banner.
+    private func report(_ error: any Error, prefix: String? = nil, agentId: String? = nil, machine: MachineConnection? = nil, quiet: Bool = false) {
         if error is CancellationError { return }
         if let url = error as? URLError, url.code == .cancelled { return }
+        let c = machine ?? agentId.flatMap(connection(for:))
+        if case .unauthorized = error as? RelayError {
+            c?.status = .needsRePair
+        } else if case .unreachable = error as? RelayError, let c, c.status != .needsRePair {
+            c.status = .offline
+            if quiet { return }
+        }
         // Only RelayError's curated copy (and the bridge's own `message`, api.md) ever reaches the UI:
         // anything else (a decode failure that slipped past RelayKit, etc.) gets a generic message
         // instead of raw Swift/Foundation error text.
         let text = (error as? RelayError)?.errorDescription ?? "Something went wrong. Try again."
         errorMessage = prefix.map { "\($0): \(text)" } ?? text
-        if case .unauthorized = error as? RelayError { needsRePairing = true }
     }
 }
