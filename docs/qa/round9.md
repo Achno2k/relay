@@ -62,6 +62,8 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
 - test8 attachment in a Test VM chat (L8): pass. 7881's `uploads/` went 0 → 2 files, 7878's stayed at 4, and the agent read the PDF's word. So VM-keyed calls go to the VM's bridge only (L2 routing too).
 - Not run: L7 (herdr unavailable on one bridge).
 
+- Final full suite on b032844: 242 tests, 0 failures (`RelayTests` 170/170, UI 56 passed, 16 live skipped).
+
 ## Bugs
 
 | id | severity | owner | status | title |
