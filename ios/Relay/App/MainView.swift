@@ -41,7 +41,6 @@ struct MainView: View {
                         setSidebar(false)
                     },
                     onNewChat: { presentNewChat($0) },
-                    onUnpair: { model.unpair() },
                     onUsage: { showUsage = true }
                 )
                 .frame(width: width)
