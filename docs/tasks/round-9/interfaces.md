@@ -15,7 +15,7 @@ Owner: mm-data. Status: **agreed with mm-ui; implemented in 4a1a6d8.** Changes g
       static func raw(_ key: String) -> String                         // "w2:p1"
   }
   ```
-- Message ids stay raw (always under an agent key). Attachment ids stay raw; `store.attachmentData(agentId:attachmentId:)` routes and caches by the agent's machine.
+- Message ids stay raw (always under an agent key). Attachment ids stay raw; `store.attachmentData(agentId:attachmentId:)` routes by the agent's machine. Its cache is keyed by attachment id (16 random hex per bridge; mock machines hand out disjoint ids).
 
 ## AppStore (mm-data)
 State the UI reads:
