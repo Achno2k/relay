@@ -9,8 +9,6 @@ struct SidebarView: View {
     @Bindable var store: AppStore
     let onSelect: (String) -> Void
     let onNewChat: (_ workspaceId: String?) -> Void
-    /// Unused since round 9: unpairing is Remove on the Machines screen, per machine.
-    var onUnpair: () -> Void = {}
     let onUsage: () -> Void
 
     @State private var query = ""

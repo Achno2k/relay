@@ -46,5 +46,5 @@
 - Commits: `e6f0cf2` (usage), `05054b8` (UI).
 
 ## What's left
-- SidebarView's `onUnpair` is unused; mm-data drops it from MainView.
+- None open on the UI side.
 - Live check against 7878 + `second-bridge.sh` is mm-qa's.
