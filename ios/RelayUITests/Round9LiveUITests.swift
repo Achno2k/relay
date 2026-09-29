@@ -86,7 +86,9 @@ final class Round9LiveUITests: XCTestCase {
         machineMenu.tap()
         XCTAssertTrue(waitFor(menuItem(vm), "label == 'Machine: Test VM, online'", timeout: 90), "VM never came back: \(menuItem(vm).label)")
         dismissMenu()
-        XCTAssertTrue(scrollTo(row("\(vm)/\(agent)")), "VM agents didn't return")
+        let back = scrollTo(row("\(vm)/\(agent)"))
+        if !back { dumpTree("live-vm-back-tree") }
+        XCTAssertTrue(back, "VM agents didn't return")
         shot("live-vm-back")
     }
 
@@ -113,15 +115,16 @@ final class Round9LiveUITests: XCTestCase {
         XCTAssertTrue(menuItem(vm).waitForExistence(timeout: 10))
         XCTAssertTrue(waitFor(menuItem(vm), "label == 'Machine: Test VM, re-pair needed'", timeout: 30), "VM: \(menuItem(vm).label)")
         shot("live-rotated")
-        app.buttons["machineMenuManage"].tap()
         let row = app.descendants(matching: .any)["machineRow-\(vm)"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        openMachines(row)
         row.tap()
         app.buttons["machineRePair"].tap()
         enterLink(vmLink)
-        XCTAssertTrue(waitFor(app.descendants(matching: .any)["machineRow-\(vm)"], "label == 'Machine: Test VM, online'", timeout: 20)
-            || waitFor(app.buttons["machinesDone"], "exists == true"), "re-pair didn't finish")
-        if app.buttons["BackButton"].exists { app.buttons["BackButton"].tap() }
+        // Back on the machine's detail screen, now online.
+        let online = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Online' OR value CONTAINS 'Online'")).firstMatch
+        XCTAssertTrue(online.waitForExistence(timeout: 20), "re-pair didn't bring it online")
+        shot("live-repaired-detail")
+        if app.buttons["BackButton"].waitForExistence(timeout: 3) { app.buttons["BackButton"].tap() }
         let rows = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'machineRow-'"))
         XCTAssertTrue(waitFor(app.descendants(matching: .any)["machineRow-\(vm)"], "label == 'Machine: Test VM, online'", timeout: 20),
                       "VM after re-pair: \(app.descendants(matching: .any)["machineRow-\(vm)"].label)")
@@ -134,10 +137,9 @@ final class Round9LiveUITests: XCTestCase {
     /// Needs: test1 state, both bridges up.
     func test6RenameSurvivesRelaunch() throws {
         launch()
-        machineMenu.tap()
-        app.buttons["machineMenuManage"].tap()
         let row = app.descendants(matching: .any)["machineRow-\(vm)"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        machineMenu.tap()
+        openMachines(row)
         row.tap()
         let name = app.textFields["machineNameField"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
@@ -157,7 +159,7 @@ final class Round9LiveUITests: XCTestCase {
         shot("live-renamed")
 
         // Back to the bridge's name for the next run.
-        app.buttons["machineMenuManage"].tap()
+        openMachines(app.descendants(matching: .any)["machineRow-\(vm)"])
         app.descendants(matching: .any)["machineRow-\(vm)"].tap()
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap()
@@ -180,7 +182,7 @@ final class Round9LiveUITests: XCTestCase {
         dismissMenu()
 
         // Once the bridge answers, the entry is re-keyed to its real id, still one machine.
-        let deadline = Date().addingTimeInterval(90)
+        let deadline = Date().addingTimeInterval(180)
         while !menuItem(vm).exists && Date() < deadline {
             machineMenu.tap()
             if menuItem(vm).waitForExistence(timeout: 3) { break }
@@ -216,6 +218,17 @@ final class Round9LiveUITests: XCTestCase {
         composer.tap()
         composer.typeText(text)
         app.buttons["Send"].tap()
+    }
+
+    /// Taps Manage machines… in the open machine menu (reopening it if a tap was lost) until `row` shows.
+    private func openMachines(_ row: XCUIElement) {
+        for _ in 0..<3 {
+            let manage = app.buttons["machineMenuManage"]
+            if !manage.waitForExistence(timeout: 3) { machineMenu.tap(); _ = manage.waitForExistence(timeout: 3) }
+            if manage.exists { manage.tap() }
+            if row.waitForExistence(timeout: 5) { return }
+        }
+        XCTFail("Machines screen didn't open")
     }
 
     private func enterLink(_ link: String) {
@@ -260,6 +273,12 @@ final class Round9LiveUITests: XCTestCase {
     private func waitFor(_ element: XCUIElement, _ predicate: String, timeout: TimeInterval = 5) -> Bool {
         let e = expectation(for: NSPredicate(format: predicate), evaluatedWith: element)
         return XCTWaiter().wait(for: [e], timeout: timeout) == .completed
+    }
+
+    private func dumpTree(_ name: String) {
+        shot(name)
+        guard let dir = env["RELAY_SHOTS"] else { return }
+        try? app.debugDescription.write(toFile: "\(dir)/round9-\(name).txt", atomically: true, encoding: .utf8)
     }
 
     private func shot(_ name: String) {

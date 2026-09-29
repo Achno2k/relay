@@ -48,13 +48,27 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
 - Baseline at 0365559 (iPhone 17 Pro): `RelayTests` 137 passed; mock `RelayUITests` 42 run, 8 skipped, 0 failed.
 - `RelayTests` (full) and the mock `RelayUITests` (all but `Live*`), no new failures vs master.
 
+## Results (iPhone 17 Pro)
+- Mock: `Round9UITests` 22/22 on 6eabaed + 105c653.
+- Full suite on 0a22e10: 232 tests, `RelayTests` 168/168, existing mock UI tests all pass, 8 live skipped. The only failures were R9-2's test (fixed since) and a timing bug in my own test (fixed).
+- Live, `Round9LiveUITests` against 7878 plus a Go bridge on 7881 (`test-vm`, temp home; `scripts/second-bridge.sh` also checked: starts, prints the link, removes its home on Ctrl-C):
+  - test1 migrate + add second machine (G1, L1): pass. The old pairing came back under the Mac's `/machine` id; the e2e agent shows once per machine.
+  - test2 prompt through Test VM (L2): pass, e2e claude replied (`R9VMNHTV`). Both bridges share one herdr, so routing is shown by test3/test4 (VM-keyed chats follow 7881's state), not by the reply.
+  - test3 VM offline then back (L3): pass 3 of 4. One early run: Test VM read online but its agents hadn't shown within ~20 s of swipes; not reproduced in 3 reruns.
+  - test4 changed machine id (L6): pass. Re-pair needed, no `other-vm` entry, Mac online.
+  - test5 rotated token, then re-pair (L4): pass. Re-pair needed, then online, still 2 machines.
+  - test6 rename survives relaunch: pass.
+  - test7 migrate while offline (G2): **fail, R9-4**.
+- Not run: L7 (herdr unavailable), L8 (attachment routing).
+
 ## Bugs
 
 | id | severity | owner | status | title |
 |---|---|---|---|---|
 | R9-1 | P3 | mm-ui | verified (6eabaed): popover points at Remove Machine | Remove-machine confirm popover points at the middle of the form, not at "Remove Machine" |
 | R9-2 | P2 | mm-ui | verified (6eabaed): composer off, 'Mock VM is offline', chatOffline | Prompt sent in an offline machine's chat vanishes: no bubble, no error, text gone |
-| R9-3 | P3 | mm-data | verified (105c653): banner 'Mock VM is offline' | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
+| R9-3 | P3 | mm-data | verified (105c653): banner 'Mock VM is offline' |
+| R9-4 | P2 | mm-data | open | Migrated pairing whose bridge was offline at launch never re-keys or reconnects until the app is relaunched | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
 
 Details below, one section per bug: repro, expected, actual, fix, how verified.
 
@@ -74,3 +88,9 @@ Details below, one section per bug: repro, expected, actual, fix, how verified.
 - Repro: as R9-2; the chat's banner reads "Reconnecting…" while the machine menu says "Mock VM · Offline".
 - Expected: the banner matches the machine status, e.g. "Mock VM is offline" (and "Reconnecting…" only for `connecting`).
 - Actual: `store.connection` is `.reconnecting` for both. Owner mm-data (`MainView` banner / `store.connection`); mm-ui if the copy lives in a Feature view.
+
+### R9-4: Offline-at-launch migration never recovers in-session
+- Repro (live): stop the 7881 test bridge. Launch `-uitest -seedLegacyPairing <7881 link> -demo sidebar`. The menu shows `machineMenuItem-provisional-legacy`, "Machine: 127.0.0.1, offline" (correct so far). Start the 7881 bridge (same token, `test-vm`) 30 s later.
+- Expected (api.md: "keep it under a provisional id and re-key it on the first successful `/machine`"): within the reconnect backoff (≤ 30 s) the entry turns into `machineMenuItem-test-vm`, "Test VM, online", still one machine.
+- Actual: 3 min 16 s after the bridge came up (17:47:14 → end of test) it still reads `provisional-legacy`, offline, and nothing reconnects. Terminating and relaunching the app fixes it at once (one machine, online). A normal paired machine that goes down and comes back does reconnect (test3), so this is specific to the provisional entry.
+- Test: `Round9LiveUITests.test7MigrateWhileOffline` (runner stops 7881, starts it ~30 s in). The unit test `provisionalPairingOfflineWaitsForTheBridge` passes, so the mock path differs from the live one (WS retry vs `/machine` retry?).
