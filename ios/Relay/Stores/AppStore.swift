@@ -395,7 +395,7 @@ final class AppStore {
         if c.record.provisional {
             guard await adoptProvisional(c) else {
                 c.hasAttempted = true
-                hasLoadedAgents = true
+                markLoadedIfAllTried()
                 resolvePendingLink()
                 return
             }
@@ -422,7 +422,7 @@ final class AppStore {
         } catch {
             guard isCurrent() else { return }
             c.hasAttempted = true
-            hasLoadedAgents = true
+            markLoadedIfAllTried()
             resolvePendingLink()
             report(error, machine: c, quiet: true)
             return
@@ -440,6 +440,12 @@ final class AppStore {
         } else if selectedAgentId == nil {
             await refreshApproval()
         }
+    }
+
+    /// A failed machine only ends the loading state once every machine has been tried, so an offline first
+    /// machine doesn't flash "No agents" while the others are still answering.
+    private func markLoadedIfAllTried() {
+        if connections.allSatisfy(\.hasAttempted) { hasLoadedAgents = true }
     }
 
     /// One machine's fresh agents and workspaces replace its old ones; other machines' stay as they are
