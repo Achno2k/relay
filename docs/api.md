@@ -199,6 +199,50 @@ Machine {
   - `model`: `/sys/class/dmi/id/product_name`, falling back to `uname -m`.
   - `os`: `PRETTY_NAME` from `/etc/os-release` (e.g. `Ubuntu 24.04.1 LTS`), else `Linux`.
 
+## Multiple machines
+
+Round 9. The app drives agents on several machines, e.g. the Mac plus a Linux VM. No route or payload changes.
+
+**One bridge per machine.**
+- Each machine runs its own `relay serve` next to its own herdr, with its own token in its own `~/.relay`.
+- The app talks to each bridge directly over Tailscale. No bridge proxies another, and bridges don't know about each other.
+- A remote bridge is the same binary. Linux setup: `docs/remote-setup.md`.
+
+**Pairings.** The app keeps a list of pairings, keyed by `GET /machine` `id`.
+- Entry: `machineId`, `url`, `token`, plus app-only fields (local label, last `Machine`, last `/health`).
+- Adding one: scan or paste `relay://pair?url=…&token=…` (unchanged link), then call `GET /machine` with that url and token.
+  - `200`: if the `id` is already in the list, **replace** that entry's `url` and `token` (re-pair after a new IP or `relay token --rotate`), keep its label and all per-agent state. Otherwise append.
+  - Unreachable or `401`: save nothing, show the error.
+- A stored pairing whose bridge answers `401` on any route is `needsRePair`. Only that machine; the others carry on.
+- A stored pairing whose `/machine` answers a different `id` than the one it's stored under is also `needsRePair` (the URL now reaches another bridge). The app never merges two machines' data.
+- Removing a pairing drops its token and every per-agent key for that machine. Nothing is sent to the bridge.
+- Migrating the pre-round-9 single pairing: call `/machine` to learn its id. If the bridge is offline, keep it under a provisional id and re-key it on the first successful `/machine`.
+
+**Ids are per machine.**
+- Agent ids (`w13:p1`), workspace ids, message ids, attachment ids and live `seq` are only unique within one bridge. Two machines can both have `w1:p1`.
+- The app keys everything by machine id + id: selection, seen, archive, drafts, pending sends, controls caches, live replies, expansion, deep links.
+- On the wire, each bridge only ever sees its own raw ids. Never send one machine's id to another bridge.
+- Machine ids match `[A-Za-z0-9._-]{1,64}` (a Mac hardware UUID, a Linux `/etc/machine-id`, or the hostname fallback). So `|` and `/` never occur in one and are safe separators in a namespaced string key.
+- An attachment uploaded to machine A can only be used in a prompt to an agent on machine A.
+- `POST /agents` goes to the bridge of the chosen machine, with a `workspaceId` from that machine's `/workspaces`.
+
+**Each bridge is independent.**
+- One WebSocket per machine, with its own reconnect and backoff. One machine offline or slow never blocks another's REST calls, WS or UI.
+- Per-machine status is re-derived, never stored as truth:
+  - `connecting`: first attempt or reconnecting after a drop;
+  - `online`: `/ws` connected;
+  - `offline`: unreachable (timeouts, connection refused, no Tailscale route);
+  - `needsRePair`: `401`, or a changed `/machine` id.
+- `online` with `/health` `herdr: "unavailable"` means the bridge is up but its herdr is not; the app shows the machine with no live agents rather than as offline.
+- An offline machine's last known agents stay listed (greyed), from the app's own cache; they aren't live and can't be prompted.
+- `/usage` is per bridge. Bridges don't report an account identity, so "same subscription on two machines" is a guess the app makes (same provider `id` + `plan`).
+
+**Dev and test overrides (test-only, don't set these in real installs).**
+- `RELAY_MACHINE_ID` / `RELAY_MACHINE_NAME`: when set and non-empty, `GET /machine` reports these as `id` / `name` instead of the real ones. Lets a second bridge on the same Mac show up as another machine. A `RELAY_MACHINE_ID` that doesn't match `[A-Za-z0-9._-]{1,64}` makes `relay serve` exit 78.
+- `scripts/second-bridge.sh`: starts a Go bridge on port 7881 with a temp `RELAY_HOME`, `RELAY_MACHINE_ID=test-vm`, `RELAY_MACHINE_NAME="Test VM"`, the same herdr, and prints a pair link for `http://127.0.0.1:7881`.
+
+**`relay pair --url <base>`.** Puts `<base>` (e.g. `http://100.101.102.103:7878` or a MagicDNS name) in the link verbatim, for when the auto-detected Tailscale IPv4 is wrong (NAT, several tailnet IPs). `--host`/`--port` still work; `--url` wins over both.
+
 ## Controls
 
 ```jsonc
