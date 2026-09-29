@@ -45,6 +45,7 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
 - L8: attachment picked in a Test VM chat goes to 7881 only (bridge log / uploads dir).
 
 ### Regression
+- Baseline at 0365559 (iPhone 17 Pro): `RelayTests` 137 passed; mock `RelayUITests` 42 run, 8 skipped, 0 failed.
 - `RelayTests` (full) and the mock `RelayUITests` (all but `Live*`), no new failures vs master.
 
 ## Bugs
