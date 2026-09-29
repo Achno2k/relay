@@ -58,7 +58,7 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
   - test4 changed machine id (L6): pass. Re-pair needed, no `other-vm` entry, Mac online.
   - test5 rotated token, then re-pair (L4): pass. Re-pair needed, then online, still 2 machines.
   - test6 rename survives relaunch: pass.
-  - test7 migrate while offline (G2): **fail, R9-4**.
+  - test7 migrate while offline (G2): failed (R9-4); passes 2 of 2 on 679f940.
 - test8 attachment in a Test VM chat (L8): pass. 7881's `uploads/` went 0 → 2 files, 7878's stayed at 4, and the agent read the PDF's word. So VM-keyed calls go to the VM's bridge only (L2 routing too).
 - Not run: L7 (herdr unavailable on one bridge).
 
@@ -69,7 +69,7 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
 | R9-1 | P3 | mm-ui | verified (6eabaed): popover points at Remove Machine | Remove-machine confirm popover points at the middle of the form, not at "Remove Machine" |
 | R9-2 | P2 | mm-ui | verified (6eabaed): composer off, 'Mock VM is offline', chatOffline | Prompt sent in an offline machine's chat vanishes: no bubble, no error, text gone |
 | R9-3 | P3 | mm-data | verified (105c653): banner 'Mock VM is offline' |
-| R9-4 | P2 | mm-data | open | Migrated pairing whose bridge was offline at launch never re-keys or reconnects until the app is relaunched | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
+| R9-4 | P2 | mm-data | verified (679f940): re-keyed to test-vm within ~15 s, 2 of 2 runs | Migrated pairing whose bridge was offline at launch never re-keys or reconnects until the app is relaunched | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
 
 Details below, one section per bug: repro, expected, actual, fix, how verified.
 
