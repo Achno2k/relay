@@ -52,5 +52,25 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
 
 | id | severity | owner | status | title |
 |---|---|---|---|---|
+| R9-1 | P3 | mm-ui | open | Remove-machine confirm popover points at the middle of the form, not at "Remove Machine" |
+| R9-2 | P2 | mm-ui | open | Prompt sent in an offline machine's chat vanishes: no bubble, no error, text gone |
+| R9-3 | P3 | mm-data | open | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
 
 Details below, one section per bug: repro, expected, actual, fix, how verified.
+
+### R9-1: Remove confirm popover anchored to the form
+- Repro: `-uitest -mock -mockVM`, Manage machines…, Mock VM, Remove Machine.
+- Expected: the popover points at the Remove Machine button (or a bottom action sheet).
+- Actual: it floats over Name/Status with its arrow pointing at the Name footer. `.confirmationDialog` sits on the whole `Form` in `MachinesView.swift` (~line 157), so iPhone anchors it to the form's centre. Screenshot: `round9-remove-confirm.png`.
+- Test: `Round9UITests.testRemoveMachine` (passes; this is visual).
+
+### R9-2: Prompt to an offline machine's chat is lost
+- Repro: `-uitest -mock -mockVM -mockDrop mock-vm 6`. Wait for the Mock VM rows to read offline, open "Rotate TLS certificates" (VM `w2:p1`, never opened before), type "should not send", tap Send.
+- Expected (api.md: offline agents "aren't live and can't be prompted"): the composer is disabled with an offline note, or the prompt shows as a "not sent" bubble with retry.
+- Actual: the composer clears and nothing appears. The chat stays on its loading spinner forever (messages can't load), and the failed pending bubble `AppStore.send` keeps is hidden behind that spinner. The text is gone for the user.
+- Test: `Round9UITests.testOfflineAgentCantBePrompted` (fails until fixed). Screenshots `round9-offline-typed.png`, `round9-offline-send.png`.
+
+### R9-3: "Reconnecting…" for an offline machine
+- Repro: as R9-2; the chat's banner reads "Reconnecting…" while the machine menu says "Mock VM · Offline".
+- Expected: the banner matches the machine status, e.g. "Mock VM is offline" (and "Reconnecting…" only for `connecting`).
+- Actual: `store.connection` is `.reconnecting` for both. Owner mm-data (`MainView` banner / `store.connection`); mm-ui if the copy lives in a Feature view.
