@@ -1,6 +1,6 @@
 # Round 9 interfaces: mm-data ↔ mm-ui (and mm-qa hooks)
 
-Owner: mm-data. Status: **draft, pending mm-ui ack.** Changes go through a herdr message first.
+Owner: mm-data. Status: **agreed with mm-ui; implemented in 4a1a6d8.** Changes go through a herdr message first.
 
 ## Keys
 - App-wide key for anything per machine: `"<machineId>/<rawId>"`. Example `mock-vm/w2:p1`.
@@ -39,6 +39,8 @@ store.sidebar: SidebarModel             // state already filtered by machineFilt
 store.machineId(of key: String) -> String?
 store.machine(of key: String) -> MachineEntry?   // agent or workspace key
 store.isLive(_ agentKey: String) -> Bool         // its machine is online
+store.rePairMachineId: String?                   // the focus machine, when it needs re-pairing
+store.connections: [MachineConnection]           // the per-machine objects, if a view needs more than MachineEntry
 ```
 - Offline machine: its last-known agents and workspaces stay in `state`; `isLive` is false. Grey them.
 - `needsRePair` machine: same as offline for its agents.
@@ -58,7 +60,8 @@ func kindControls(_ kind: String, machineId: String) async -> AgentControlsInfo?
 ```
 - Errors are `RelayError` with curated `errorDescription` (new cases: `.differentMachine`).
 - `AppModel.pair(_ pairing:)` (first launch, PairingView) = `addMachine` plus creating the store if none. PairingView keeps working as is for Add machine.
-- `AppModel.rePairMachineId: String?` — when set, PairingView's pair goes to `rePair` instead. (Or call `store.rePair` directly; your call.)
+- `AppModel.rePairMachineId: String?`: when set, `model.pair` re-pairs that machine instead of adding one. PairingView (mm-ui) picks its mode from it. MainView's re-pair banner sets it and shows PairingView as a sheet.
+- `AppModel.isPaired`: false once the last machine is removed; RelayApp then shows first-launch pairing.
 
 ## UsageStore (mm-ui owns; agreed shape)
 ```swift
@@ -66,6 +69,7 @@ init()
 func load(machineId: String, backend: any Backend) async   // AppStore calls on each machine's resync
 func apply(_ provider: UsageProvider, machineId: String)   // AppStore forwards usage.updated
 func remove(machineId: String)                             // AppStore on remove
+func setMachines(_ list: [(id: String, name: String)])     // AppStore on every add/remove/rename/name change, pair order
 func refresh() async                                       // fans out over the backends it was given in load
 ```
 - The backend passed in is the machine's own (raw ids; usage has none anyway).
@@ -82,7 +86,7 @@ func refresh() async                                       // fans out over the 
   - Also `w2:p2` "Nightly backup check" (codex, working) and `w5:p1` "Tune Postgres autovacuum" (claude, blocked, with an approval).
 - `-mockOffline <machineId>`: that mock machine starts offline (REST throws unreachable, WS never connects).
 - `-mockOnlineAfter <seconds>`: an offline mock machine comes back after that long.
-- `-mockDrop <machineId> <seconds>`: that machine starts online and goes offline after that long (combine with `-mockOnlineAfter` on a relaunch if needed).
+- `-mockDrop <machineId> <seconds>`: that machine starts online and drops after that long: `connecting`, then `offline` about 1 s later (the mock fails one retry, like WSClient).
 - In `-mock`, a pair link whose host starts with `mock-` adds a mock machine with no network: `relay://pair?url=http://mock-third:7878&token=t` → id `mock-third`, name "Mock Third". Token `bad` → 401 (`unauthorized`).
 - `-seedLegacyPairing <relay link>` (DEBUG + `-uitest`): before AppModel init, clears the machine list and writes the old single-pairing keys (App Group `bridgeURL`, Keychain account = url). Then the normal migration runs.
 - `-agent <key>` or `-agent <rawId>`. A raw id resolves to the first machine (pair order) that has it, once its agents load.
