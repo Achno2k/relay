@@ -50,3 +50,23 @@ func TestSystemdUnit(t *testing.T) {
 		}
 	}
 }
+
+func TestParseBaseURL(t *testing.T) {
+	for in, want := range map[string]string{
+		"http://100.101.102.103:7878":     "http://100.101.102.103:7878",
+		"http://vm.tail1234.ts.net:7878/": "http://vm.tail1234.ts.net:7878",
+		"https://relay.example":           "https://relay.example",
+	} {
+		if got, err := ParseBaseURL(in); err != nil || got != want {
+			t.Errorf("%q: %q %v", in, got, err)
+		}
+	}
+	for _, bad := range []string{"", "100.1.2.3:7878", "ftp://h", "http://", "http://h/x", "http://h?a=b", "http://u:p@h"} {
+		if _, err := ParseBaseURL(bad); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+	if got := PairingURLFor("http://h:7881", "t/k"); got != "relay://pair?url=http%3A%2F%2Fh%3A7881&token=t%2Fk" {
+		t.Error(got)
+	}
+}

@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +16,23 @@ import (
 // PairingURL is `relay://pair?url=<base>&token=<token>` with the values fully percent-encoded
 // (only A-Z a-z 0-9 - . _ ~ kept) so the app can split safely.
 func PairingURL(host string, port int, token string) string {
-	return "relay://pair?url=" + encode(fmt.Sprintf("http://%s:%d", host, port)) + "&token=" + encode(token)
+	return PairingURLFor(fmt.Sprintf("http://%s:%d", host, port), token)
+}
+
+// PairingURLFor is the pairing link for a base URL taken as is (`relay pair --url`).
+func PairingURLFor(base, token string) string {
+	return "relay://pair?url=" + encode(base) + "&token=" + encode(token)
+}
+
+// ParseBaseURL checks a `relay pair --url` value: http(s), a host, nothing after the port
+// but an optional trailing slash, which is dropped.
+func ParseBaseURL(s string) (string, error) {
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+		return "", fmt.Errorf("--url %q: want http://host[:port]", s)
+	}
+	return strings.TrimSuffix(s, "/"), nil
 }
 
 func encode(s string) string {

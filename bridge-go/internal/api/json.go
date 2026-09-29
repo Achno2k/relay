@@ -12,8 +12,9 @@ import (
 	"encoding/json"
 )
 
-// Version is what /health reports.
-const Version = "0.1.0"
+// Version is what /health reports. A var so release builds can stamp it with
+// -ldflags "-X relay/internal/api.Version=…" (scripts/build-linux.sh).
+var Version = "0.1.0"
 
 // Marshal encodes v like the Swift bridge's JSONEncoder: no HTML escaping, no trailing newline.
 // Use it (not json.Marshal) for every response body and WS frame.

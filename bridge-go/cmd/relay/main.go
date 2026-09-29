@@ -15,6 +15,7 @@ import (
 	"relay/internal/api"
 	"relay/internal/config"
 	"relay/internal/herdr"
+	"relay/internal/machine"
 	"relay/internal/qr"
 	"relay/internal/service"
 )
@@ -95,6 +96,10 @@ func serve(args []string) error {
 		fmt.Fprintln(os.Stderr, "relay: "+err.Error()+"; set HERDR_SOCKET_PATH to a shorter path")
 		return exitCode(78) // EX_CONFIG
 	}
+	if err := machine.CheckOverrides(); err != nil {
+		fmt.Fprintln(os.Stderr, "relay: "+err.Error())
+		return exitCode(78) // EX_CONFIG
+	}
 	tok, err := config.LoadToken()
 	if err != nil {
 		return err
@@ -130,12 +135,21 @@ func pair(args []string) error {
 	fs := newFlags("pair")
 	port := fs.Int("port", 7878, "Port the bridge listens on.")
 	host := fs.String("host", "", "Host to put in the URL (defaults to the Tailscale IPv4).")
+	base := fs.String("url", "", "Base URL to put in the link verbatim, e.g. http://100.101.102.103:7878 (overrides -host and -port).")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	tok, err := config.LoadToken()
 	if err != nil {
 		return err
+	}
+	if *base != "" {
+		u, err := config.ParseBaseURL(*base)
+		if err != nil {
+			return err
+		}
+		printPairing(config.PairingURLFor(u, tok))
+		return nil
 	}
 	resolved := *host
 	if resolved == "" {
@@ -145,12 +159,15 @@ func pair(args []string) error {
 		fmt.Print("warning: no Tailscale IPv4 found; using 127.0.0.1 (only reachable from this machine)\n\n")
 		resolved = "127.0.0.1"
 	}
-	url := config.PairingURL(resolved, *port, tok)
+	printPairing(config.PairingURL(resolved, *port, tok))
+	return nil
+}
+
+func printPairing(url string) {
 	if code, ok := qr.Terminal(url, 2); ok {
 		fmt.Println(code)
 	}
 	fmt.Println(url)
-	return nil
 }
 
 func token(args []string) error {
