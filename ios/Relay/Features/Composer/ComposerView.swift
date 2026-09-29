@@ -17,6 +17,9 @@ struct ComposerView: View {
     let onNewChat: () -> Void
     /// Set to true to focus the field (a just-created chat, "ready to type"); reset once focused.
     var focusRequest: Binding<Bool> = .constant(false)
+    /// Why this agent can't be prompted right now ("Mock VM is offline"). Set, it replaces the placeholder
+    /// and turns off typing, send and stop; a draft already typed stays.
+    var unavailable: String?
 
     @FocusState private var focused: Bool
     @Namespace private var glass
@@ -30,10 +33,11 @@ struct ComposerView: View {
     private var hasAttachments: Bool { !(attachments?.isEmpty ?? true) }
     /// Send needs text or an attachment, and every upload finished.
     private var canSend: Bool {
-        (!trimmed.isEmpty || !(attachments?.uploaded.isEmpty ?? true)) && !(attachments?.isBusy ?? false)
+        unavailable == nil
+            && (!trimmed.isEmpty || !(attachments?.uploaded.isEmpty ?? true)) && !(attachments?.isBusy ?? false)
     }
     /// Typing while the agent works queues a prompt, so send wins over stop when there's something to send.
-    private var showsStop: Bool { isWorking && trimmed.isEmpty && !hasAttachments }
+    private var showsStop: Bool { unavailable == nil && isWorking && trimmed.isEmpty && !hasAttachments }
 
     var body: some View {
         GlassEffectContainer(spacing: 10) {
@@ -45,9 +49,10 @@ struct ComposerView: View {
                         ComposerAttachmentTray(attachments: attachments)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    TextField(placeholder, text: $text, axis: .vertical)
+                    TextField(unavailable ?? placeholder, text: $text, axis: .vertical)
                         .lineLimit(1...6)
                         .focused($focused)
+                        .disabled(unavailable != nil)
                         .padding(.vertical, 13)
                         .padding(.horizontal, 18)
                 }

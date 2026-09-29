@@ -143,6 +143,17 @@ private struct MachineDetailView: View {
                 Section {
                     Button("Remove Machine", role: .destructive) { confirmingRemove = true }
                         .accessibilityIdentifier("machineRemove")
+                        // On the button, so the popover points at it rather than the middle of the form.
+                        .confirmationDialog(
+                            "Remove \(machine.displayName)?", isPresented: $confirmingRemove, titleVisibility: .visible
+                        ) {
+                            // The machine vanishing pops back to the list (onChange below); a second dismiss would
+                            // close the sheet.
+                            Button("Remove", role: .destructive) { store.remove(machineId) }
+                                .accessibilityIdentifier("machineRemoveConfirm")
+                        } message: {
+                            Text("Its chats leave the sidebar. Pair it again any time with relay pair.")
+                        }
                 } footer: {
                     Text("Forgets the pairing and this phone's state for its chats. Nothing changes on the machine.")
                 }
@@ -154,15 +165,6 @@ private struct MachineDetailView: View {
         .onChange(of: nameFocused) { _, focused in if !focused { commitName() } }
         .onDisappear(perform: commitName)
         .onChange(of: machine == nil) { _, gone in if gone { dismiss() } }
-        .confirmationDialog(
-            "Remove \(machine?.displayName ?? "this machine")?", isPresented: $confirmingRemove, titleVisibility: .visible
-        ) {
-            // The machine vanishing pops back to the list (onChange above); a second dismiss would close the sheet.
-            Button("Remove", role: .destructive) { store.remove(machineId) }
-                .accessibilityIdentifier("machineRemoveConfirm")
-        } message: {
-            Text("Its chats leave the sidebar. Pair it again any time with relay pair.")
-        }
     }
 
     private var rePairButton: some View {

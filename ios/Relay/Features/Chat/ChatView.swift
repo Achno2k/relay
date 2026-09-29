@@ -178,6 +178,16 @@ private struct ChatTranscript: View {
     }
 
     private var messages: [Message] { store.messages(for: agent.id) }
+
+    /// Offline and re-pair machines' agents aren't live and can't be prompted (api.md "Multiple machines").
+    private var offlineReason: String? {
+        guard let machine = store.machine(of: agent.id) else { return nil }
+        switch machine.status {
+        case .offline: return "\(machine.displayName) is offline"
+        case .needsRePair: return "\(machine.displayName) needs re-pairing"
+        case .online, .connecting: return nil
+        }
+    }
     private var items: [ChatItem] {
         var items = ChatItem.build(from: messages)
         items = items.map { item in
@@ -199,8 +209,16 @@ private struct ChatTranscript: View {
         // user has scrolled can be a no-op, which left the ↓ button doing nothing.
         ScrollViewReader { proxy in
             Group {
-                if store.isLoaded(agent.id) {
+                // Unsent prompts show even before the chat has loaded, so a failed one is never hidden.
+                if store.isLoaded(agent.id) || !items.isEmpty {
                     transcript(items, working: working, proxy: proxy)
+                } else if let offlineReason {
+                    // A chat never opened before can't load while its machine is down; say so, not a spinner.
+                    ContentUnavailableView(
+                        "Can't load this chat", systemImage: "wifi.slash",
+                        description: Text("\(offlineReason). Its messages load once it's back.")
+                    )
+                    .accessibilityIdentifier("chatOffline")
                 } else {
                     // The list appears only once there's content, so its first layout already starts at the bottom.
                     ProgressView()
@@ -253,7 +271,8 @@ private struct ChatTranscript: View {
                         },
                         onStop: { store.interrupt(agent.id) },
                         onNewChat: { onNewChat(agent.workspaceId) },
-                        focusRequest: $focusComposer
+                        focusRequest: $focusComposer,
+                        unavailable: offlineReason
                     )
                 }
                 .padding(.horizontal, 12)
