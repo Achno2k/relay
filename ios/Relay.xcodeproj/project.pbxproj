@@ -74,6 +74,7 @@
 		CB03996BB925C88854A25A51 /* SidebarListsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA005D7CFA44FD73D66D7313 /* SidebarListsUITests.swift */; };
 		CEA681B5D4F61D7ACFF1AEC7 /* Round8UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */; };
 		D0CCD89167ACBB59A2D873B6 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3772B7BC9E1856FB2551A9D4 /* AppModel.swift */; };
+		D377964B73A3B54D40269B4E /* Round9LiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 542B25F8ED297554650A550C /* Round9LiveUITests.swift */; };
 		D57124126991A6A518292D1F /* Round9UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3D6F1C42AEEF2E695FFE56 /* Round9UITests.swift */; };
 		D9F56A5EC5FDAD795F5AE47F /* SidebarProjectSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DD0B4E58CE5EF076DAAE12 /* SidebarProjectSection.swift */; };
 		DAD9AA78424A4D9B470B3B1E /* MockBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BB9BE8AFCB5D157451CFC2 /* MockBackend.swift */; };
@@ -143,6 +144,7 @@
 		515A69B4CDFBB0B2067D00BB /* AppDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDefaults.swift; sourceTree = "<group>"; };
 		529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Round8UITests.swift; sourceTree = "<group>"; };
 		53BC0B51B9E3C3E9AF8E1D5A /* NewChatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatTests.swift; sourceTree = "<group>"; };
+		542B25F8ED297554650A550C /* Round9LiveUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Round9LiveUITests.swift; sourceTree = "<group>"; };
 		549A59F3CE162D5619C457F9 /* SidebarFilterMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarFilterMenu.swift; sourceTree = "<group>"; };
 		5560F841C9C3863AB0E4C205 /* SidebarBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarBottomBar.swift; sourceTree = "<group>"; };
 		5C46B068AD3725822084EBA7 /* A11yAuditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = A11yAuditUITests.swift; sourceTree = "<group>"; };
@@ -388,6 +390,7 @@
 				247E5C6385B60B0588E471A5 /* Round2UITests.swift */,
 				B7E8B8A4D17C0BCEE98004CC /* Round3UITests.swift */,
 				529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */,
+				542B25F8ED297554650A550C /* Round9LiveUITests.swift */,
 				0B3D6F1C42AEEF2E695FFE56 /* Round9UITests.swift */,
 				417A0DA3F5D971C8037B3AB9 /* SidebarFilterMenuUITests.swift */,
 				DA005D7CFA44FD73D66D7313 /* SidebarListsUITests.swift */,
@@ -641,6 +644,7 @@
 				3E03058DD86EB9DEE1DA4D9C /* Round2UITests.swift in Sources */,
 				303A3EA21AC18011F2DAAADD /* Round3UITests.swift in Sources */,
 				CEA681B5D4F61D7ACFF1AEC7 /* Round8UITests.swift in Sources */,
+				D377964B73A3B54D40269B4E /* Round9LiveUITests.swift in Sources */,
 				D57124126991A6A518292D1F /* Round9UITests.swift in Sources */,
 				A7E1DA77E629553712BD1336 /* SidebarFilterMenuUITests.swift in Sources */,
 				CB03996BB925C88854A25A51 /* SidebarListsUITests.swift in Sources */,

@@ -124,7 +124,7 @@ final class Round9UITests: XCTestCase {
         XCTAssertTrue(scrollTo(row("mock-vm/w2:p1")))
         row("mock-vm/w2:p1").tap()
         XCTAssertTrue(titleMenu.waitForExistence(timeout: 5))
-        XCTAssertTrue(titleMenu.label.contains("Rotate TLS certificates"), "VM row opened \(titleMenu.label)")
+        XCTAssertTrue(waitFor(titleMenu, "label CONTAINS 'Rotate TLS certificates'"), "VM row opened \(titleMenu.label)")
         send("hello from the vm test")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'This is the mock backend'")).firstMatch
             .waitForExistence(timeout: 10), "no reply in the VM chat")
@@ -199,20 +199,15 @@ final class Round9UITests: XCTestCase {
         cached.tap()
         XCTAssertTrue(titleMenu.waitForExistence(timeout: 5))
         XCTAssertTrue(waitFor(titleMenu, "label CONTAINS 'Rotate TLS certificates'"), "opened \(titleMenu.label)")
-        let field = composer
-        if field.waitForExistence(timeout: 3) && field.isEnabled {
-            field.tap()
-            field.typeText("should not send")
-            let sendButton = app.buttons["Send"]
-            shot("offline-typed")
-            if sendButton.exists && sendButton.isEnabled {
-                sendButton.tap()
-                sleep(3)
-                shot("offline-send")
-                XCTAssertTrue(waitFor(bubble("should not send"), "value == 'not sent'", timeout: 10),
-                              "a prompt to an offline machine didn't fail: \(String(describing: bubble("should not send").value))")
-            }
-        }
+        // R9-3: the banner names the machine as offline, not "Reconnecting…".
+        XCTAssertTrue(app.staticTexts["Mock VM is offline"].waitForExistence(timeout: 5), "no offline banner")
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Reconnecting'")).firstMatch.exists)
+        // R9-2: never loaded, so it says it can't load; the composer is off and says why.
+        XCTAssertTrue(app.descendants(matching: .any)["chatOffline"].waitForExistence(timeout: 5), "no offline state in the chat")
+        let field = app.descendants(matching: .any).matching(NSPredicate(format: "placeholderValue == 'Mock VM is offline'")).firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "composer doesn't say the machine is offline")
+        XCTAssertFalse(field.isEnabled, "composer still takes a prompt for an offline machine")
+        XCTAssertFalse(app.buttons["Send"].exists && app.buttons["Send"].isEnabled)
         shot("offline-chat")
         XCTAssertEqual(app.state, .runningForeground)
     }

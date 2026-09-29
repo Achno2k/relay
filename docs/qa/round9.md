@@ -52,9 +52,9 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
 
 | id | severity | owner | status | title |
 |---|---|---|---|---|
-| R9-1 | P3 | mm-ui | open | Remove-machine confirm popover points at the middle of the form, not at "Remove Machine" |
-| R9-2 | P2 | mm-ui | open | Prompt sent in an offline machine's chat vanishes: no bubble, no error, text gone |
-| R9-3 | P3 | mm-data | open | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
+| R9-1 | P3 | mm-ui | verified (6eabaed): popover points at Remove Machine | Remove-machine confirm popover points at the middle of the form, not at "Remove Machine" |
+| R9-2 | P2 | mm-ui | verified (6eabaed): composer off, 'Mock VM is offline', chatOffline | Prompt sent in an offline machine's chat vanishes: no bubble, no error, text gone |
+| R9-3 | P3 | mm-data | verified (105c653): banner 'Mock VM is offline' | Chat banner says "Reconnecting…" for a machine the menu shows as offline |
 
 Details below, one section per bug: repro, expected, actual, fix, how verified.
 
