@@ -112,7 +112,7 @@ func serve(args []string) error {
 		if ip := config.TailscaleIPv4(); ip != "" {
 			hosts = append(hosts, ip)
 		} else if *requireTailscale {
-			fmt.Println("tailscale ip -4 unavailable; exiting so launchd retries")
+			fmt.Println("tailscale ip -4 unavailable; exiting so launchd or systemd retries")
 			return exitCode(75)
 		} else {
 			fmt.Println("tailscale ip -4 unavailable; listening on 127.0.0.1 only")
