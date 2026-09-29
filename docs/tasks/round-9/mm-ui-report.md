@@ -41,6 +41,11 @@
 - Found on the way, fixed: menu status subtitles didn't render (moved into the title); a double dismiss after Remove closed the whole Machines sheet.
 - Told mm-qa: with `-mockVM` the default chat can be the blocked VM agent, whose approval sheet blocks toolbar taps under `-demo sidebar`; launch with an idle `-agent`. The remove-confirm button matches twice in XCUI (`firstMatch`).
 
+## QA bugs fixed
+- R9-1 (P3): the remove confirm now hangs off the Remove Machine button, not the middle of the form.
+- R9-2 (P2): an offline or re-pair machine's chat can't be prompted. The composer turns off with "<machine> is offline" as its placeholder and keeps any draft. Unsent and failed bubbles show even before the chat has loaded. A chat that never loaded shows "Can't load this chat" instead of a spinner. The composer keys off offline/needsRePair rather than `isLive`, so a short reconnect doesn't lock typing.
+- Commit `6eabaed`. `Round9UITests` `testOfflineAgentCantBePrompted` and `testRemoveMachine` pass; `RelayTests` 169 pass.
+
 ## Notes
 - `SidebarShellUITests.swift` isn't in anyone's round 9 paths. I changed one assertion there because it tested the menu this round replaced.
 - Commits: `e6f0cf2` (usage), `05054b8` (UI).
