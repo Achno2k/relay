@@ -1,7 +1,8 @@
 import RelayKit
 import SwiftUI
 
-/// Subscription usage for Claude and Codex/pi. See api.md "Usage".
+/// Subscription usage for Claude and Codex/pi, one card per subscription across machines. See api.md
+/// "Usage" and "Multiple machines".
 struct UsageView: View {
     @Bindable var store: UsageStore
     @Environment(\.dismiss) private var dismiss
@@ -10,16 +11,22 @@ struct UsageView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    if store.isLoading && store.providers.isEmpty {
+                    let cards = store.cards
+                    if store.isLoading && cards.isEmpty {
                         ProgressView().padding(.top, 60)
-                    } else if store.providers.isEmpty {
+                    } else if cards.isEmpty {
                         ContentUnavailableView(
                             "No usage yet", systemImage: "gauge",
                             description: Text(store.errorMessage ?? "Pull to refresh once the bridge has had a chance to check.")
                         )
                         .padding(.top, 40)
                     } else {
-                        ForEach(store.providers) { UsageProviderCard(provider: $0) }
+                        ForEach(cards) { card in
+                            UsageProviderCard(
+                                provider: card.provider,
+                                machines: store.showsMachines ? card.machineNames : []
+                            )
+                        }
                     }
                 }
                 .padding(16)
@@ -40,6 +47,8 @@ struct UsageView: View {
 
 private struct UsageProviderCard: View {
     let provider: UsageProvider
+    /// The machines on this subscription; empty with only one machine paired.
+    var machines: [String] = []
 
     /// A permanently-unavailable card (e.g. OpenCode Go: no fetch exists, so nothing can go stale) reads
     /// calm and settled, not like a failed check — no dimming, no "Stale" badge, a neutral icon.
@@ -74,6 +83,14 @@ private struct UsageProviderCard: View {
                 }
                 if !provider.usedBy.isEmpty {
                     UsedByRow(usedBy: provider.usedBy)
+                }
+                if !machines.isEmpty {
+                    Label(machines.joined(separator: " · "), systemImage: machines.count > 1 ? "desktopcomputer.and.macbook" : "desktopcomputer")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .labelStyle(.titleAndIcon)
+                        .accessibilityLabel(machines.count > 1 ? "On \(machines.joined(separator: ", "))" : "On \(machines[0])")
+                        .accessibilityIdentifier("usageMachines")
                 }
             }
             Spacer()
