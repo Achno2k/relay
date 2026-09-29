@@ -59,7 +59,8 @@ Mock has two machines: "Mock MacBook Pro" (laptop, macOS) and "Mock VM" (desktop
   - test5 rotated token, then re-pair (L4): pass. Re-pair needed, then online, still 2 machines.
   - test6 rename survives relaunch: pass.
   - test7 migrate while offline (G2): **fail, R9-4**.
-- Not run: L7 (herdr unavailable), L8 (attachment routing).
+- test8 attachment in a Test VM chat (L8): pass. 7881's `uploads/` went 0 → 2 files, 7878's stayed at 4, and the agent read the PDF's word. So VM-keyed calls go to the VM's bridge only (L2 routing too).
+- Not run: L7 (herdr unavailable on one bridge).
 
 ## Bugs
 

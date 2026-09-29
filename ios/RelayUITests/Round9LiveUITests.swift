@@ -195,6 +195,29 @@ final class Round9LiveUITests: XCTestCase {
         shot("live-migrate-rekeyed")
     }
 
+    // MARK: L8: an attachment in a Test VM chat is uploaded to Test VM's bridge
+
+    /// Needs: both bridges up. The runner counts files in each bridge's `uploads/` before and after.
+    func test8AttachmentGoesToTestVM() throws {
+        let word = "R9AT" + String((0..<4).map { _ in "BCDFGHJKLMNPQRSTVWXZ".randomElement()! })
+        app.launchArguments = ["-uitest", "-pair", macLink, "-agent", "\(vm)/\(agent)", "-uitestAttachments", "-testWord", word]
+        app.launch()
+        XCTAssertTrue(composer.waitForExistence(timeout: 20), "composer never appeared")
+        XCTAssertTrue(waitFor(app.buttons["titleMenu"], "exists == true", timeout: 15))
+        app.buttons["composerPlus"].tap()
+        let pdf = app.buttons["Test PDF"]
+        XCTAssertTrue(pdf.waitForExistence(timeout: 5), "no Test PDF in the + menu")
+        pdf.tap()
+        let item = app.descendants(matching: .any).matching(identifier: "trayItem").firstMatch
+        XCTAssertTrue(waitFor(item, "value == 'uploaded'", timeout: 30), "upload never finished")
+        composer.tap()
+        composer.typeText("What is the code word in the attached PDF? Reply with just the word.")
+        app.buttons["Send"].tap()
+        let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", word)).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 120), "the agent never read \(word) through Test VM")
+        shot("live-vm-attachment")
+    }
+
     // MARK: Helpers
 
     private func launch(_ args: [String] = [], sidebar: Bool = true) {
