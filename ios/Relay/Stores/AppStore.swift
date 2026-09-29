@@ -7,6 +7,19 @@ enum ConnectionState: Equatable {
     case connecting, connected, reconnecting
 }
 
+/// The banner above the chat for the machine it's about.
+enum ConnectionNotice: Equatable {
+    case reconnecting
+    case offline(name: String)
+
+    var text: String {
+        switch self {
+        case .reconnecting: "Reconnecting…"
+        case .offline(let name): "\(name) is offline"
+        }
+    }
+}
+
 /// Makes the bridge-facing backend for a pairing: `LiveBackend`, or a mock machine under `-mock`.
 typealias BackendFactory = @MainActor (Pairing) -> any Backend
 
@@ -135,6 +148,14 @@ final class AppStore {
             ?? machineFilter.flatMap(connection(id:))
             ?? connections.first { $0.status == .online }
             ?? connections.first
+    }
+
+    /// What the banner says about the focus machine: nothing while it's fine or needs re-pairing (that has
+    /// its own prompt), "Reconnecting…" while a dropped socket retries, "<name> is offline" once it can't be reached.
+    var connectionNotice: ConnectionNotice? {
+        guard let c = focusConnection, c.status != .needsRePair else { return nil }
+        if c.status == .offline { return .offline(name: c.entry.displayName) }
+        return c.connection == .reconnecting ? .reconnecting : nil
     }
 
     /// The focus machine's socket, for the "Reconnecting…" banner.

@@ -234,7 +234,7 @@ private struct NewChatRequest: Identifiable {
     var workspaceId: String?
 }
 
-/// "Reconnecting…" pill while the socket is down, a sticky re-pair prompt once the token is
+/// "Reconnecting…" (or "<machine> is offline") pill while the socket is down, a sticky re-pair prompt once the token is
 /// rejected, and transient errors otherwise.
 private struct ConnectionBanner: View {
     @Bindable var store: AppStore
@@ -251,8 +251,8 @@ private struct ConnectionBanner: View {
     var body: some View {
         VStack(spacing: 8) {
             // Retrying can't help while the token is rejected; the re-pair prompt says what will.
-            if store.connection == .reconnecting, !store.needsRePairing {
-                Label("Reconnecting…", systemImage: "wifi.exclamationmark")
+            if let notice = store.connectionNotice {
+                Label(notice.text, systemImage: "wifi.exclamationmark")
                     .font(.footnote.weight(.semibold))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -289,7 +289,7 @@ private struct ConnectionBanner: View {
         }
         .padding(.top, 54)
         .padding(.horizontal, 20)
-        .animation(.smooth, value: store.connection)
+        .animation(.smooth, value: store.connectionNotice)
         .animation(.smooth, value: store.errorMessage)
         .animation(.smooth, value: store.needsRePairing)
     }

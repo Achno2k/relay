@@ -412,4 +412,22 @@ struct MachinesTests {
         await store.refresh()
         #expect(store.selectedAgentId == "mac/w1:p1")
     }
+
+    @Test func bannerSaysOfflineForAnOfflineMachineOnly() async throws {
+        let vm = bridge("vm", title: "v")
+        let store = makeStore([connection(bridge("mac", title: "m"), id: "mac"), connection(vm, id: "vm")])
+        await store.refresh()
+        await vm.setFailure(.offline)
+        await store.refresh()
+        store.selectedAgentId = "vm/w1:p1"
+        #expect(store.connectionNotice == .offline(name: "Name vm"))
+        #expect(store.connectionNotice?.text == "Name vm is offline")
+        store.selectedAgentId = "mac/w1:p1"
+        #expect(store.connectionNotice == nil)
+        // A dropped socket that's retrying still reads "Reconnecting…".
+        let mac = try #require(store.connection(id: "mac"))
+        mac.connection = .reconnecting
+        mac.status = .connecting
+        #expect(store.connectionNotice == .reconnecting)
+    }
 }
