@@ -430,4 +430,23 @@ struct MachinesTests {
         mac.status = .connecting
         #expect(store.connectionNotice == .reconnecting)
     }
+
+    @Test func provisionalPairingRetriesUntilTheBridgeIsBack() async throws {
+        let pairings = tempPairings()
+        try pairings.writeLegacy(Pairing(url: URL(string: "http://mac:7878")!, token: "tok"))
+        let record = try #require(pairings.records().first)
+        let mac = bridge("mac-uuid", title: "m")
+        await mac.setFailure(.offline)
+        let store = makeStore([MachineConnection(record: record, raw: mac)], pairings: pairings)
+        store.start()
+        defer { store.stop() }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(store.machines.map(\.status) == [.offline])
+        // The bridge comes up; no foreground, no network change: the retry alone must find it.
+        await mac.setFailure(.none)
+        try await Task.sleep(for: .milliseconds(1500))
+        #expect(store.machines.map(\.id) == ["mac-uuid"])
+        #expect(store.state.agents.map(\.id) == ["mac-uuid/w1:p1"])
+        #expect(pairings.records().map(\.id) == ["mac-uuid"])
+    }
 }

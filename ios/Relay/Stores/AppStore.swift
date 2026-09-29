@@ -240,8 +240,29 @@ final class AppStore {
 
     /// A provisional (migrated) machine opens its socket only once `/machine` has told us its real id.
     private func start(_ c: MachineConnection) {
-        if !c.record.provisional { openSocket(c) }
-        Task { await refresh(c) }
+        if c.record.provisional {
+            retryAdoption(c)
+        } else {
+            openSocket(c)
+            Task { await refresh(c) }
+        }
+    }
+
+    /// A provisional machine has no socket to reconnect it, so nothing else would try it again while its
+    /// bridge is down: ask `/machine` with the socket's backoff (1 s, 2 s … 30 s) until it answers.
+    /// Lives in `eventsTask`, so stop and suspend cancel it like a socket; adoption opens the real socket.
+    private func retryAdoption(_ c: MachineConnection) {
+        c.eventsTask?.cancel()
+        c.eventsTask = Task { [weak self, weak c] in
+            var attempt = 0
+            while !Task.isCancelled {
+                guard let self, let c, c.record.provisional else { return }
+                await self.refresh(c)
+                guard c.record.provisional else { return }
+                try? await Task.sleep(for: WSClient.backoff(attempt: attempt))
+                attempt += 1
+            }
+        }
     }
 
     private func stopSocket(_ c: MachineConnection) {
@@ -265,7 +286,7 @@ final class AppStore {
     }
 
     private func reconnect(_ c: MachineConnection) {
-        guard !c.record.provisional else { return }
+        if c.record.provisional { return retryAdoption(c) }
         c.eventsTask?.cancel()
         c.resyncOnConnect = true
         openSocket(c)
@@ -293,7 +314,7 @@ final class AppStore {
 
     /// The network came back (airplane mode off, Wi-Fi joined): retry now rather than after the backoff.
     func networkBecameAvailable() {
-        for c in connections where c.connection == .reconnecting && !c.suspended && c.eventsTask != nil {
+        for c in connections where (c.connection == .reconnecting || c.record.provisional) && !c.suspended && c.eventsTask != nil {
             reconnect(c)
         }
     }
