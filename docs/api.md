@@ -457,6 +457,7 @@ what's in progress: the assistant prose being written and the tool that's runnin
   - Both go to `null` when the agent stops working. A client should treat that like clearing a scratch
     buffer: stop showing the preview and let the real messages take over.
 - The preview is never persisted and never duplicates transcript text or tool calls.
+- A tool can still be running after its `toolCall` has landed (and `tool` has cleared): pi writes the call when the tool starts, Claude a few seconds in. While the agent is `working`, the last `toolCall` with no `toolResult` yet is the running tool (round 10, for the "Running …" indicator).
 - Only the current turn counts: everything above the user's last prompt on screen is ignored, so a
   previous turn's reply never shows up as live text.
 - The source per kind, read from the pane's visible screen (`agent.read source: visible`; herdr refuses
