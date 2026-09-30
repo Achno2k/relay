@@ -1,5 +1,5 @@
 import Foundation
-import RelayKit
+@testable import RelayKit
 import Testing
 @testable import Relay
 
@@ -69,6 +69,37 @@ struct AwaitingReplyTests {
         store.send("hi", to: agent.id)
         store.interrupt(agent.id)
         #expect(store.awaitingReply[agent.id] == nil)
+    }
+}
+
+/// R10-1: a socket cancelled with a ping in flight calls the pong handler twice; that must not crash.
+@Suite("Round 10: ping")
+struct PingTests {
+    struct Cancelled: Error {}
+
+    @Test func handlerCalledTwiceResumesOnce() async {
+        let ok = await WSClient.pingResult { handler in
+            handler(nil)
+            handler(Cancelled())
+        }
+        #expect(ok)
+    }
+
+    @Test func errorFirstMeansDead() async {
+        let ok = await WSClient.pingResult { handler in
+            handler(Cancelled())
+            handler(nil)
+        }
+        #expect(!ok)
+    }
+
+    @Test func handlersRacingFromTwoThreads() async {
+        for _ in 0..<200 {
+            _ = await WSClient.pingResult { handler in
+                DispatchQueue.global().async { handler(nil) }
+                DispatchQueue.global().async { handler(Cancelled()) }
+            }
+        }
     }
 }
 

@@ -84,14 +84,36 @@ public struct WSClient: Sendable {
                 try await Task.sleep(for: .seconds(10))
                 socket.cancel(with: .abnormalClosure, reason: nil)
             }
-            let ok = await withCheckedContinuation { (c: CheckedContinuation<Bool, Never>) in
-                socket.sendPing { error in c.resume(returning: error == nil) }
-            }
+            let ok = await pingResult(socket.sendPing)
             deadline.cancel()
             if !ok {
                 socket.cancel(with: .abnormalClosure, reason: nil)
                 return
             }
+        }
+    }
+
+    /// Whether one ping got its pong. `sendPing` can call its handler twice when the socket is cancelled
+    /// with a ping in flight (a bridge restart); a checked continuation traps on the second resume (R10-1).
+    static func pingResult(_ sendPing: (@escaping @Sendable ((any Error)?) -> Void) -> Void) async -> Bool {
+        let once = Once()
+        return await withCheckedContinuation { (c: CheckedContinuation<Bool, Never>) in
+            sendPing { error in
+                if once.claim() { c.resume(returning: error == nil) }
+            }
+        }
+    }
+}
+
+/// True for the first caller only.
+final class Once: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    func claim() -> Bool {
+        lock.withLock {
+            defer { claimed = true }
+            return !claimed
         }
     }
 }
