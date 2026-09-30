@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The growing tail of the current assistant reply, shown in place of the pulsing dot while an
+/// The growing tail of the current assistant reply, shown in place of "Thinking…" while an
 /// agent is working and the bridge has streamed some text. Renders in the same markdown style as
 /// a landed `.text` row, and is replaced by the real row with no layout jump once the transcript
 /// message lands (both occupy the same slot at the end of the list).
