@@ -65,6 +65,8 @@ struct ApprovalSheet: View {
                 header
                 MarkdownView(plan)
                     .textSelection(.enabled)
+                    .padding(16)
+                    .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 20))
                     .accessibilityIdentifier("approvalPlan")
             }
             .padding(.horizontal, 24)
