@@ -79,6 +79,10 @@ final class AppStore {
     private(set) var liveSpans: [String: ClosedRange<Date>] = [:]
     /// `reply.live` per agent: the in-progress reply text and the tool running on screen; never persisted.
     private(set) var live = LiveReplies()
+    /// Counts socket agent events. Each agent's last one is stamped in `agentEventStamp` (closed: true for
+    /// `agent.closed`), so a resync whose `/agents` snapshot was taken before a newer event can't undo it (B6).
+    @ObservationIgnored private var agentEvents = 0
+    @ObservationIgnored private var agentEventStamp: [String: (stamp: Int, closed: Bool)] = [:]
     /// Last `reply.live` seq per agent. Not observed: it changes on every frame.
     @ObservationIgnored private var liveReplySeq: [String: Int] = [:]
     var liveReplyText: [String: String] { live.byAgent.compactMapValues(\.text) }
@@ -376,6 +380,16 @@ final class AppStore {
     /// `machineId`: whose socket it came from (usage is per machine); nil means the first machine.
     func apply(_ event: ServerEvent, machineId: String? = nil) {
         let before = selectedAgent?.status
+        switch event {
+        case .agentUpdated(let agent), .agentCreated(let agent):
+            agentEvents += 1
+            agentEventStamp[agent.id] = (agentEvents, false)
+        case .agentClosed(let id):
+            agentEvents += 1
+            agentEventStamp[id] = (agentEvents, true)
+        default:
+            break
+        }
         if case .agentUpdated(let updated) = event {
             dropPendingIfFinished(updated, previous: state.agent(updated.id)?.status)
         }
@@ -458,6 +472,7 @@ final class AppStore {
         }
         let backend = c.backend
         let raw = c.raw
+        let eventsBefore = agentEvents
         do {
             async let identity = raw.machine()
             async let health = try? raw.health()
@@ -473,7 +488,7 @@ final class AppStore {
             }
             c.health = h
             remember(c, machine: info, version: h?.version)
-            merge(agents: a, workspaces: w, of: c)
+            merge(agents: a, workspaces: w, of: c, eventsBefore: eventsBefore)
             if c.status != .online { c.status = c.connection == .connected ? .online : .connecting }
         } catch {
             guard isCurrent() else { return }
@@ -508,7 +523,19 @@ final class AppStore {
 
     /// One machine's fresh agents and workspaces replace its old ones; other machines' stay as they are
     /// (an offline machine's last known agents stay listed). Machine order is kept.
-    private func merge(agents a: [Agent], workspaces w: [Workspace], of c: MachineConnection) {
+    ///
+    /// `eventsBefore`: `agentEvents` when the fetch started. The socket keeps delivering while `/agents` is
+    /// in flight, and the bridge sends `agent.updated` only on a change, never again: an agent the socket
+    /// updated, created or closed since then keeps that newer state instead of the older snapshot. Otherwise a
+    /// `done` landing mid-resync (every foreground) was overwritten by `working` and Stop stuck (B6).
+    private func merge(agents snapshot: [Agent], workspaces w: [Workspace], of c: MachineConnection, eventsBefore: Int = .max) {
+        let newer = agentEventStamp.filter { $0.value.stamp > eventsBefore && c.owns($0.key) }
+        var a = snapshot.compactMap { agent -> Agent? in
+            guard let event = newer[agent.id] else { return agent }
+            return event.closed ? nil : state.agent(agent.id) ?? agent
+        }
+        let listed = Set(a.map(\.id))
+        a += state.agents.filter { newer[$0.id]?.closed == false && !listed.contains($0.id) }
         var s = state
         for agent in a { s.upsert(agent) }  // drops chats whose session changed
         s.agents = connections.flatMap { other in other === c ? a : s.agents.filter { other.owns($0.id) } }

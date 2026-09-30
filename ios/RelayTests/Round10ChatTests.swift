@@ -72,6 +72,64 @@ struct AwaitingReplyTests {
     }
 }
 
+/// B6: a resync's `/agents` snapshot, taken before a newer socket event, must not undo it.
+@MainActor
+@Suite("Round 10: resync vs socket")
+struct ResyncRaceTests {
+    private func agent(_ id: String, _ status: AgentStatus) -> Agent {
+        Agent(
+            id: id, name: nil, kind: "codex", title: "Test agent", workspaceId: "w1", workspaceName: "shop-api",
+            cwdName: "shop-api", status: status, hasTranscript: true, updatedAt: .now
+        )
+    }
+
+    /// Starts a resync whose `/agents` answer (`snapshot`) arrives late, runs `during` while it's in flight.
+    private func resync(_ store: AppStore, _ backend: ProgrammableBackend, snapshot: [Agent], during: () -> Void) async throws {
+        await backend.r10SetAgents(snapshot, delay: .milliseconds(150))
+        let refresh = Task { await store.refresh() }
+        try await Task.sleep(for: .milliseconds(40))
+        during()
+        await refresh.value
+    }
+
+    @Test func doneDuringResyncSticks() async throws {
+        let backend = ProgrammableBackend()
+        let store = AppStore(backend: backend, hostLabel: "test")
+        store.apply(.agentUpdated(agent("w1:p5", .working)))
+        try await resync(store, backend, snapshot: [agent("w1:p5", .working)]) {
+            store.apply(.agentUpdated(agent("w1:p5", .done)))
+        }
+        #expect(store.state.agent("w1:p5")?.status == .done, "the older snapshot must not bring Stop back")
+    }
+
+    @Test func closedAndCreatedDuringResyncStick() async throws {
+        let backend = ProgrammableBackend()
+        let store = AppStore(backend: backend, hostLabel: "test")
+        store.apply(.agentUpdated(agent("w1:p1", .idle)))
+        try await resync(store, backend, snapshot: [agent("w1:p1", .idle)]) {
+            store.apply(.agentClosed(agentId: "w1:p1"))
+            store.apply(.agentCreated(agent("w1:p9", .idle)))
+        }
+        #expect(store.state.agents.map(\.id) == ["w1:p9"])
+    }
+
+    @Test func snapshotStillWinsWithoutNewerEvents() async throws {
+        let backend = ProgrammableBackend()
+        let store = AppStore(backend: backend, hostLabel: "test")
+        store.apply(.agentUpdated(agent("w1:p5", .working)))
+        try await resync(store, backend, snapshot: [agent("w1:p5", .done), agent("w1:p6", .idle)]) {}
+        #expect(store.state.agent("w1:p5")?.status == .done)
+        #expect(store.state.agents.map(\.id) == ["w1:p5", "w1:p6"])
+    }
+}
+
+extension ProgrammableBackend {
+    func r10SetAgents(_ agents: [Agent], delay: Duration?) {
+        agentsToReturn = agents
+        agentsDelay = delay
+    }
+}
+
 /// B7: the plan from plan mode, on the wire and in the chat.
 @Suite("Round 10: plans and edits")
 struct PlanItemTests {
