@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"relay/internal/api"
+	"relay/internal/files"
 	"relay/internal/herdr"
 )
 
@@ -37,7 +38,10 @@ func (stubBackend) Upload(context.Context, string, []byte, string) (api.Attachme
 	return api.Attachment{}, errUnused
 }
 func (stubBackend) FindUpload(string) (string, bool) { return "", false }
-func (stubBackend) Catalog() api.Controls            { return api.Controls{} }
+func (stubBackend) File(context.Context, string, string) (files.Result, error) {
+	return files.Result{}, errUnused
+}
+func (stubBackend) Catalog() api.Controls { return api.Controls{} }
 func (stubBackend) KindControls(string) (api.AgentControls, error) {
 	return api.AgentControls{}, errUnused
 }

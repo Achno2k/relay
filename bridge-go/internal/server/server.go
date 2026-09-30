@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"relay/internal/api"
+	"relay/internal/files"
 	"relay/internal/herdr"
 	"relay/internal/transcript"
 	"relay/internal/uploads"
@@ -49,6 +50,8 @@ type Backend interface {
 	Upload(ctx context.Context, id string, data []byte, filename string) (api.Attachment, error)
 	// FindUpload returns the stored file for an attachment id, across all agents.
 	FindUpload(attachmentID string) (path string, ok bool)
+	// File reads a cwd-relative file of the agent's project (GET /agents/:id/file).
+	File(ctx context.Context, id, path string) (files.Result, error)
 	Catalog() api.Controls
 	KindControls(kind string) (api.AgentControls, error)
 	Controls(ctx context.Context, id string) (api.AgentControls, error)
@@ -331,6 +334,26 @@ func (s *Server) agentRoute(w http.ResponseWriter, r *http.Request, rawID string
 
 	case len(rest) == 1 && sub == "attachments" && post:
 		return s.upload(w, r, rawID)
+
+	case len(rest) == 1 && sub == "file" && get:
+		id, err := agentID(rawID)
+		if err != nil {
+			return err
+		}
+		res, err := b.File(ctx, id, r.URL.Query().Get("path"))
+		if err != nil {
+			return err
+		}
+		if res.Text != nil {
+			return writeJSON(w, http.StatusOK, res.Text)
+		}
+		h := w.Header()
+		h.Set("Content-Type", res.ContentType)
+		h.Set("Content-Length", strconv.Itoa(len(res.Image)))
+		h.Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(res.Image)
+		return nil
 
 	case len(rest) == 2 && sub == "attachments" && get:
 		if _, err := agentID(rawID); err != nil {

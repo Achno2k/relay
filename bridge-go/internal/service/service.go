@@ -22,6 +22,7 @@ import (
 	"relay/internal/api"
 	"relay/internal/approval"
 	"relay/internal/controls"
+	"relay/internal/files"
 	"relay/internal/herdr"
 	"relay/internal/server"
 	"relay/internal/transcript"
@@ -549,6 +550,15 @@ func (s *Service) Upload(ctx context.Context, id string, data []byte, filename s
 }
 
 func (s *Service) FindUpload(attachmentID string) (string, bool) { return s.uploads.Find(attachmentID) }
+
+// File reads a file inside the agent's cwd; see api.md "Files".
+func (s *Service) File(ctx context.Context, id, path string) (files.Result, error) {
+	a, err := s.herdr.Agent(ctx, id)
+	if err != nil {
+		return files.Result{}, err
+	}
+	return files.Read(a.CwdOrForeground(), path)
+}
 
 // SendKeys: a stop (`["esc"]`) makes Claude put the interrupted prompt back in the input box;
 // clear it.

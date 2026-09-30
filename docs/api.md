@@ -214,9 +214,9 @@ Round 10. The app shows a file the agent read or changed ("tap files in chat"). 
   - Cap 1 MB: a larger file gives its first 1 MB, cut back to the last newline (or a UTF-8 boundary), with `truncated: true`. `size` is always the size on disk.
   - `content` is the file as it is on disk, not scrubbed: it's the user's own project file. The path in the response is still cwd-relative only.
   - `language` is a lowercase hint from the extension (or the name: `Dockerfile`, `Makefile`), left out when unknown. The app uses it for highlighting only.
-- Images (`png`, `jpg`/`jpeg`, `gif`, `webp`, `heic`, `bmp`, `tiff`, by extension, checked against the file's magic bytes): `200` with the raw bytes and their `Content-Type` (e.g. `image/png`). Cap 20 MB: `413 too_large`. `svg` is text.
+- Images (`png`, `jpg`/`jpeg`, `gif`, `webp`, `heic`, `bmp`, `tiff`, by extension, checked against the file's magic bytes): `200` with the raw bytes and their `Content-Type` (e.g. `image/png`), `Cache-Control: no-store`. Cap 20 MB: `413 too_large`. `svg` is text. An image extension whose bytes don't match is treated like any other file (text if it's text, else `415`).
 - Anything else that isn't text: `415 unsupported`.
-- Clients tell the two `200` shapes apart by `Content-Type` (`application/json` vs `image/*`).
+- Clients tell the two `200` shapes apart by `Content-Type` (starts with `application/json` vs `image/`).
 
 ## Tool call files and edits
 
