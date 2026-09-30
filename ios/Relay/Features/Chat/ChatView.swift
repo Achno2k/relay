@@ -260,7 +260,7 @@ private struct ChatTranscript: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 10) {
                     if agent.status == .blocked, let approval = store.approval, approval.agentId == agent.id {
-                        ApprovalCard(question: approval.question) { store.isApprovalSheetPresented = true }
+                        ApprovalCard(approval: approval) { store.isApprovalSheetPresented = true }
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     ComposerView(
@@ -405,6 +405,8 @@ private struct ChatTranscript: View {
             StoppedMarker()
         case .live(_, let markdown):
             LiveReplyView(markdown: markdown)
+        case .plan(_, let markdown):
+            PlanCard(markdown: markdown, expanded: LaunchOptions.current.isDemo("plan"))
         case .tools(_, let steps, let messageIds):
             ToolGroupView(
                 steps: steps,

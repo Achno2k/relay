@@ -25,10 +25,13 @@ enum ChatItem: Identifiable, Hashable {
     case stopped(id: String)
     /// The in-progress reply from `reply.live`, until the transcript's text lands.
     case live(id: String, markdown: String)
+    /// Claude's plan from an `ExitPlanMode` call, right after the tool group it's in.
+    case plan(id: String, markdown: String)
 
     var id: String {
         switch self {
-        case .user(let id, _, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id), .live(let id, _): id
+        case .user(let id, _, _, _), .text(let id, _), .thinking(let id, _), .tools(let id, _, _), .stopped(let id),
+             .live(let id, _), .plan(let id, _): id
         }
     }
 
@@ -89,11 +92,15 @@ enum ChatItem: Identifiable, Hashable {
         var steps: [ToolStep] = []
         var stepMessages: [String] = []
         var groupId: String?
+        /// Plans wait for their group to close, so a plan never splits a run of tools.
+        var plans: [ChatItem] = []
 
         func flush() {
             if let groupId, !steps.isEmpty {
                 items.append(.tools(id: groupId, steps: steps, messageIds: stepMessages))
             }
+            items += plans
+            plans = []
             steps = []
             stepMessages = []
             groupId = nil
@@ -127,6 +134,9 @@ enum ChatItem: Identifiable, Hashable {
                 case .toolCall(let call):
                     if groupId == nil { groupId = blockId }
                     if !stepMessages.contains(message.id) { stepMessages.append(message.id) }
+                    if let plan = call.plan, !plan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        plans.append(.plan(id: "plan-\(call.id)", markdown: plan))
+                    }
                     steps.append(ToolStep(
                         id: call.id, name: call.name, summary: call.summary, isError: false, preview: nil, finished: false,
                         path: call.path, edit: call.edit, plan: call.plan

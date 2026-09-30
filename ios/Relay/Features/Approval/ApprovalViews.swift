@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Bottom sheet with one full-width glass button per option, sized to its content.
 /// A free-text option ("Type something.") swaps the buttons for a text field.
+/// A plan (Claude's ExitPlanMode) opens it tall: the plan scrolls, the options stay pinned below it.
 struct ApprovalSheet: View {
     let approval: Approval
     let agentTitle: String
@@ -13,33 +14,71 @@ struct ApprovalSheet: View {
     @State private var answer = ""
     @FocusState private var answerFocused: Bool
 
+    private var plan: String? {
+        guard let plan = approval.plan, !plan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return plan
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                header
-                if let option = freeTextOption {
-                    freeTextField(option)
-                } else {
-                    VStack(spacing: 10) {
-                        ForEach(Array(approval.options.enumerated()), id: \.offset) { i, option in
-                            optionButton(option, prominent: i == 0)
-                        }
+        Group {
+            if let plan {
+                planLayout(plan)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        header
+                        answers
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 28)
+                    .padding(.bottom, 12)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
                 }
+                .scrollBounceBehavior(.basedOnSize)
+                .presentationDetents([.height(height)])
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 28)
-            .padding(.bottom, 12)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents([.height(height)])
         .presentationDragIndicator(.visible)
         .animation(.smooth, value: freeTextOption)
         .onChange(of: approval) {
             freeTextOption = nil
             answer = ""
         }
+    }
+
+    @ViewBuilder
+    private var answers: some View {
+        if let option = freeTextOption {
+            freeTextField(option)
+        } else {
+            VStack(spacing: 10) {
+                ForEach(Array(approval.options.enumerated()), id: \.offset) { i, option in
+                    optionButton(option, prominent: i == 0)
+                }
+            }
+        }
+    }
+
+    private func planLayout(_ plan: String) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                MarkdownView(plan)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("approvalPlan")
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 12)
+        }
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            answers
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+        }
+        .presentationDetents([.large])
     }
 
     private var header: some View {
@@ -143,8 +182,10 @@ struct ApprovalSheet: View {
 
 /// Inline card above the composer that reopens the sheet.
 struct ApprovalCard: View {
-    let question: String
+    let approval: Approval
     let action: () -> Void
+
+    private var hasPlan: Bool { !(approval.plan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         Button(action: action) {
@@ -154,9 +195,9 @@ struct ApprovalCard: View {
                     .frame(width: 32, height: 32)
                     .background(.orange.opacity(0.15), in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Needs your approval")
+                    Text(hasPlan ? "Review the plan" : "Needs your approval")
                         .font(.subheadline.weight(.semibold))
-                    Text(MarkdownParser.inline(question, codeBackground: Color(.quaternarySystemFill)))
+                    Text(MarkdownParser.inline(approval.question, codeBackground: Color(.quaternarySystemFill)))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
