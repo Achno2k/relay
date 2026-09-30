@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -294,7 +295,7 @@ func (s *Service) rememberCreated(paneID, kind string) {
 func title(a herdr.Agent) string {
 	scrub := transcript.NewScrubber(a.Cwd)
 	for _, t := range []string{a.TerminalTitleStripped, a.Title} {
-		if t = strings.Trim(t, " \t"); t != "" {
+		if t = stableTitle(strings.Trim(t, " \t")); t != "" {
 			return scrub.Scrub(t)
 		}
 	}
@@ -305,6 +306,17 @@ func title(a herdr.Agent) string {
 		return a.Agent
 	}
 	return a.PaneID
+}
+
+// codexTitleChrome is what codex animates in its terminal title: a braille spinner while working,
+// and a blinking `[ ! ]` / `[ . ] Action Required | ` while blocked. Status carries both, and
+// keeping them would send an agent.updated per animation frame.
+var codexTitleChrome = regexp.MustCompile(`^(?:[\x{2800}-\x{28FF}⁖⁘⁙⁚⁛⸪⸫⸬⸭]\s+|\[ [!.] \] Action Required \|\s*)+`)
+
+func stableTitle(t string) string {
+	t = strings.TrimSpace(codexTitleChrome.ReplaceAllString(t, ""))
+	// A codex session with no name yet: `<spinner> | <cwd>`.
+	return strings.TrimSpace(strings.TrimPrefix(t, "| "))
 }
 
 // firstSeen is when the bridge first saw this pane's agent (bridge start for agents that were
