@@ -12,6 +12,8 @@ public protocol Backend: Sendable {
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> Attachment
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data
+    /// `GET /agents/:id/file`: a file inside the agent's project, by cwd-relative path.
+    func file(agentId: String, path: String) async throws -> AgentFile
     func machine() async throws -> Machine
     /// `GET /health`: version and herdr state.
     func health() async throws -> Health
@@ -40,6 +42,10 @@ public protocol Backend: Sendable {
 public extension Backend {
     /// Test doubles that don't care about `/health`.
     func health() async throws -> Health { Health(ok: true) }
+    /// Test doubles that don't serve files.
+    func file(agentId: String, path: String) async throws -> AgentFile {
+        throw RelayError.http(status: 404, code: "not_found", message: nil)
+    }
 }
 
 public struct LiveBackend: Backend {
@@ -67,6 +73,9 @@ public struct LiveBackend: Backend {
     }
     public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
         try await client.attachmentData(agentId: agentId, attachmentId: attachmentId)
+    }
+    public func file(agentId: String, path: String) async throws -> AgentFile {
+        try await client.file(agentId: agentId, path: path)
     }
     public func machine() async throws -> Machine { try await client.machine() }
     public func health() async throws -> Health { try await client.health() }
