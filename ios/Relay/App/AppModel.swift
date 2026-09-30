@@ -24,6 +24,8 @@ struct LaunchOptions {
     var resetTestState = false
     /// `-mockVM`: a second mock machine, "Mock VM".
     var mockVM = false
+    /// `-mockPlan`: w1:p2 is blocked on a plan approval and its chat ends with ExitPlanMode (B7, MockPlan).
+    var mockPlan = false
     /// `-mockOffline <machineId>`: that mock machine starts offline.
     var mockOffline: String?
     /// `-mockOnlineAfter <seconds>`: the `-mockOffline` machine comes back after that long.
@@ -51,6 +53,7 @@ struct LaunchOptions {
         isUITest = arguments.contains("-uitest")
         resetTestState = arguments.contains("-resetSidebar")
         mockVM = arguments.contains("-mockVM")
+        mockPlan = arguments.contains("-mockPlan")
         mockOffline = value("-mockOffline")
         mockOnlineAfter = value("-mockOnlineAfter").flatMap(Double.init)
         if let id = value("-mockDrop"), let after = value("-mockDrop", 2).flatMap(Double.init) { mockDrop = (id, after) }

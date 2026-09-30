@@ -41,6 +41,7 @@ actor MockBackend: Backend {
             workspaceList = fixtures.workspaces + MockSidebar.workspaces
             MockSidebar.markCompletedSeen(agentList, machineId: profile.machine.id)
             approvals = fixtures.approval.map { [$0.agentId: Self.extended($0)] } ?? [:]
+            if LaunchOptions.current.mockPlan { approvals[MockPlan.agentId] = MockPlan.approval }
             replay = fixtures.events
             self.replayInterval = replayInterval
             chats = MockChats.all(fixtureMessages: fixtures.messages)
