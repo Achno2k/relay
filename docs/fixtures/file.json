@@ -1,0 +1,1 @@
+{"path":"src/auth.py","content":"import functools\n\n\n@functools.cache\ndef read_token():\n    with open(TOKEN_PATH) as f:\n        return f.read().strip()\n","size":112,"truncated":false,"language":"python"}
