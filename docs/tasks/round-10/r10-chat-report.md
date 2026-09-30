@@ -36,11 +36,12 @@ Branch `r10/chat`. Commits in pick order:
 - Only two paths write an agent's status: socket `agent.updated`, and `refresh()` → `merge()`. The `control()` and `createAgent` responses also upsert, but neither can bring back `working` (the bridge refuses controls while working). Messages, live reply, pending sends and awaiting-reply never touch status.
 - Foreground can't hit the race. On `.connected`, `handle()` awaits the resync inside the socket's event loop, so later socket events wait for its merge. `refreshGeneration` drops the other, slower resync. That's why r10-qa couldn't reproduce it on master.
 - Cold launch can. `start()` resyncs without holding socket events (`resyncOnConnect` is false), so a `done` arriving during the first `/agents` is overwritten. Pull to refresh on the Usage page is the same, but rarer. `25b2fcb` covers both.
-- Status: fix in, reachable path identified; end-to-end proof pending r10-qa's cold-launch repro.
+- Verified by r10-qa: on a cold launch with `/agents` held, Stop sticks on master and clears with `25b2fcb`.
 
 ## R10-1: crash when the socket dies (r10-qa, P1)
 - `sendPing` can call its pong handler twice when the socket is cancelled with a ping in flight. The checked continuation resumed twice and trapped (it hit on bridge restarts).
 - `WSClient.pingResult` resumes once, guarded by a lock. `PingTests` call the handler twice in both orders, plus 200 two-thread races.
+- Verified by r10-qa: master crashes after background, bridge restart, foreground; the fixed build ran it 8 times with no crash.
 
 ## B7: plan
 - `ChatItem.plan` goes after the tool group holding `ExitPlanMode`. It never splits the group, so the call's result still lands.
