@@ -124,9 +124,15 @@ private struct ToolStepRow: View {
     let isLast: Bool
     let isLive: Bool
     @State private var showPreview = false
+    @Environment(\.openFile) private var openFile
 
     /// Error previews always show; only a togglable preview needs a tap affordance.
     private var isToggleable: Bool { !step.isError && !(step.preview ?? "").isEmpty }
+
+    /// A Read/Write/Edit row opens the file viewer instead; its output moves to the context menu.
+    private var file: FileRequest? { openFile == nil ? nil : FileRequest(step: step) }
+
+    private var fileHint: String { file?.change != nil ? "Double tap to show the changes" : "Double tap to open the file" }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -150,6 +156,12 @@ private struct ToolStepRow: View {
                     if !step.finished && isLive {
                         ProgressView().controlSize(.mini).accessibilityHidden(true)
                     }
+                    if file != nil {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                    }
                 }
                 if showPreview || step.isError, let preview = step.preview, !preview.isEmpty {
                     Text(preview)
@@ -166,12 +178,28 @@ private struct ToolStepRow: View {
         }
         .contentShape(.rect)
         .onTapGesture {
-            guard isToggleable else { return }
-            withAnimation(.snappy) { showPreview.toggle() }
+            if let file, let openFile {
+                openFile(file)
+            } else if isToggleable {
+                withAnimation(.snappy) { showPreview.toggle() }
+            }
+        }
+        .contextMenu {
+            if let file, let openFile {
+                Button(file.change != nil ? "Show Changes" : "Open File", systemImage: "doc.text") { openFile(file) }
+                if isToggleable {
+                    Button(showPreview ? "Hide Output" : "Show Output", systemImage: "text.alignleft") {
+                        withAnimation(.snappy) { showPreview.toggle() }
+                    }
+                }
+            }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isToggleable ? .isButton : [])
-        .accessibilityHint(isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : "")
+        .accessibilityAddTraits(file != nil || isToggleable ? .isButton : [])
+        .accessibilityHint(
+            file != nil ? fileHint : isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : ""
+        )
+        .accessibilityIdentifier(file != nil ? "toolStepFile" : "toolStep")
     }
 }
 

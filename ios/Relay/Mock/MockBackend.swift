@@ -160,6 +160,12 @@ actor MockBackend: Backend {
         return upload.data
     }
 
+    func file(agentId: String, path: String) async throws -> AgentFile {
+        try check()
+        try await Task.sleep(for: latency)
+        return try MockFiles.file(path)
+    }
+
     func prompt(agentId: String, text: String, attachments: [String]) async throws {
         try check()
         if text.lowercased().hasPrefix("unsent"), failedOnce.insert(text).inserted {

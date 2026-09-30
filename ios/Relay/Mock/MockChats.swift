@@ -25,7 +25,7 @@ enum MockChats {
             .thinking("Flaky 1 in 5 smells like ordering or time. Look at the fixtures first."),
             .toolCall(ToolCall(id: "f-t1", name: "Glob", summary: "Found tests/checkout/**/*.py")),
             .toolResult(ToolResult(toolCallId: "f-t1", isError: false, preview: "tests/checkout/test_cart.py\ntests/checkout/test_pay.py")),
-            .toolCall(ToolCall(id: "f-t2", name: "Read", summary: "Read tests/checkout/conftest.py")),
+            .toolCall(ToolCall(id: "f-t2", name: "Read", summary: "Read tests/checkout/conftest.py", path: "tests/checkout/conftest.py")),
             .toolResult(ToolResult(toolCallId: "f-t2", isError: false, preview: "@pytest.fixture\ndef cart(db): ...")),
             .text("""
             The `cart` fixture shares one database row across tests, and `test_pay.py` mutates it. \
@@ -33,7 +33,10 @@ enum MockChats {
 
             I'll give each test its own cart and run the suite a few times to confirm.
             """),
-            .toolCall(ToolCall(id: "f-t3", name: "Edit", summary: "Edited tests/checkout/conftest.py")),
+            .toolCall(ToolCall(
+                id: "f-t3", name: "Edit", summary: "Edited tests/checkout/conftest.py",
+                path: "tests/checkout/conftest.py", edit: MockFiles.conftestEdit
+            )),
             .toolResult(ToolResult(toolCallId: "f-t3", isError: false, preview: "The file tests/checkout/conftest.py has been updated.")),
         ]),
     ]
@@ -46,7 +49,10 @@ enum MockChats {
                 .text("Tweak \(i + 1): tighten the spacing in section \(i % 5 + 1)."),
             ]),
             Message(id: "h\(i)a", role: .assistant, createdAt: at(minutes - 1), blocks: [
-                .toolCall(ToolCall(id: "h\(i)t", name: "Edit", summary: "Edited src/styles/section\(i % 5 + 1).css")),
+                .toolCall(ToolCall(
+                    id: "h\(i)t", name: "Edit", summary: "Edited src/styles/section\(i % 5 + 1).css",
+                    path: "src/styles/section\(i % 5 + 1).css", edit: MockFiles.sectionEdit
+                )),
                 .toolResult(ToolResult(toolCallId: "h\(i)t", isError: false, preview: "Updated.")),
                 .text(i % 3 == 0
                     ? "Reduced the gap from `48px` to `32px` and aligned the heading baseline.\n\n- Mobile keeps `24px`\n- Desktop uses the new token\n\n```css\n.section-\(i % 5 + 1) {\n  gap: var(--space-8);\n  padding-block: var(--space-12);\n}\n```\n\nThe hero and footer already used the token, so nothing else changed. I checked the page at 375, 768 and 1280 pixels wide and the rhythm is consistent now. If you want the tighter spacing on the pricing table as well, say so and I'll apply the same change there."
@@ -60,10 +66,17 @@ enum MockChats {
             .text("Make the hero headline shorter and swap the CTA to \"Start free\"."),
         ]),
         Message(id: "l2", role: .assistant, createdAt: at(89), blocks: [
-            .toolCall(ToolCall(id: "l-t1", name: "Read", summary: "Read src/components/Hero.tsx")),
+            .toolCall(ToolCall(id: "l-t1", name: "Read", summary: "Read src/components/Hero.tsx", path: "src/components/Hero.tsx")),
             .toolResult(ToolResult(toolCallId: "l-t1", isError: false, preview: "export function Hero() {")),
-            .toolCall(ToolCall(id: "l-t2", name: "Edit", summary: "Edited src/components/Hero.tsx")),
-            .toolResult(ToolResult(toolCallId: "l-t2", isError: false, preview: "The file src/components/Hero.tsx has been updated.")),
+            .toolCall(ToolCall(id: "l-t3", name: "Read", summary: "Read assets/hero.png", path: "assets/hero.png")),
+            .toolResult(ToolResult(toolCallId: "l-t3", isError: false, preview: "[image]")),
+            .toolCall(ToolCall(
+                id: "l-t2", name: "MultiEdit", summary: "Edited src/components/Hero.tsx",
+                path: "src/components/Hero.tsx", edit: MockFiles.heroEdit
+            )),
+            .toolResult(ToolResult(toolCallId: "l-t2", isError: false, preview: "Applied 2 edits to src/components/Hero.tsx")),
+            .toolCall(ToolCall(id: "l-t4", name: "Read", summary: "Read README.md", path: "README.md")),
+            .toolResult(ToolResult(toolCallId: "l-t4", isError: false, preview: "# Storefront")),
             .text("""
             ## Done
 
@@ -84,6 +97,8 @@ enum MockChats {
         Message(id: "p2", role: .assistant, createdAt: at(25), blocks: [
             .toolCall(ToolCall(id: "p-t1", name: "bash", summary: "Ran git rm -r docs/legacy")),
             .toolResult(ToolResult(toolCallId: "p-t1", isError: false, preview: "rm 'docs/legacy/intro.md'")),
+            .toolCall(ToolCall(id: "p-t2", name: "Edit", summary: "Edited 2 files", edit: MockFiles.legacyDiff)),
+            .toolResult(ToolResult(toolCallId: "p-t2", isError: false, preview: "M docs/index.md\nM mkdocs.yml")),
             .text("Removed 6 pages from `docs/legacy` and fixed the two links that pointed at them."),
         ]),
     ]

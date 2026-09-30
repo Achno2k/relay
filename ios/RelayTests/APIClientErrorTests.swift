@@ -11,6 +11,7 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         var data = Data()
         var statusCode = 200
         var transportError: URLError.Code?
+        var contentType = "application/json"
     }
 
     private static let lock = NSLock()
@@ -45,7 +46,7 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         }
         let response = HTTPURLResponse(
             url: request.url!, statusCode: stub.statusCode, httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
+            headerFields: ["Content-Type": stub.contentType]
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: stub.data)
