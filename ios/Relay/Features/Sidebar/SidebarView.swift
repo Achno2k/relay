@@ -51,17 +51,26 @@ struct SidebarView: View {
                     title: "Results", agents: sidebar.sessions(.all, query: query),
                     emptyText: "No chats match \u{201C}\(query)\u{201D}.", store: store, onSelect: onSelect
                 )
+                .environment(\.sidebarLeadsList, true)
             } else if store.filter == .all {
+                // Whichever of these comes first sits right under the title, without the gap between cards (B1).
+                let grouped = sidebar.grouped()
+                let noticesLead = !SidebarMachineNotices.down(in: store).isEmpty
+                let nowLeads = !noticesLead && !grouped.now.isEmpty
                 SidebarMachineNotices(store: store) { showMachines = true }
+                    .environment(\.sidebarLeadsList, noticesLead)
                 SidebarNowCard(store: store, onSelect: onSelect)
-                ForEach(sidebar.grouped().sections) { section in
+                    .environment(\.sidebarLeadsList, nowLeads)
+                ForEach(grouped.sections) { section in
                     SidebarProjectSection(store: store, section: section, onSelect: onSelect, onNewChat: { onNewChat($0) })
+                        .environment(\.sidebarLeadsList, !noticesLead && !nowLeads && section.id == grouped.sections.first?.id)
                 }
             } else {
                 SidebarSessionList(
                     title: store.filter.title, agents: sidebar.sessions(store.filter),
                     emptyText: emptyText, store: store, onSelect: onSelect
                 )
+                .environment(\.sidebarLeadsList, true)
             }
         }
         .listStyle(.insetGrouped)

@@ -1,9 +1,7 @@
 import RelayKit
-import PhotosUI
 import SwiftUI
-import UniformTypeIdentifiers
 
-/// Floating glass composer: `+` menu (attachments, new chat), growing field with an attachment tray,
+/// Floating glass composer: `+` (a sheet with attachments and new chat, see AttachmentSheet), growing field with an attachment tray,
 /// and a send button that morphs into stop.
 struct ComposerView: View {
     @Binding var text: String
@@ -24,10 +22,7 @@ struct ComposerView: View {
     @FocusState private var focused: Bool
     @Namespace private var glass
     @State private var sends = 0
-    @State private var showPhotos = false
-    @State private var photoItems: [PhotosPickerItem] = []
-    @State private var showFiles = false
-    @State private var showCamera = false
+    @State private var showPlus = false
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var hasAttachments: Bool { !(attachments?.isEmpty ?? true) }
@@ -73,64 +68,22 @@ struct ComposerView: View {
             focused = true
             focusRequest.wrappedValue = false
         }
-        .photosPicker(
-            isPresented: $showPhotos, selection: $photoItems,
-            maxSelectionCount: max(1, attachments?.remainingSlots ?? 1), matching: .images
+        .composerPlusSheet(
+            isPresented: $showPlus, attachments: attachments,
+            newChatTitle: workspaceName.map { "New chat in \($0)" } ?? "New chat", onNewChat: onNewChat
         )
-        .onChange(of: photoItems) { _, items in
-            guard !items.isEmpty else { return }
-            photoItems = []
-            loadPhotos(items)
-        }
-        .fileImporter(
-            isPresented: $showFiles,
-            allowedContentTypes: [.image, .pdf, .plainText, .sourceCode, .json, .data],
-            allowsMultipleSelection: true
-        ) { result in
-            if case .success(let urls) = result { attachments?.add(files: urls) }
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraPicker { image in
-                if let data = image.jpegData(compressionQuality: 0.95) {
-                    attachments?.add(data: data, name: "photo.jpg", type: .jpeg)
-                }
-            }
-            .ignoresSafeArea()
-        }
     }
 
     private var plusMenu: some View {
-        Menu {
-            if attachments != nil {
-                Section {
-                    Button { showPhotos = true } label: { Label("Photos", systemImage: "photo.on.rectangle") }
-                    Button { showCamera = true } label: { Label("Camera", systemImage: "camera") }
-                        .disabled(!CameraPicker.isAvailable)
-                    Button { showFiles = true } label: { Label("Files", systemImage: "folder") }
-                }
-                #if DEBUG
-                if LaunchOptions.current.testAttachments {
-                    Section("Test files") {
-                        Button("Test image (RELAY)") { attachments?.add(data: TestAttachments.relayImage(), name: "relay.png", type: .png) }
-                        Button("Test PDF") { attachments?.add(data: TestAttachments.codewordPDF(), name: "codeword.pdf", type: .pdf) }
-                    }
-                }
-                #endif
-            }
-            Section {
-                Button {
-                    onNewChat()
-                } label: {
-                    Label(workspaceName.map { "New chat in \($0)" } ?? "New chat", systemImage: "plus.bubble")
-                }
-            }
+        Button {
+            showPlus = true
         } label: {
             Image(systemName: "plus")
                 .font(.title3.weight(.regular))
                 .frame(width: 48, height: 48)
                 .contentShape(.circle)
         }
-        .tint(.primary)
+        .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
         .accessibilityLabel("Add")
         .accessibilityIdentifier("composerPlus")
@@ -168,16 +121,6 @@ struct ComposerView: View {
             .glassEffectID("action", in: glass)
             .disabled(!canSend)
             .accessibilityLabel("Send")
-        }
-    }
-
-    private func loadPhotos(_ items: [PhotosPickerItem]) {
-        for (i, item) in items.enumerated() {
-            Task {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                let type = item.supportedContentTypes.first { $0.conforms(to: .image) } ?? .jpeg
-                attachments?.add(data: data, name: "photo-\(i + 1).\(type.preferredFilenameExtension ?? "jpg")", type: type)
-            }
         }
     }
 }
