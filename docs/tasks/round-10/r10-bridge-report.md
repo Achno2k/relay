@@ -52,7 +52,7 @@ Branch `r10/bridge`. Go bridge only (`bridge-go/`); the Swift `bridge/` is untou
   - Once, a final "• done" came out as `tool {name: Tool, summary: done}`; I couldn't reproduce it after a sender collision.
 
   Low impact: B3's shimmer would say "Running…" for a moment.
-- pi never sent a live `tool` frame. That's by design: the tracker drops a live tool once its `toolCall` is in the transcript, and pi writes the call when the tool starts. api.md "Live reply" now says so. I told r10-chat the shimmer should also use the last unanswered `toolCall` while working.
+- pi never sent a live `tool` frame. That's by design: the tracker drops a live tool once its `toolCall` is in the transcript, and pi writes the call when the tool starts. api.md "Live reply" now says so. r10-chat's shimmer already uses the last unanswered `toolCall` while working (r10/chat 46d5ebd).
 
 ## Open
 - `Approval.plan` on a live plan prompt: the history side is checked on w14:p2, and r10-qa is checking the prompt itself on :7883.
