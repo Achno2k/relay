@@ -110,6 +110,9 @@ type Block struct {
 	// toolCall
 	Summary string
 	Input   string
+	Path    string    // optional: cwd-relative file the tool acted on
+	Edit    *ToolEdit // optional: what a file-changing tool did
+	Plan    string    // optional: ExitPlanMode's plan (markdown)
 	// toolResult
 	ToolCallID string
 	IsError    bool
@@ -140,6 +143,34 @@ type toolCallJSON struct {
 	Name    string    `json:"name"`
 	Summary string    `json:"summary"`
 	Input   string    `json:"input"`
+	Path    string    `json:"path,omitzero"`
+	Edit    *ToolEdit `json:"edit,omitzero"`
+	Plan    string    `json:"plan,omitzero"`
+}
+
+// ToolEditKind is how a ToolEdit describes the change; see api.md "Tool call files and edits".
+type ToolEditKind string
+
+const (
+	ToolEditEdit  ToolEditKind = "edit"
+	ToolEditWrite ToolEditKind = "write"
+	ToolEditDiff  ToolEditKind = "diff"
+)
+
+// ToolEditChange is one string replacement of an Edit/MultiEdit.
+type ToolEditChange struct {
+	Old        string `json:"old"`
+	New        string `json:"new"`
+	ReplaceAll bool   `json:"replaceAll"`
+}
+
+// ToolEdit is what a file-changing toolCall did: replacements, written content or a unified diff.
+type ToolEdit struct {
+	Kind      ToolEditKind     `json:"kind"`
+	Changes   []ToolEditChange `json:"changes,omitzero"`
+	Content   string           `json:"content,omitzero"`
+	Diff      string           `json:"diff,omitzero"`
+	Truncated bool             `json:"truncated"`
 }
 type toolResultJSON struct {
 	Type       BlockType `json:"type"`
@@ -159,7 +190,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	case BlockText, BlockThinking:
 		return Marshal(textJSON{b.Type, b.Text})
 	case BlockToolCall:
-		return Marshal(toolCallJSON{b.Type, b.ID, b.Name, b.Summary, b.Input})
+		return Marshal(toolCallJSON{b.Type, b.ID, b.Name, b.Summary, b.Input, b.Path, b.Edit, b.Plan})
 	case BlockToolResult:
 		return Marshal(toolResultJSON{b.Type, b.ToolCallID, b.IsError, b.Preview})
 	case BlockAttachment:
@@ -176,6 +207,9 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 		Name       *string        `json:"name"`
 		Summary    *string        `json:"summary"`
 		Input      *string        `json:"input"`
+		Path       string         `json:"path"`
+		Edit       *ToolEdit      `json:"edit"`
+		Plan       string         `json:"plan"`
 		ToolCallID *string        `json:"toolCallId"`
 		IsError    *bool          `json:"isError"`
 		Preview    *string        `json:"preview"`
@@ -208,6 +242,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	case BlockToolCall:
 		if err = need(raw.ID, raw.Name, raw.Summary, raw.Input); err == nil {
 			*b = ToolCallBlock(*raw.ID, *raw.Name, *raw.Summary, *raw.Input)
+			b.Path, b.Edit, b.Plan = raw.Path, raw.Edit, raw.Plan
 		}
 	case BlockToolResult:
 		if err = need(raw.ToolCallID, raw.IsError, raw.Preview); err == nil {
@@ -275,6 +310,17 @@ type Approval struct {
 	Question string           `json:"question"`
 	Options  []ApprovalOption `json:"options"`
 	Step     *ApprovalStep    `json:"step,omitzero"`
+	// Claude's ExitPlanMode prompt only: the plan (markdown).
+	Plan string `json:"plan,omitzero"`
+}
+
+// FileContent is a text file from GET /agents/:id/file; see api.md "Files".
+type FileContent struct {
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	Size      int64  `json:"size"`
+	Truncated bool   `json:"truncated"`
+	Language  string `json:"language,omitzero"`
 }
 
 func (a Approval) MarshalJSON() ([]byte, error) {
