@@ -8,6 +8,11 @@ struct ToolStep: Identifiable, Hashable {
     var isError: Bool
     var preview: String?
     var finished: Bool
+    /// The file it read or changed (cwd-relative), for the file viewer; never set on live placeholders.
+    var path: String? = nil
+    var edit: ToolEdit? = nil
+    /// ExitPlanMode's plan, shown inline under the step.
+    var plan: String? = nil
 }
 
 /// What the chat list renders. Consecutive tool calls/results collapse into one `.tools` row.
@@ -122,7 +127,10 @@ enum ChatItem: Identifiable, Hashable {
                 case .toolCall(let call):
                     if groupId == nil { groupId = blockId }
                     if !stepMessages.contains(message.id) { stepMessages.append(message.id) }
-                    steps.append(ToolStep(id: call.id, name: call.name, summary: call.summary, isError: false, preview: nil, finished: false))
+                    steps.append(ToolStep(
+                        id: call.id, name: call.name, summary: call.summary, isError: false, preview: nil, finished: false,
+                        path: call.path, edit: call.edit, plan: call.plan
+                    ))
                 case .toolResult(let result):
                     if let j = steps.lastIndex(where: { $0.id == result.toolCallId }) {
                         steps[j].isError = result.isError
