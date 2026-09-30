@@ -57,6 +57,7 @@ struct MainView: View {
                     onOpenSidebar: { setSidebar(true) },
                     onNewChat: { presentNewChat($0) }
                 )
+                .fileViewer(store: store)
                 .overlay {
                     // The peek stays undimmed, as in the mockup. Reduce Motion keeps the dim: there the sidebar
                     // crossfades over the full chat instead of moving it aside.

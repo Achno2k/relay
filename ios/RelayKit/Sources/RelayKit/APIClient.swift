@@ -88,6 +88,28 @@ public struct APIClient: Sendable {
         return data
     }
 
+    /// `GET /agents/:id/file?path=`: a text file, or an image's bytes. A `403` here means the path is outside the
+    /// agent's project, not a bad token (that's `401`), so it stays `RelayError.http` instead of `.unauthorized`.
+    public func file(agentId: String, path: String) async throws -> AgentFile {
+        var comps = URLComponents(url: url("/agents/\(Self.encode(agentId))/file"), resolvingAgainstBaseURL: false)!
+        // `/` may stay; `+`, `&`, `#` and the rest must not reach the bridge's query parser raw.
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~/"))
+        comps.percentEncodedQuery = "path=" + (path.addingPercentEncoding(withAllowedCharacters: allowed) ?? path)
+        var request = URLRequest(url: comps.url!)
+        request.timeoutInterval = 30
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await perform(request)
+        guard let http = response as? HTTPURLResponse else { throw RelayError.badResponse }
+        if http.statusCode == 403 {
+            let detail = try? RelayJSON.decoder().decode(APIErrorBody.self, from: data)
+            throw RelayError.http(status: 403, code: detail?.error.code ?? "forbidden", message: detail?.error.message)
+        }
+        _ = try check(data, response)
+        let type = http.value(forHTTPHeaderField: "Content-Type") ?? ""
+        if type.lowercased().hasPrefix("image/") { return .image(data, contentType: type) }
+        return .text(try decode(FileContent.self, from: data))
+    }
+
     public func sendKeys(agentId: String, keys: [String]) async throws {
         struct Body: Encodable { var keys: [String] }
         try await sendIgnoringBody("POST", "/agents/\(Self.encode(agentId))/keys", body: Body(keys: keys))
@@ -185,14 +207,16 @@ public struct APIClient: Sendable {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        let data: Data
-        let response: URLResponse
+        let (data, response) = try await perform(request)
+        return try check(data, response)
+    }
+
+    private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
-            (data, response) = try await session.data(for: request)
+            return try await session.data(for: request)
         } catch let error as URLError {
             throw RelayError.unreachable(timedOut: error.code == .timedOut)
         }
-        return try check(data, response)
     }
 
     private func check(_ data: Data, _ response: URLResponse) throws -> (Data, Int) {
