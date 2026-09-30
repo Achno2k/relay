@@ -73,8 +73,9 @@ struct ApprovalSheet: View {
             .padding(.top, 28)
             .padding(.bottom, 12)
         }
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // A bar, not a plain inset: the scroll edge effect then covers the plan under the pinned options.
+        .scrollEdgeEffectStyle(.hard, for: .bottom)
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             answers
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
