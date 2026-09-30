@@ -50,7 +50,10 @@ Message {
 Block (tagged on "type"):
   { "type": "text",       "text": "markdown" }
   { "type": "thinking",   "text": "..." }
-  { "type": "toolCall",   "id": "toolu_..", "name": "Edit", "summary": "Edited api.md", "input": "<truncated json string>" }
+  { "type": "toolCall",   "id": "toolu_..", "name": "Edit", "summary": "Edited api.md", "input": "<truncated json string>",
+    "path": "docs/api.md",       // optional (round 10); see "Tool call files and edits"
+    "edit": ToolEdit,            // optional (round 10)
+    "plan": "# Plan\n..." }      // optional (round 10), ExitPlanMode only; see "Plans"
   { "type": "toolResult", "toolCallId": "toolu_..", "isError": false, "preview": "<first ~400 chars>" }
   { "type": "attachment", "id": "9f2c4e1a7b3d5f60", "name": "screenshot.jpg", "kind": "image" }   // user messages only; see Attachments
 
@@ -58,7 +61,24 @@ Approval {
   "agentId": "w13:p1",
   "question": "Do you want to make this edit to api.md?",
   "options": [ { "label": "Yes", "keys": ["1"] }, { "label": "Yes, don't ask again", "keys": ["2"] }, { "label": "No", "keys": ["esc"] } ],
-  "step": { "index": 2, "count": 3, "title": "Focus" }   // optional, see below
+  "step": { "index": 2, "count": 3, "title": "Focus" },  // optional, see below
+  "plan": "# Plan\n..."          // optional (round 10): the markdown plan, only on Claude's ExitPlanMode prompt; see "Plans"
+}
+
+ToolEdit {                        // round 10; what a file-changing toolCall did, enough to draw a diff
+  "kind": "edit",                 // edit | write | diff
+  "changes": [ { "old": "foo()", "new": "bar()", "replaceAll": false } ],  // kind edit: Edit = 1, MultiEdit = N, in order
+  "content": "...",               // kind write: the full content written
+  "diff": "--- a/x\n+++ b/x\n@@ …", // kind diff: a unified diff (codex FileChange; may cover several files)
+  "truncated": false              // true if any string above was cut (see caps)
+}
+
+FileContent {                     // round 10; GET /agents/:id/file
+  "path": "Sources/App.swift",    // cwd-relative, as requested (normalised)
+  "content": "import SwiftUI\n…",  // UTF-8 text, at most 1 MB
+  "size": 48213,                  // bytes on disk
+  "truncated": false,             // true when size > 1 MB and content is the first 1 MB (cut on a line/UTF-8 boundary)
+  "language": "swift"             // optional, from the extension (swift, go, ts, tsx, js, py, md, json, yaml, sh, …)
 }
 
 ApprovalStep {                    // present only for multi-question prompts (tab bar `←  ☒ Delivery  ☐ Focus  ✔ Submit  →`)
@@ -141,6 +161,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | POST | /agents/:id/keys | `{"keys": ["esc"]}` | `202 {}` (stop = `["esc"]`). After a stop the bridge clears the prompt Claude puts back in its input box, so it may take up to ~2 s to answer. Other keys are sent as is. Key names are herdr's (`esc`, `enter`, `up`, `down`, `ctrl+u`, digits, …). |
 | POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
+| GET | /agents/:id/file?path=<cwd-relative path> | – | `FileContent` for text; raw bytes with their `Content-Type` for images. See Files. |
 | GET | /controls | – | `Controls`: Claude's list only, kept for older apps. Use `/agents/:id/controls`. |
 | GET | /controls?kind=claude\|codex\|pi | – | `AgentControls` for a kind with no agent yet (the New chat sheet), with `defaultModel`/`defaultEffort` (each left out when the agent has no saved default, e.g. no `model` in `~/.claude/settings.json`; the app then shows no default) and, for pi and codex, `effortsByModel`. `400 unsupported` for other kinds. |
 | GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
@@ -179,6 +200,59 @@ Attachment {
   - Tool calls that read these files show only the file name, as usual.
 - Every user message has `<pasted_content>` tags removed.
 - `GET /agents/:id/attachments/:attachmentId` looks the id up across all agents' uploads, so history keeps working if the agent's pane id changes.
+
+## Files
+
+Round 10. The app shows a file the agent read or changed ("tap files in chat"). Only files inside the agent's project; there is no directory listing.
+
+- `GET /agents/:id/file?path=<cwd-relative path>`, `path` percent-encoded. Works for every kind (it only needs the pane's cwd from herdr).
+- Path rules:
+  - `path` is relative to the agent's cwd, e.g. a toolCall's `path`. Empty, absolute (`/…`, `~…`) or containing a NUL byte: `400 bad_request`.
+  - The bridge joins it to the cwd and resolves it (realpath, every symlink followed). The result must be the cwd itself or below it (also realpath'd). Otherwise `403 forbidden`, whether or not the file exists, so `..` and symlinks can't escape.
+  - Missing file: `404 not_found`. A directory: `400 bad_request`. An agent with no known cwd: `404 not_found`.
+- Text: the file is text when its first 8 KB has no NUL byte and is valid UTF-8 (an incomplete sequence at the cut is fine). The answer is `200 FileContent`, `Content-Type: application/json`.
+  - Cap 1 MB: a larger file gives its first 1 MB, cut back to the last newline (or a UTF-8 boundary), with `truncated: true`. `size` is always the size on disk.
+  - `content` is the file as it is on disk, not scrubbed: it's the user's own project file. The path in the response is still cwd-relative only.
+  - `language` is a lowercase hint from the extension (or the name: `Dockerfile`, `Makefile`), left out when unknown. The app uses it for highlighting only.
+- Images (`png`, `jpg`/`jpeg`, `gif`, `webp`, `heic`, `bmp`, `tiff`, by extension, checked against the file's magic bytes): `200` with the raw bytes and their `Content-Type` (e.g. `image/png`). Cap 20 MB: `413 too_large`. `svg` is text.
+- Anything else that isn't text: `415 unsupported`.
+- Clients tell the two `200` shapes apart by `Content-Type` (`application/json` vs `image/*`).
+
+## Tool call files and edits
+
+Round 10. Extra, optional `toolCall` fields so the app can open a file and draw a diff. `input` stays as it was (capped at 1000 characters), so it can't be used for diffs.
+
+- `path`: the file the tool acted on, cwd-relative, scrubbed like `summary`.
+  - Set only when the file is inside the agent's cwd (lexically, after scrubbing: not absolute, no leading `..`). So a tappable row always has a `path` that `GET /agents/:id/file` accepts, unless the file was deleted since.
+  - claude: `Read`, `Write`, `Edit`, `MultiEdit` (`file_path`), `NotebookEdit` (`notebook_path`).
+  - pi: `read`, `write`, `edit` (`path`).
+  - codex: `Edit` from a `FileChange` with exactly one file.
+  - Left out for everything else (Bash, Grep, Glob, …), for multi-file codex edits, and for files outside the cwd (e.g. Claude's plan file in `~/.claude/plans/`).
+- `edit` (`ToolEdit`): what a file-changing tool did. Present even when `path` isn't (e.g. outside the cwd).
+  - claude `Edit`: `kind: "edit"`, one change from `old_string` / `new_string` / `replace_all`.
+  - claude `MultiEdit`: `kind: "edit"`, one change per `edits[]` entry, in order.
+  - claude `Write`: `kind: "write"`, `content` from `content`. It doesn't say whether the file existed before; the app draws it as all-added.
+  - pi `edit`: `kind: "edit"` from `oldText` / `newText` (or its `edits[]`). pi `write`: `kind: "write"`.
+  - codex `FileChange`: `kind: "diff"`, one unified diff for all its files. Each file's hunk gets `--- a/<path>` / `+++ b/<path>` headers (cwd-relative) if codex's `unified_diff` lacks them. A single added file with only `content` is `kind: "write"`.
+  - A failed call (its `toolResult` has `isError: true`) still carries `edit`; the app shows it as not applied.
+- Every string in `edit` is scrubbed like `input` (absolute paths made cwd-relative). So the diff can differ from the file on disk in exactly those paths.
+- Caps: each string at most 64 KB, and all of one `edit`'s strings at most 256 KB together. Cuts land on a line boundary, later strings are emptied first, and `truncated` becomes `true`. The app can offer the whole file through `GET /agents/:id/file`.
+- Live `reply.live` tools never carry `path` or `edit`.
+- Fixture: `docs/fixtures/messages-edits.json`.
+
+## Plans
+
+Round 10. Claude's plan mode ends with the `ExitPlanMode` tool and an approval prompt ("Claude has written up a plan and is ready to execute. Would you like to proceed?"). The plan itself is only in the tool input or in the plan file Claude wrote, so the bridge adds it.
+
+- The plan, in this order:
+  1. `ExitPlanMode`'s `input.plan`, when it's a non-empty string.
+  2. Otherwise the plan file: the last `Write`/`Edit`/`MultiEdit` in this session (before that `ExitPlanMode`) whose `file_path` is under `~/.claude/plans/`, read from disk. If the file is gone, a `Write`'s own `content` is used.
+  3. Otherwise no plan (the field is left out).
+- It's markdown, scrubbed like a `text` block, capped at 256 KB (cut on a line boundary).
+- `Approval.plan`: set while the agent is blocked on that prompt. The bridge finds the transcript's last `ExitPlanMode` `toolCall`. If the transcript doesn't have it yet (Claude writes it a moment late), it uses step 2 for the latest plan file of the session.
+- `toolCall.plan`: every `ExitPlanMode` `toolCall` in history carries it, so the plan stays visible after approval (or rejection). For step 2 the file is read when the message is built, so an older `ExitPlanMode` shows the file as it is now if Claude later rewrote the same file.
+- pi and codex have no plan approvals; codex's own plan updates are not covered here.
+- Fixtures: `docs/fixtures/approval-plan.json`, and the `ExitPlanMode` call in `messages-edits.json`.
 
 ## Machine
 
