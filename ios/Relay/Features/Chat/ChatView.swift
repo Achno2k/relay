@@ -166,6 +166,8 @@ private struct ChatTranscript: View {
     /// The ↓ button was tapped and the chat hasn't settled at the bottom yet. A fling still decelerating
     /// can carry on past the jump; until it stops, its offsets mustn't turn following off again (B5).
     @State private var jumpingToBottom = false
+    /// The live reply hasn't grown for a moment (Claude thinking mid-turn): "Thinking…" shows under it.
+    @State private var liveIsStill = false
     @State private var width: CGFloat = 390
     @State private var loadingEarlier = false
     @State private var focusComposer = false
@@ -291,6 +293,7 @@ private struct ChatTranscript: View {
     private func transcript(_ items: [ChatItem], working: Bool, busy: Bool, proxy: ScrollViewProxy) -> some View {
         // Pending prompts sit after the turn in progress; "last" is the newest transcript/live row.
         let last = items.last { !$0.isPending }
+        let liveText: String? = if case .live(_, let markdown) = last { markdown } else { nil }
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if store.hasMore(agent.id) {
@@ -308,7 +311,7 @@ private struct ChatTranscript: View {
                     row(item, isLast: item.id == last?.id, working: working)
                         .id(item.id)
                 }
-                if busy, !showsProgress(last, working: working) {
+                if busy, !showsProgress(last, working: working) || (liveText != nil && liveIsStill) {
                     WorkingBubble()
                 }
                 Color.clear
@@ -327,6 +330,12 @@ private struct ChatTranscript: View {
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .animation(.smooth(duration: 0.25), value: busy)
+        .animation(.smooth(duration: 0.25), value: liveIsStill)
+        .task(id: liveText) {
+            liveIsStill = false
+            guard liveText != nil, (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+            liveIsStill = true
+        }
         .onScrollPhaseChange { _, phase, context in
             scrollPhase = phase
             switch phase {
