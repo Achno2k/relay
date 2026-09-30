@@ -163,6 +163,11 @@ private struct ChatTranscript: View {
     /// True until the user scrolls away from the latest message; drives autoscroll and the ↓ button.
     @State private var followsBottom = true
     @State private var scrollPhase: ScrollPhase = .idle
+    /// The ↓ button was tapped and the chat hasn't settled at the bottom yet. A fling still decelerating
+    /// can carry on past the jump; until it stops, its offsets mustn't turn following off again (B5).
+    @State private var jumpingToBottom = false
+    /// The live reply hasn't grown for a moment (Claude thinking mid-turn): "Thinking…" shows under it.
+    @State private var liveIsStill = false
     @State private var width: CGFloat = 390
     @State private var loadingEarlier = false
     @State private var focusComposer = false
@@ -205,13 +210,15 @@ private struct ChatTranscript: View {
     var body: some View {
         let items = items
         let working = agent.status == .working
+        // Right after a send herdr can take a moment to report `working`; the chat is busy from the tap on.
+        let busy = working || (store.awaitingReply[agent.id] != nil && agent.status != .blocked)
         // ScrollViewReader, not ScrollPosition: re-assigning the same edge to a ScrollPosition after the
         // user has scrolled can be a no-op, which left the ↓ button doing nothing.
         ScrollViewReader { proxy in
             Group {
                 // Unsent prompts show even before the chat has loaded, so a failed one is never hidden.
                 if store.isLoaded(agent.id) || !items.isEmpty {
-                    transcript(items, working: working, proxy: proxy)
+                    transcript(items, working: working, busy: busy, proxy: proxy)
                 } else if let offlineReason {
                     // A chat never opened before can't load while its machine is down; say so, not a spinner.
                     ContentUnavailableView(
@@ -230,8 +237,7 @@ private struct ChatTranscript: View {
             .overlay(alignment: .bottom) {
                 if !followsBottom {
                     Button {
-                        followsBottom = true
-                        withAnimation(.smooth) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+                        jumpToBottom(proxy)
                     } label: {
                         Image(systemName: "arrow.down")
                             .font(.body.weight(.semibold))
@@ -256,7 +262,7 @@ private struct ChatTranscript: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 10) {
                     if agent.status == .blocked, let approval = store.approval, approval.agentId == agent.id {
-                        ApprovalCard(question: approval.question) { store.isApprovalSheetPresented = true }
+                        ApprovalCard(approval: approval) { store.isApprovalSheetPresented = true }
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     ComposerView(
@@ -284,9 +290,10 @@ private struct ChatTranscript: View {
 
     /// A plain `VStack`, not a lazy one: lazy rows are measured with estimates, so on a long, real transcript
     /// the initial bottom offset landed short of the end. Real chats are one page (50 messages) at a time.
-    private func transcript(_ items: [ChatItem], working: Bool, proxy: ScrollViewProxy) -> some View {
+    private func transcript(_ items: [ChatItem], working: Bool, busy: Bool, proxy: ScrollViewProxy) -> some View {
         // Pending prompts sit after the turn in progress; "last" is the newest transcript/live row.
         let last = items.last { !$0.isPending }
+        let liveText: String? = if case .live(_, let markdown) = last { markdown } else { nil }
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if store.hasMore(agent.id) {
@@ -296,7 +303,7 @@ private struct ChatTranscript: View {
                             if visible { loadEarlier(anchor: items.first?.id, proxy: proxy) }
                         }
                 }
-                if items.isEmpty && !working && agent.transcript != .unsupported {
+                if items.isEmpty && !busy && agent.transcript != .unsupported {
                     AgentEmptyState(agent: agent, subtitle: store.controlsState(for: agent).subtitle)
                         .padding(.top, 120)
                 }
@@ -304,10 +311,8 @@ private struct ChatTranscript: View {
                     row(item, isLast: item.id == last?.id, working: working)
                         .id(item.id)
                 }
-                if working, !showsProgress(last) {
-                    PulsingDot()
-                        .padding(.leading, 2)
-                        .transition(.opacity)
+                if busy, !showsProgress(last, working: working) || (liveText != nil && liveIsStill) {
+                    WorkingBubble()
                 }
                 Color.clear
                     .frame(height: 1)
@@ -324,13 +329,33 @@ private struct ChatTranscript: View {
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .onScrollPhaseChange { _, phase in
+        .animation(.smooth(duration: 0.25), value: busy)
+        .animation(.smooth(duration: 0.25), value: liveIsStill)
+        .task(id: liveText) {
+            liveIsStill = false
+            guard liveText != nil, (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+            liveIsStill = true
+        }
+        .onScrollPhaseChange { _, phase, context in
             scrollPhase = phase
+            switch phase {
+            case .tracking, .interacting:
+                // A new touch: the user takes over from the ↓ jump.
+                jumpingToBottom = false
+            case .idle where jumpingToBottom:
+                jumpingToBottom = false
+                if !ScrollSnapshot(context.geometry).isAtBottom {
+                    withAnimation(.smooth) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+                }
+            default:
+                break
+            }
         }
         .onScrollGeometryChange(for: ScrollSnapshot.self) { ScrollSnapshot($0) } action: { old, new in
             // Only the user's own scrolling decides whether we follow the latest message. Programmatic
-            // scrolls pass through "not at bottom" offsets mid-animation and must not turn following off.
-            if scrollPhase.isUserDriven {
+            // scrolls pass through "not at bottom" offsets mid-animation and must not turn following off,
+            // and neither does the tail of a fling the ↓ button interrupted.
+            if scrollPhase.isUserDriven, !(jumpingToBottom && scrollPhase == .decelerating) {
                 followsBottom = new.isAtBottom
                 return
             }
@@ -339,6 +364,19 @@ private struct ChatTranscript: View {
             if followsBottom, endMoved, !new.isAtBottom {
                 withAnimation(.smooth(duration: 0.25)) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
             }
+        }
+    }
+
+    /// ↓: while a fling is still decelerating an animated scroll loses to the momentum (the button did
+    /// nothing until the list stopped). A plain jump stops the fling; the phase handler finishes the job
+    /// if the list still isn't at the bottom once it settles.
+    private func jumpToBottom(_ proxy: ScrollViewProxy) {
+        followsBottom = true
+        if scrollPhase == .idle || scrollPhase == .animating {
+            withAnimation(.smooth) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+        } else {
+            jumpingToBottom = true
+            proxy.scrollTo(Self.bottomID, anchor: .bottom)
         }
     }
 
@@ -376,10 +414,12 @@ private struct ChatTranscript: View {
             StoppedMarker()
         case .live(_, let markdown):
             LiveReplyView(markdown: markdown)
+        case .plan(_, let markdown):
+            PlanCard(markdown: markdown, expanded: LaunchOptions.current.isDemo("plan"))
         case .tools(_, let steps, let messageIds):
             ToolGroupView(
                 steps: steps,
-                isLive: isLast && working,
+                isLive: isLast && working && steps.contains { !$0.finished },
                 duration: duration(of: messageIds),
                 expanded: LaunchOptions.current.isDemo("tools")
             )
@@ -393,11 +433,13 @@ private struct ChatTranscript: View {
         return end.timeIntervalSince(start)
     }
 
-    /// Whether the newest row already shows the agent is busy (its reply text, live text or a
-    /// "Running …" tool row), so the pulsing dot isn't needed.
-    private func showsProgress(_ last: ChatItem?) -> Bool {
+    /// Whether the newest row already shows the agent is busy (the reply streaming in, or a
+    /// shimmering "Running Bash…" tool row), so "Thinking…" isn't needed. Landed text or finished tools
+    /// don't count: the agent may be thinking about its next step, and the chat must never look idle.
+    private func showsProgress(_ last: ChatItem?, working: Bool) -> Bool {
         switch last {
-        case .text, .live, .tools: true
+        case .live: true
+        case .tools(_, let steps, _): working && steps.contains { !$0.finished }
         default: false
         }
     }
