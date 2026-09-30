@@ -208,6 +208,7 @@ extension View {
 struct SidebarSectionHeader<Content: View>: View {
     var top: CGFloat = 22
     @ViewBuilder let content: Content
+    @Environment(\.sidebarLeadsList) private var leadsList
 
     var body: some View {
         HStack(spacing: 8) { content }
@@ -216,10 +217,26 @@ struct SidebarSectionHeader<Content: View>: View {
             .frame(minHeight: 36)
             .padding(.leading, 20)
             .padding(.trailing, 20)
-            .padding(.top, top)
+            .padding(.top, leadsList ? 0 : top)
             .padding(.bottom, 4)
             .listRowInsets(EdgeInsets())
     }
+}
+
+/// The empty header that spaces a card with no title from the one above; 8 pt under the "Relay" title.
+struct SidebarGapHeader: View {
+    let height: CGFloat
+    @Environment(\.sidebarLeadsList) private var leadsList
+
+    var body: some View {
+        Color.clear.frame(height: leadsList ? 8 : height).listRowInsets(EdgeInsets())
+    }
+}
+
+extension EnvironmentValues {
+    /// Set on the first section under the "Relay" title. Its header drops the top gap meant for between
+    /// cards, which under the 34 pt title read as ~34 pt of dead space (B1).
+    @Entry var sidebarLeadsList = false
 }
 
 /// Remembered sidebar expansion (Show all, completed folds, opened all-in-Now projects).

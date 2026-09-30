@@ -25,7 +25,7 @@ struct SidebarProjectSection: View {
             Section {
                 allInNowRow
             } header: {
-                Color.clear.frame(height: 12).listRowInsets(EdgeInsets())
+                SidebarGapHeader(height: 12)
             }
         } else {
             Section {

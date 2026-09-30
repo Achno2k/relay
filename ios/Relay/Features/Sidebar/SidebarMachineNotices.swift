@@ -8,7 +8,7 @@ struct SidebarMachineNotices: View {
     let store: AppStore
     let onMachines: () -> Void
 
-    private var down: [MachineEntry] {
+    static func down(in store: AppStore) -> [MachineEntry] {
         let scope = store.filteredMachine.map { [$0] } ?? store.machines
         return scope.filter { machine in
             (machine.status == .offline || machine.status == .needsRePair)
@@ -17,7 +17,7 @@ struct SidebarMachineNotices: View {
     }
 
     var body: some View {
-        let down = down
+        let down = Self.down(in: store)
         if !down.isEmpty {
             Section {
                 ForEach(down) { machine in
@@ -53,7 +53,7 @@ struct SidebarMachineNotices: View {
                     .accessibilityIdentifier("machineNotice-\(machine.id)")
                 }
             } header: {
-                Color.clear.frame(height: 16).listRowInsets(EdgeInsets())
+                SidebarGapHeader(height: 16)
             }
         }
     }
