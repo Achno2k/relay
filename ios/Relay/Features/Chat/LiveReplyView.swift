@@ -15,3 +15,21 @@ struct LiveReplyView: View {
             .accessibilityIdentifier("liveReply")
     }
 }
+
+/// The assistant's side of the chat while it's busy and nothing else says so: shimmering "Thinking…"
+/// from the moment a prompt is sent. It sits where the reply will appear, so streamed text takes its
+/// place; a running tool shows as its own shimmering "Running Bash…" row instead.
+struct WorkingBubble: View {
+    var title = "Thinking…"
+
+    var body: some View {
+        Text(title)
+            .font(.body.weight(.medium))
+            .shimmer()
+            .contentTransition(.opacity)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .transition(.opacity.animation(.easeOut(duration: 0.2)))
+            .accessibilityLabel(title)
+            .accessibilityIdentifier("workingIndicator")
+    }
+}

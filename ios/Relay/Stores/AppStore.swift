@@ -70,6 +70,11 @@ final class AppStore {
     private(set) var failedPending: Set<String> = []
     /// When each agent's last `send()` went out, to catch a double tap sending the same text twice.
     private var lastSendAt: [String: Date] = [:]
+    /// A prompt went out and the agent hasn't visibly picked it up yet (herdr still says idle). The chat
+    /// shows "Thinking…" from the tap on, not only once `working` arrives. Cleared by `working`/`blocked`,
+    /// a reply landing, a failed send, a stop, or after `awaitingTimeout`.
+    private(set) var awaitingReply: [String: Date] = [:]
+    static let awaitingTimeout: Duration = .seconds(30)
     /// First/last time this session saw each message grow over the socket; feeds "Worked for 42s".
     private(set) var liveSpans: [String: ClosedRange<Date>] = [:]
     /// `reply.live` per agent: the in-progress reply text and the tool running on screen; never persisted.
@@ -378,12 +383,19 @@ final class AppStore {
         if case .agentUpdated(let agent) = event, agent.status != .working, agent.status != .blocked {
             updateLive { $0.clear(agentId: agent.id) }
         }
+        if case .agentUpdated(let agent) = event, agent.status == .working || agent.status == .blocked {
+            stopAwaiting(agent.id)
+        }
         switch event {
         case .messageUpserted(let agentId, let message):
             let now = Date()
             let start = min(liveSpans[message.id]?.lowerBound ?? message.createdAt, now)
             liveSpans[message.id] = start...now
             if message.role == .user { resolvePending(agentId: agentId, with: [message]) }
+            // A turn short enough that herdr never reported `working`: the reply itself ends the wait.
+            if message.role != .user, let since = awaitingReply[agentId], message.createdAt >= since.addingTimeInterval(-1) {
+                stopAwaiting(agentId)
+            }
             updateLive { $0.match(agentId: agentId, transcript: state.messages[agentId] ?? []) }
         case .replyLive(let agentId, let text, let seq, let tool):
             guard seq > (liveReplySeq[agentId] ?? 0) else { break }
@@ -392,6 +404,7 @@ final class AppStore {
         case .agentClosed(let id):
             for message in pending[id] ?? [] { failedPending.remove(message.id) }
             pending[id] = nil
+            stopAwaiting(id)
             updateLive { $0.remove(agentId: id) }
             liveReplySeq[id] = nil
             if id == selectedAgentId { selectedAgentId = firstAgentId() }
@@ -795,6 +808,7 @@ final class AppStore {
         }
         lastSendAt[agentId] = Date()
         pending[agentId, default: []].append(local)
+        startAwaiting(agentId)
         Task {
             do {
                 try await backend.prompt(agentId: agentId, text: trimmed, attachments: attachments.map(\.id))
@@ -802,6 +816,7 @@ final class AppStore {
                 // Keep the bubble and flag it, so a failed send is visible and retryable rather than
                 // silently vanishing from the transcript (only the transient error banner would remain).
                 failedPending.insert(local.id)
+                stopAwaiting(agentId)
                 report(error, agentId: agentId)
             }
         }
@@ -811,11 +826,13 @@ final class AppStore {
     func retry(_ messageId: String, to agentId: String) {
         guard let message = pending[agentId]?.first(where: { $0.id == messageId }) else { return }
         failedPending.remove(messageId)
+        startAwaiting(agentId)
         Task {
             do {
                 try await backend.prompt(agentId: agentId, text: message.plainText, attachments: message.attachments.map(\.id))
             } catch {
                 failedPending.insert(messageId)
+                stopAwaiting(agentId)
                 report(error, agentId: agentId)
             }
         }
@@ -854,6 +871,7 @@ final class AppStore {
     }
 
     func interrupt(_ agentId: String) {
+        stopAwaiting(agentId)
         Task {
             do { try await backend.sendKeys(agentId: agentId, keys: ["esc"]) } catch { report(error, agentId: agentId) }
         }
@@ -1018,6 +1036,20 @@ final class AppStore {
     }
 
     // MARK: - Helpers
+
+    private func startAwaiting(_ agentId: String) {
+        let since = Date()
+        awaitingReply[agentId] = since
+        Task {
+            try? await Task.sleep(for: Self.awaitingTimeout)
+            // Never picked up (or the status change was missed): stop claiming it's thinking.
+            if awaitingReply[agentId] == since { awaitingReply[agentId] = nil }
+        }
+    }
+
+    private func stopAwaiting(_ agentId: String) {
+        if awaitingReply[agentId] != nil { awaitingReply[agentId] = nil }
+    }
 
     private func resolvePending(agentId: String, with messages: [Message]) {
         guard var list = pending[agentId], !list.isEmpty else { return }
