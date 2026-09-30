@@ -48,6 +48,8 @@ extension View {
 private struct FileViewerPresenter: ViewModifier {
     let store: AppStore
     @State private var presented: Presented?
+    /// An approval arrived while a file was open; it's shown when the file sheet has gone.
+    @State private var heldApproval = false
 
     struct Presented: Identifiable {
         let agentId: String
@@ -61,15 +63,29 @@ private struct FileViewerPresenter: ViewModifier {
                 guard let agentId = store.selectedAgentId else { return }
                 presented = Presented(agentId: agentId, request: request)
             })
-            .sheet(item: $presented) { item in
+            .sheet(item: $presented, onDismiss: presentHeldApproval) { item in
                 FileViewerSheet(request: item.request, agentId: item.agentId, store: store)
+            }
+            .onChange(of: store.isApprovalSheetPresented) { _, shown in
+                // One sheet at a time: an approval outranks a file, so close the file and show the approval
+                // once it's gone (presenting both at once would drop the approval).
+                guard shown, presented != nil else { return }
+                heldApproval = true
+                store.isApprovalSheetPresented = false
+                presented = nil
             }
             .task(id: store.messages(for: store.selectedAgentId ?? "").count) { openDemo() }
     }
 
+    private func presentHeldApproval() {
+        guard heldApproval else { return }
+        heldApproval = false
+        if store.approval != nil { store.isApprovalSheetPresented = true }
+    }
+
     /// `-demo file:<toolCallId>` opens that call's file once the chat has loaded (screenshots, UI tests).
     private func openDemo() {
-        guard presented == nil, let demo = LaunchOptions.current.demo, demo.hasPrefix("file:"),
+        guard presented == nil, !store.isApprovalSheetPresented, let demo = LaunchOptions.current.demo, demo.hasPrefix("file:"),
               let agentId = store.selectedAgentId else { return }
         let id = String(demo.dropFirst("file:".count))
         for case .tools(_, let steps, _) in ChatItem.build(from: store.messages(for: agentId)) {
