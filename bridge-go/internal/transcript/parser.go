@@ -47,6 +47,8 @@ type Parser struct {
 	messages []api.Message
 	// Time of the line being parsed, to match sent records. Zero = unknown.
 	currentDate time.Time
+	// The session's latest write to a plan file (see claudePlan): its path, and a Write's content.
+	planFile, planWrite string
 }
 
 // NewParser: uploads may be nil (no attachment matching).
@@ -346,8 +348,8 @@ func (p *Parser) claudeAssistantBlock(b map[string]any) (api.Block, bool) {
 		if !ok {
 			input = map[string]any{}
 		}
-		return api.ToolCallBlock(strOr(b["id"], ""), name,
-			Summary(name, input, p.scrubber), InputString(input, p.scrubber)), true
+		return p.claudePlan(WithFile(api.ToolCallBlock(strOr(b["id"], ""), name,
+			Summary(name, input, p.scrubber), InputString(input, p.scrubber)), input, p.scrubber), input), true
 	}
 	return api.Block{}, false
 }
@@ -399,8 +401,8 @@ func (p *Parser) consumePi(o map[string]any) *api.Message {
 				if !ok {
 					args = map[string]any{}
 				}
-				blocks = append(blocks, api.ToolCallBlock(strOr(b["id"], ""), name,
-					Summary(name, args, p.scrubber), InputString(args, p.scrubber)))
+				blocks = append(blocks, WithFile(api.ToolCallBlock(strOr(b["id"], ""), name,
+					Summary(name, args, p.scrubber), InputString(args, p.scrubber)), args, p.scrubber))
 			}
 		}
 		return p.appendAssistant(id, at, blocks)
@@ -538,7 +540,12 @@ func (p *Parser) codexTool(typ string, item map[string]any, id string) []api.Blo
 		for i, path := range paths {
 			files[i] = path
 		}
-		return pair("Edit", summary, map[string]any{"files": files}, strings.Join(diffs, "\n"), failed)
+		blocks := pair("Edit", summary, map[string]any{"files": files}, strings.Join(diffs, "\n"), failed)
+		if len(paths) == 1 {
+			blocks[0].Path = RelativePath(paths[0], p.scrubber)
+		}
+		blocks[0].Edit = codexEdit(changes, p.scrubber)
+		return blocks
 	case "McpToolCall":
 		var parts []string
 		for _, k := range []string{"server", "tool"} {

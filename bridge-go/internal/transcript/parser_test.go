@@ -82,7 +82,8 @@ func TestTranscriptParser_mergesAssistantLinesAndAttachesToolResults(t *testing.
 		api.ThinkingBlock("Need to find where the token is read first."),
 		api.ToolCallBlock("t1", "Grep", "Searched for read_token", `{"path":"src","pattern":"read_token"}`),
 		api.ToolResultBlock("t1", false, "src/auth.py:14: def read_token():\nsrc/auth.py:31:     tok = read_token()"),
-		api.ToolCallBlock("t2", "Edit", "Edited src/auth.py", `{"file_path":"src/auth.py","new_string":"b","old_string":"a"}`),
+		withEdit(api.ToolCallBlock("t2", "Edit", "Edited src/auth.py", `{"file_path":"src/auth.py","new_string":"b","old_string":"a"}`),
+			"src/auth.py", &api.ToolEdit{Kind: api.ToolEditEdit, Changes: []api.ToolEditChange{{Old: "a", New: "b"}}}),
 		api.ToolResultBlock("t2", false, "The file src/auth.py has been updated."),
 		api.ToolCallBlock("t3", "Bash", "Ran uv run pytest -q", `{"command":"uv run pytest -q\necho done","description":"Run tests"}`),
 		api.ToolResultBlock("t3", true, "1 failed, 41 passed in tmp"),
@@ -251,4 +252,9 @@ func TestTranscriptParser_injectedLines(t *testing.T) {
 	expectEqual(t, ids(ms), []string{"s1", "u1"})
 	expectEqual(t, ms[0].Blocks, []api.Block{api.TextBlock("! ls src")})
 	expectEqual(t, ms[1].Blocks, []api.Block{api.TextBlock("a real prompt mentioning <task-notification>")})
+}
+
+func withEdit(b api.Block, path string, e *api.ToolEdit) api.Block {
+	b.Path, b.Edit = path, e
+	return b
 }

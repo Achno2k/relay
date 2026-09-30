@@ -509,7 +509,37 @@ func (s *Service) Approval(ctx context.Context, id string) (*api.Approval, error
 		}
 		ap.Step = approval.Step(screen, ansi)
 	}
+	if kind == "claude" {
+		ap.Plan = s.pendingPlan(a, ap.Question)
+	}
 	return ap, nil
+}
+
+// pendingPlan is the plan an ExitPlanMode prompt asks about; see api.md "Plans".
+func (s *Service) pendingPlan(a herdr.Agent, question string) string {
+	ref := s.locator.Locate(a, s.firstSeen(a).Add(-5*time.Second))
+	if ref == nil {
+		return ""
+	}
+	messages, err := s.transcriptMessages(*ref)
+	if err != nil {
+		return ""
+	}
+	if plan, ok := transcript.PendingPlan(messages); ok {
+		return plan
+	}
+	if !transcript.IsPlanQuestion(question) {
+		return ""
+	}
+	fi, err := os.Stat(ref.Path)
+	if err != nil {
+		return ""
+	}
+	data, err := transcript.ReadBounded(ref.Path, fi.Size(), transcript.MaxReadBytes)
+	if err != nil {
+		return ""
+	}
+	return transcript.LatestPlan(data, ref.Format, ref.Cwd)
 }
 
 // MARK: Actions

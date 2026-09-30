@@ -35,7 +35,10 @@ func TestCodexTranscript_assistantItemsMergeIntoOneMessage(t *testing.T) {
 	expectEqual(t, blocks[1], api.TextBlock("Running the tests first."))
 	expectEqual(t, blocks[2], api.ToolCallBlock("exec-1", "Shell", "Ran pytest -q", `{"command":"pytest -q\necho done","cwd":"."}`))
 	expectEqual(t, blocks[3], api.ToolResultBlock("exec-1", true, "1 failed in tests/test_app.py"))
-	expectEqual(t, blocks[4], api.ToolCallBlock("exec-2", "Edit", "Edited src/app.py", `{"files":["src/app.py"]}`))
+	edit := api.ToolCallBlock("exec-2", "Edit", "Edited src/app.py", `{"files":["src/app.py"]}`)
+	edit.Path = "src/app.py"
+	edit.Edit = &api.ToolEdit{Kind: api.ToolEditDiff, Diff: "--- a/src/app.py\n+++ b/src/app.py\n@@ -1 +1 @@\n-return 1\n+return 2\n"}
+	expectEqual(t, blocks[4], edit)
 	expectEqual(t, blocks[5], api.ToolResultBlock("exec-2", false, "src/app.py\n@@ -1 +1 @@\n-return 1\n+return 2"))
 	expectEqual(t, blocks[6], api.ToolCallBlock("exec-3", "docs.search", "Called docs.search", `{"q":"pytest"}`))
 	expectEqual(t, blocks[7], api.ToolResultBlock("exec-3", false, "3 results"))

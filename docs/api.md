@@ -236,7 +236,7 @@ Round 10. Extra, optional `toolCall` fields so the app can open a file and draw 
   - codex `FileChange`: `kind: "diff"`, one unified diff for all its files. Each file's hunk gets `--- a/<path>` / `+++ b/<path>` headers (cwd-relative) if codex's `unified_diff` lacks them. A single added file with only `content` is `kind: "write"`.
   - A failed call (its `toolResult` has `isError: true`) still carries `edit`; the app shows it as not applied.
 - Every string in `edit` is scrubbed like `input` (absolute paths made cwd-relative). So the diff can differ from the file on disk in exactly those paths.
-- Caps: each string at most 64 KB, and all of one `edit`'s strings at most 256 KB together. Cuts land on a line boundary, later strings are emptied first, and `truncated` becomes `true`. The app can offer the whole file through `GET /agents/:id/file`.
+- Caps: each string at most 64 KB, and all of one `edit`'s strings at most 256 KB together. Cuts land on a line boundary (a string with no newline in reach is cut on a UTF-8 boundary), later strings are cut or emptied first, and `truncated` becomes `true`. The app can offer the whole file through `GET /agents/:id/file`.
 - Live `reply.live` tools never carry `path` or `edit`.
 - Fixture: `docs/fixtures/messages-edits.json`.
 

@@ -47,9 +47,15 @@ func TestSwiftParserParity(t *testing.T) {
 			}
 			for i := range got {
 				g, w := got[i], want.Messages[i]
-				// A line without a usable timestamp gets "now" on both sides.
-				if isNow(g.CreatedAt) && isNow(w.CreatedAt) {
+				// A line without a usable timestamp gets "now" on both sides; the Swift side's "now"
+				// was when the fixture was captured.
+				if isNow(g.CreatedAt) {
 					g.CreatedAt = w.CreatedAt
+				}
+				// Round 10 fields are Go-only (the Swift bridge is frozen).
+				g.Blocks = append([]api.Block(nil), g.Blocks...)
+				for j := range g.Blocks {
+					g.Blocks[j].Path, g.Blocks[j].Edit, g.Blocks[j].Plan = "", nil, ""
 				}
 				expectEqual(t, g, w)
 			}
