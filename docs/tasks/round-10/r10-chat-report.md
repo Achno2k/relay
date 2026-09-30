@@ -12,7 +12,7 @@ Branch `r10/chat`. Commits in pick order:
 | 8570f7d | B7 sheet: plan in its own box |
 | 02149c0 | doc comment |
 | 25b2fcb | B6 resync race |
-| (next) | B3: "Thinking…" under live text that stopped growing |
+| fd29da8 | B3: "Thinking…" under live text that stopped growing |
 
 ## B3 / B8: shimmer bubble
 - `AppStore.awaitingReply`: set on send/retry. Cleared by `working`/`blocked`, a new assistant message, a failed send, stop, agent closed, or 30 s.
