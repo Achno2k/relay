@@ -133,12 +133,89 @@ public struct ToolCall: Codable, Hashable, Sendable {
     public var name: String
     public var summary: String
     public var input: String?
+    /// The file it acted on, cwd-relative; only set when `GET /agents/:id/file` would accept it (round 10).
+    public var path: String?
+    /// What a file-changing tool did, enough to draw a diff (round 10).
+    public var edit: ToolEdit?
+    /// Claude's `ExitPlanMode` only: the plan, markdown (round 10).
+    public var plan: String?
 
-    public init(id: String, name: String, summary: String, input: String? = nil) {
+    public init(
+        id: String, name: String, summary: String, input: String? = nil,
+        path: String? = nil, edit: ToolEdit? = nil, plan: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.summary = summary
         self.input = input
+        self.path = path
+        self.edit = edit
+        self.plan = plan
+    }
+}
+
+/// api.md "Tool call files and edits": Edit/MultiEdit changes, a Write's content, or codex's unified diff.
+public struct ToolEdit: Codable, Hashable, Sendable {
+    public enum Kind: String, Codable, Hashable, Sendable {
+        case edit, write, diff, unknown
+
+        public init(from decoder: any Decoder) throws {
+            self = Kind(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+        }
+    }
+
+    public var kind: Kind
+    /// kind `edit`: one per Edit, N for a MultiEdit, in order.
+    public var changes: [ToolEditChange]
+    /// kind `write`: the full content written (drawn as all-added).
+    public var content: String?
+    /// kind `diff`: one unified diff, possibly for several files.
+    public var diff: String?
+    /// Some string above was cut to the bridge's caps.
+    public var truncated: Bool
+
+    public init(kind: Kind, changes: [ToolEditChange] = [], content: String? = nil, diff: String? = nil, truncated: Bool = false) {
+        self.kind = kind
+        self.changes = changes
+        self.content = content
+        self.diff = diff
+        self.truncated = truncated
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, changes, content, diff, truncated
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try c.decodeIfPresent(Kind.self, forKey: .kind) ?? .unknown
+        changes = try c.decodeIfPresent([ToolEditChange].self, forKey: .changes) ?? []
+        content = try c.decodeIfPresent(String.self, forKey: .content)
+        diff = try c.decodeIfPresent(String.self, forKey: .diff)
+        truncated = try c.decodeIfPresent(Bool.self, forKey: .truncated) ?? false
+    }
+}
+
+public struct ToolEditChange: Codable, Hashable, Sendable {
+    public var old: String
+    public var new: String
+    public var replaceAll: Bool
+
+    public init(old: String, new: String, replaceAll: Bool = false) {
+        self.old = old
+        self.new = new
+        self.replaceAll = replaceAll
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case old, new, replaceAll
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        old = try c.decodeIfPresent(String.self, forKey: .old) ?? ""
+        new = try c.decodeIfPresent(String.self, forKey: .new) ?? ""
+        replaceAll = try c.decodeIfPresent(Bool.self, forKey: .replaceAll) ?? false
     }
 }
 
@@ -335,12 +412,15 @@ public struct Approval: Codable, Hashable, Sendable {
     public var question: String
     public var options: [ApprovalOption]
     public var step: ApprovalStep?
+    /// Claude's ExitPlanMode prompt only: the plan it wants approved, markdown (round 10).
+    public var plan: String?
 
-    public init(agentId: String, question: String, options: [ApprovalOption], step: ApprovalStep? = nil) {
+    public init(agentId: String, question: String, options: [ApprovalOption], step: ApprovalStep? = nil, plan: String? = nil) {
         self.agentId = agentId
         self.question = question
         self.options = options
         self.step = step
+        self.plan = plan
     }
 }
 
