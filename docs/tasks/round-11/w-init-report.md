@@ -69,3 +69,28 @@
   - `trust_test.go` runs both trust functions twice in a temp HOME. The first run writes the trust and keeps the other JSON keys and TOML keys, the second run is a no-op, and a missing Codex table gets appended.
   - `TestInputDefaultShowsTheValueUsed` covers the default and a typed path.
   - All four bridge checks pass.
+
+## Bug: agents start for CLIs that aren't signed in (2026-10-01)
+- **Contract** (`011ccba`):
+  - `docs/api.md` has the new `GET /kinds` row, an "Agent kinds" section (KindStatus, the sign-in checks, exact hints, ≤ 15 s cache), and the two `409`s under "Starting an agent".
+  - Fixture `docs/fixtures/kinds.json`, with `api.KindStatus` covered by the fixture round-trip test.
+- **Bridge.** New package `internal/kinds` with a `Checker`:
+  - **Installed:** the CLI is on `agentcli.LookPath`, the same lookup the usage code uses.
+  - **claude:** signed in if `$CLAUDE_CONFIG_DIR` or `~/.claude/.credentials.json` exists. Otherwise it asks `claude auth status --json` (the macOS keychain case).
+  - **codex:** signed in if `CODEX_API_KEY` or `OPENAI_API_KEY` is set, or `$CODEX_HOME` or `~/.codex/auth.json` exists.
+  - **pi:** signed in if `$PI_CODING_AGENT_DIR` or `~/.pi/agent/auth.json` holds at least one provider.
+  - The `internal/harness` checks are bash run over ssh on the box, so they don't fit the bridge. The logic is the same.
+  - `All` serves `/kinds` with a 15 s cache. `Startable` re-checks without the cache and returns the 409.
+- **Server.** `Options.Kinds` serves `GET /kinds`, and `create` calls `Startable` after body validation and before `Backend.Create`, so herdr is never touched for a blocked kind. Kinds outside claude, codex and pi aren't gated. `service.Run` wires `kinds.New`.
+- **Verification.**
+  - `internal/kinds` tests cover:
+    - nothing installed, and installed but signed out (each hint);
+    - each sign-in source: credentials file, `claude auth status`, API key env, `CODEX_HOME`, `PI_CODING_AGENT_DIR`;
+    - the cache: still answers at TTL−1 s and refreshes at the TTL;
+    - `Startable` ignoring the cache, and an unknown kind not being gated.
+  - `internal/server` tests: `/kinds` needs the token, and `POST /agents` returns `409 not_signed_in` / `not_installed` with the hint, without calling `Backend.Create`.
+  - Live on the Mac: a bridge on 7999 reported all three kinds signed in, with claude going through the keychain path. With an empty `CODEX_HOME` and no API keys, codex showed `signedIn:false` with the hint, and `POST /agents` for codex answered `409 not_signed_in`.
+  - All four bridge checks pass.
+- **Gaps.**
+  - If the claude credentials file is missing, `claude auth status` runs. It can take up to 8 s and holds the `/kinds` cache lock while it runs.
+  - Credentials that the CLIs read from env vars this check doesn't look at (e.g. `ANTHROPIC_API_KEY` without `claude auth status` agreeing) read as signed out.

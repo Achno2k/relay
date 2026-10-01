@@ -12,6 +12,7 @@ import (
 
 	"relay/internal/config"
 	"relay/internal/herdr"
+	"relay/internal/kinds"
 	"relay/internal/live"
 	"relay/internal/machine"
 	"relay/internal/server"
@@ -56,6 +57,7 @@ func Run(ctx context.Context, opt Options) error {
 		HerdrReachable: monitor.HerdrReachable,
 		Usage:          usageMonitor,
 		Machine:        machine.Current,
+		Kinds:          kinds.New(kinds.Env{}),
 		StartedAt:      time.Now(),
 	})
 

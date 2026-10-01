@@ -73,9 +73,18 @@ type Options struct {
 	HerdrReachable func() bool
 	Usage          Usage // nil = no usage
 	Machine        func() api.Machine
-	StartedAt      time.Time
+	// Kinds answers GET /kinds and gates POST /agents. nil = every kind may start.
+	Kinds     Kinds
+	StartedAt time.Time
 	// WebSocket keepalive; 0 = 30 s interval, 15 s pong timeout.
 	PingInterval, PingTimeout time.Duration
+}
+
+// Kinds is what the server needs from kinds.Checker.
+type Kinds interface {
+	All(ctx context.Context) []api.KindStatus
+	// Startable is nil, or the 409 for a kind that can't start here.
+	Startable(ctx context.Context, kind string) error
 }
 
 type Server struct {
@@ -165,6 +174,12 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request, segs []string) er
 
 	case len(segs) == 1 && segs[0] == "agents" && post:
 		return s.create(w, r)
+
+	case len(segs) == 1 && segs[0] == "kinds" && get:
+		if s.opt.Kinds == nil {
+			return writeJSON(w, http.StatusOK, []api.KindStatus{})
+		}
+		return writeJSON(w, http.StatusOK, s.opt.Kinds.All(ctx))
 
 	case len(segs) == 1 && segs[0] == "machine" && get:
 		return writeJSON(w, http.StatusOK, s.opt.Machine())
@@ -408,6 +423,12 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) error {
 	}
 	if body.Name != nil && !ValidName(*body.Name) {
 		return api.BadRequest("name must match [a-z][a-z0-9_-]{0,31}")
+	}
+	// Before herdr is touched, so a CLI that can't start never gets a tab.
+	if s.opt.Kinds != nil {
+		if err := s.opt.Kinds.Startable(r.Context(), *body.Kind); err != nil {
+			return err
+		}
 	}
 	return respond(w, http.StatusCreated)(s.opt.Backend.Create(r.Context(), CreateRequest{
 		WorkspaceID: *body.WorkspaceID, Kind: *body.Kind, Name: body.Name, Prompt: body.Prompt,
