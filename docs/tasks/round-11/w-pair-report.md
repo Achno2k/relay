@@ -81,3 +81,47 @@
 - In the container, `tailscaled` can't start because there is no tun device, so the run after the install stopped at "tailscaled doesn't answer". On the box this works, as the box test showed.
 - The integration check only runs on harnesses that are already installed. A CLI installed after `pair` needs another `relay pair`.
 - Every run with a CLI that has never been started repeats the warning until that CLI has its config dir.
+
+## Bug: agents start for CLIs that aren't signed in (iOS, 2026-10-01)
+Built on w-init's contract (`011ccba`: `GET /kinds`, `409 not_installed` / `not_signed_in`, `docs/fixtures/kinds.json`).
+
+### What changed
+- **RelayKit**
+  - New `KindStatus` model (`kind`, `installed`, `signedIn`, `signInHint`, and `canStart`).
+  - `APIClient.kinds()` and a `Backend.kinds()` requirement. The default implementation throws 404, so older bridges and test doubles read as "unknown".
+  - `LiveBackend`, `NamespacedBackend` and `RoutingBackend` forward the call.
+  - `RelayError.kindNotReady` is the hint for a `409 not_installed` / `not_signed_in`, with a fallback text when the bridge sends no message.
+- **AppStore**
+  - `kinds(machineId:)` fetches fresh every time; the app never caches it, because the bridge re-derives it. It returns nil on 404 or when the machine is offline.
+  - `createAgent` now returns `CreateOutcome` (`.created`, `.kindNotReady(hint)`, `.failed`). A 409 for a kind doesn't go to the error banner. Other failures still do.
+- **New chat sheet**
+  - The kind picker is now three rows instead of a segmented control, because a segment can't be greyed out with text under it.
+  - A kind that can't start is disabled and greyed, with the bridge's hint under it (backticks render as code). It can't be picked.
+  - `/kinds` is fetched when the sheet opens and again whenever the machine changes. If the current pick can't start, the first kind that can is selected (`pickKind`).
+  - When nothing is known (an older bridge, or the machine is offline), every kind stays pickable and the bridge has the last word.
+  - When the picked kind can't start, the Model/Effort section is hidden and Create is disabled.
+  - A 409 from Create (a race with a stale `/kinds`) shows an alert, "Can't start <Kind>", with the hint. The sheet stays open, and `/kinds` is refetched.
+- **Mock**
+  - `-mockSignedOut <kinds>` and `-mockNotInstalled <kinds>` drive both the mock `/kinds` and the 409s, using the same hint strings as the bridge.
+  - `-mockKindsStale` makes `/kinds` claim every kind can start, while Create still refuses (the race case).
+
+### Verification
+All runs headless: Simulator app closed, iPhone 17 Pro on iOS 26.4, xcodebuild only.
+- `RelayTests`: 211 tests, 0 failures. New tests in `NewChatTests.swift`:
+  - decoding the `kinds.json` fixture;
+  - `kindNotReady` is set only for 409s with those two codes;
+  - `pickKind`: a signed-out pick moves to the first kind that can start; unknown keeps the pick; nothing startable keeps the pick; a kind the bridge doesn't list counts as startable;
+  - hint markdown renders as code;
+  - the store: `/kinds` is fetched fresh, a missing route is nil with no banner, a 409 gives `.kindNotReady` with no banner and no chat opened, and a 500 still shows the banner.
+- `RelayUITests/NewChatKindsUITests` (new, mock):
+  - a signed-out codex and a missing pi are disabled with their hints; tapping codex does nothing; Claude creates fine;
+  - with only codex signed in, codex is picked for you and its models load;
+  - a stale `/kinds` plus a refused Create shows the alert with the hint, the sheet stays open, and no chat starts.
+- `RelayUITests/NewChatUITests` (existing) still passes with the rows.
+- Regression run of the other UI suites that open the sheet or the sidebar (`A11yAuditUITests`, `EmptyStateUITests`, `Round9UITests`, `Round2UITests`, `SidebarShellUITests`, `SidebarListsUITests`): 43 tests, 0 failures. One was skipped: `testAuditScreens` skips itself when `RELAY_SHOTS` isn't set.
+
+### Known gaps
+- Not tried against a real bridge or a box. The live `/kinds` and the 409s are w-init's code, and the app side ran against the mock only.
+- The alert's message is plain text, because alerts don't render markdown, so the backticks are dropped there. The rows show them as code.
+- After a 409 race, the refetch only greys the row if the bridge's `/kinds` has caught up; it caches for up to 15 s.
+- There is no live UI test for this, since it would need a CLI that is signed out on the test machine.
