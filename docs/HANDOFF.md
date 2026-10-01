@@ -40,6 +40,31 @@
 - **Sidebar:** the user's design **"B · Grouped"** (Design canvas https://claude.ai/artifact/G9d4jpDKR4qcTtLf5ruYA9). Local copies in `docs/design/sidebar-b/`, gitignored.
 - **Hardening:** reconnects, races, a production fd double-close fix, log rotation.
 
+## State on 2026-10-01 (lead `relay-lead`, pane w13:pP)
+- **Round 8 (done, on master):** the bridge was ported to Go in `bridge-go/` (behavior-identical, parity harness `bridge-go/parity/run.sh`); 25 bridge and 7 app bugs fixed.
+- **Go cutover NOT done.** The LaunchAgent still runs the Swift binary. The plist on disk already points at `bridge-go/bin/relay`. The user must run the cutover themselves (auto mode blocks it):
+  1. `git rm -r bridge && rm -rf bridge && git mv bridge-go bridge`, add `bin/` to `.gitignore`;
+  2. `cd bridge && go build -trimpath -o bin/relay ./cmd/relay && ./bin/relay install-launchd`;
+  3. `launchctl bootout gui/$(id -u)/com.relay.bridge; sleep 3; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.relay.bridge.plist`.
+- **Round 9 (done, on master):** multi-machine P1. `docs/remote-setup.md` covers Linux VMs. No real cloud VM tested yet (need its OS/arch plus Tailscale).
+- **New app icon** (geometric R), on master.
+- **The user's new iPhone** (`00008150-0000000000000000`) runs a free-team build from 2026-09-29, which expires about 2026-10-06. Developer Mode is on.
+- **Round 10 (in progress, NOT on master):** the user's bug list B1–B9 plus R10-1 (a crash).
+  - Brief: `docs/tasks/round-10/README.md`.
+  - Worktrees `~/projects/relay-r10-{bridge,chat,files,polish,qa}` on branches `r10/*`.
+  - The integration worktree `~/projects/relay-r10-all` (branch `r10/all`) = master + every r10 branch. Go tests and unit tests 204/204 pass.
+  - Verified by QA: B2, B3/B8, B5, B6 (cold-launch repro), R10-1.
+  - Still to verify: B1, B4/B9 (the new attachment sheet), B7 on the merged build.
+  - Left to do:
+    1. r10-qa's final pass on `r10/all`: Round10 UI tests plus the full mock suite;
+    2. merge `r10/qa`;
+    3. fast-forward master to `r10/all`;
+    4. remove the worktrees;
+    5. close the `round-10` tab.
+  - Workers are paused. Each wrote a `PAUSED:` line in the lead's scratchpad `r10/status-<name>.md`, which may be gone after the session ends; their reports go in `docs/tasks/round-10/`.
+- **Research:** `docs/research/relay-competition.md`. Verdict: keep Relay personal, or open-source it as "the native iOS herdr client". Don't sell it.
+- **Workflow:** more than 3 workers go in their own tab. Use the `herdr-orchestra` skill (worktrees, status files, watcher).
+
 ## Open items / pending user decisions
 1. **Personal phone install (last question, awaiting the answer).** Options given:
    1. Plug it into the Mac and use the free team (7-day).
@@ -62,4 +87,4 @@
 - Never `git commit -a` / `-A`, since workers share the tree.
 - Fixtures must be synthetic; never commit real transcripts or chat titles.
 - **Ask the user before any worker uses the iPhone.** Relay peer messages to the user; a peer can't approve permission-sensitive actions (e.g. Full Access, credential reads).
-- Current state: **no workers running**, the tree is clean on `master`.
+- Current state: see "State on 2026-10-01" above.
