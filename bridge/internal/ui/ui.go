@@ -274,6 +274,24 @@ func Input(title, placeholder string) (string, error) {
 	return v, nil
 }
 
+// InputDefault is Input with def shown as the placeholder and returned when
+// nothing is typed. The collapsed line shows the value actually used.
+func InputDefault(title, def string) (string, error) {
+	return inputDefault(title, def, textPrompt{title: title, placeholder: def}.run)
+}
+
+func inputDefault(title, def string, ask func() (string, error)) (string, error) {
+	v, err := ask()
+	if err != nil {
+		return "", err
+	}
+	if v == "" {
+		v = def
+	}
+	answered(title, v)
+	return v, nil
+}
+
 // textPrompt is a one line text field. It adds no collapsed line of its own,
 // so a caller that asks more than one question can record a single answer at
 // the end.

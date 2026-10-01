@@ -50,10 +50,22 @@
 - Not run: anything against a real box. The lead does the box tests.
 
 ## Known gaps
-- **Auto mode is not wired in**, per the user. `bs_auto_claude` (`permissions.defaultMode: "auto"`) and `bs_auto_codex` (`approval_policy = "on-request"`, `sandbox_mode = "workspace-write"`) are in `bootstrap.sh` and tested by hand, but init doesn't call them. The classifier blocked the Go wiring (`AutoModeTasks` plus an init step).
+- **Codex auto mode is not wired in**, per the user. `bs_auto_codex` (`approval_policy = "on-request"`, `sandbox_mode = "workspace-write"`) is in `bootstrap.sh` and tested by hand, but init doesn't call it. Claude Code needs nothing, since auto mode is already its default.
 - `relay pair --yes` only exists on w-pair's branch. On `r11-init` alone, init's pairing step fails with "unknown flag" until the branches are merged.
 - Merge note: I deleted `bootstrap/scripts/herdr-server.service` and `bootstrap/units.go`. If w-pair moved or edited either one, take w-pair's version under `internal/setup` and keep my deletion here.
 - Only the repo cloned in the current run gets a workspace. Repos cloned earlier get one the next time `relay init` runs from them.
 - The pi login hint assumes the user picks a provider in the TUI. Credentials set only through env vars (API keys) read as "not signed in".
 - A `git describe` version between tags, like `v0.1.0-3-gabc`, tries to download a release that doesn't exist. It fails with a 404 instead of the `RELAY_SRC` hint.
 - doctor assumes the bridge port is 7878.
+
+## Box test fixes (2026-10-01)
+- **Trust after clone.** `init` adds a "Trust" step right after the clone, for each picked harness that asks (`bootstrap.TrustTasks`).
+  - `bs_trust_claude` sets `projects["<abs path>"].hasTrustDialogAccepted = true` in `~/.claude.json` with jq and keeps every other key.
+  - `bs_trust_codex` sets `trust_level = "trusted"` under `[projects."<abs path>"]` in `~/.codex/config.toml`, which is what Codex's own trust prompt writes. An existing table for that path keeps its other keys, and a missing one is appended.
+  - The path is the checkout's physical path (`pwd -P`). pi is left alone. Its `--approve` / `trust.json` covers project-local pi files, not the folder, and I haven't checked whether it prompts on a fresh box.
+- **SSH key answer line.** New `ui.InputDefault` returns the placeholder when nothing is typed and shows the value actually used on the collapsed line. `awsx.askKeyPath` uses it. `ui.Input` is unchanged, because `reset` must not treat its placeholder ("Delete") as a typed confirmation.
+- **Auto mode.** `bs_auto_claude` is gone and the Claude gap note is dropped. `bs_auto_codex` stays, still not wired in.
+- **Verification.**
+  - `trust_test.go` runs both trust functions twice in a temp HOME. The first run writes the trust and keeps the other JSON keys and TOML keys, the second run is a no-op, and a missing Codex table gets appended.
+  - `TestInputDefaultShowsTheValueUsed` covers the default and a typed path.
+  - All four bridge checks pass.

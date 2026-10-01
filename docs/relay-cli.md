@@ -29,7 +29,7 @@ relay init
 2. Pick the harnesses: claude, codex, pi.
 3. Box setup: base tools, GitHub CLI, mise + node 22, herdr, the harnesses, and `relay` in `/usr/local/bin`.
 4. Sign in to each harness. You open the URL it prints and paste the code back. For pi, type `/login` in pi, then `/quit`.
-5. GitHub auth if needed (a token is recommended), then clone the repo to `~/work/<repo>/main`.
+5. GitHub auth if needed (a token is recommended), then clone the repo to `~/work/<repo>/main`. Claude Code and Codex are told to trust that folder, so an agent started there from the app doesn't stop at a trust prompt.
 6. A harness writes the repo's environment plan, which then runs on the box.
 7. `relay pair --yes` runs on the box in your terminal. Both QR codes (Tailscale login and pairing) show up here.
 8. A herdr workspace named after the repo, with the checkout as its cwd. The app's "New chat" can start agents there.
