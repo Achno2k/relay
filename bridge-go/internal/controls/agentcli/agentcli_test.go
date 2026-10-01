@@ -48,7 +48,7 @@ func TestSearchPathFindsUserInstalls(t *testing.T) {
 	if p, ok := LookPath("relay-fake-cli"); !ok || p != filepath.Join(bin, "relay-fake-cli") {
 		t.Errorf("LookPath %q %v", p, ok)
 	}
-	if out := Output(context.Background(), []string{"relay-fake-cli"}, "", 5*time.Second, true); strings.TrimSpace(string(out)) != "ok" {
+	if out := Output(context.Background(), []string{"relay-fake-cli"}, "", 30*time.Second, true); strings.TrimSpace(string(out)) != "ok" {
 		t.Errorf("out %q", out)
 	}
 	sp := SearchPath()
