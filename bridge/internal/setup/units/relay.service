@@ -1,0 +1,27 @@
+# relay.service — the Relay bridge (herdr to the Relay iOS app). Written by `relay pair`.
+#
+# Tailscale may come up after us: --require-tailscale exits 75 until it has an
+# IPv4 and Restart=always tries again. Output goes to ~/.relay/relay.log, which
+# the bridge truncates at 10 MB.
+[Unit]
+Description=Relay bridge (herdr to the Relay iOS app)
+After=network-online.target herdr-server.service tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{.User}}
+WorkingDirectory={{.Home}}
+Environment=HOME={{.Home}}
+Environment={{.Path}}
+{{- if .Socket}}
+Environment={{.Socket}}
+{{- end}}
+ExecStart={{.Relay}} serve --port {{.Port}} --require-tailscale
+Restart=always
+RestartSec=5
+StandardOutput=append:{{.Log}}
+StandardError=append:{{.Log}}
+
+[Install]
+WantedBy=multi-user.target

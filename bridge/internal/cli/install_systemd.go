@@ -5,36 +5,36 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"relay/internal/config"
+	"relay/internal/setup"
 )
 
 func init() {
 	var port int
 	cmd := &cobra.Command{
 		Use:   "install-systemd",
-		Short: "Write a systemd user unit for `relay serve` (does not enable it)",
-		Args:  cobra.NoArgs,
+		Short: "Write the relay.service system unit for `relay serve` (uses sudo; does not enable it)",
+		Long: "Writes /etc/systemd/system/relay.service, running `relay serve` as you.\n" +
+			"`relay pair` does this and more (herdr, Tailscale, enable, health check).",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runInstallSystemd(port)
+			return runInstallSystemd(cmd, port)
 		},
 	}
 	cmd.Flags().IntVar(&port, "port", 7878, "port to serve on")
 	Register(cmd)
 }
 
-func runInstallSystemd(port int) error {
+func runInstallSystemd(cmd *cobra.Command, port int) error {
 	exe, err := executable()
 	if err != nil {
 		return err
 	}
-	if err := config.EnsureHome(); err != nil { // the unit appends to the log here
+	path, err := setup.InstallRelayUnit(cmd.Context(), exe, port)
+	if err != nil {
 		return err
 	}
-	if err := writeUnit(config.SystemdUnitPath(), config.SystemdUnit(exe, port)); err != nil {
-		return err
-	}
-	fmt.Printf("enable it with:\n  systemctl --user daemon-reload && systemctl --user enable --now %s\n", config.SystemdUnitName)
-	fmt.Println("keep it running while logged out with:\n  loginctl enable-linger $USER")
-	fmt.Printf("disable with:\n  systemctl --user disable --now %s\n", config.SystemdUnitName)
+	fmt.Println("wrote " + path)
+	fmt.Printf("enable it with:\n  sudo systemctl enable --now %s\n", setup.RelayUnitName)
+	fmt.Printf("disable with:\n  sudo systemctl disable --now %s\n", setup.RelayUnitName)
 	return nil
 }

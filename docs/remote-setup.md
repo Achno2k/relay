@@ -2,78 +2,63 @@
 
 Run Relay's bridge on a Linux machine (e.g. a cloud VM) so the app can drive the agents there. Each machine runs its own bridge next to its own herdr and is paired separately. See "Multiple machines" in `api.md`.
 
-Setup is manual for now (P1). Examples use a VM called `vm`, a user `you` and the tailnet IP `100.101.102.103`.
+There are two ways to do it. Both end with `relay pair` on the VM, which sets up what's missing and prints the pairing QR code. Examples use a VM called `vm`, a user `you` and the tailnet IP `100.101.102.103`.
 
 ## What you need
 - A Linux VM with systemd (Ubuntu 22.04+, Debian 12+, Fedora 39+), amd64 or arm64.
-- SSH access as a normal user (not root). The bridge runs as that user.
-- herdr and the agent CLIs (claude, codex, pi) installed and logged in on the VM, as that user.
-- The Mac with this repo and Go, to build the binary.
-- The iPhone on the same tailnet (Tailscale iOS app).
+- SSH access as a normal user with sudo (passwordless, or you type the password once). The bridge and herdr run as that user.
+- The iPhone on your tailnet (Tailscale iOS app).
+- Path 2 only: an existing EC2 instance and an AWS profile on the laptop. `relay init` never creates instances.
 
-## 1. Tailscale on the VM
+## Path 1: on the VM
 ```sh
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-tailscale ip -4          # e.g. 100.101.102.103
-```
-- The bridge finds `tailscale` on `PATH`, then in `/usr/bin` and `/usr/local/bin`.
-- Nothing to open in the cloud firewall. Tailscale only needs outbound traffic.
-
-## 2. Build and copy the binary
-On the Mac:
-```sh
-scripts/build-linux.sh
-# -> bridge/bin/relay-linux-amd64, relay-linux-arm64, SHA256SUMS
-ssh vm uname -m          # x86_64 -> amd64, aarch64 -> arm64
-ssh vm mkdir -p .local/bin
-scp bridge/bin/relay-linux-amd64 vm:.local/bin/relay
-ssh vm 'chmod +x ~/.local/bin/relay && ~/.local/bin/relay --version'
-```
-- Static (`CGO_ENABLED=0`), no libc dependency.
-- The version is stamped as `<version>-<git sha>`, with `-dirty` if `bridge/` had uncommitted changes. `/health` reports it, and so does the app's Machines screen.
-- `VERSION=… scripts/build-linux.sh` sets it by hand. `ARCHES=arm64` builds one arch.
-
-## 3. herdr
-- Start herdr on the VM as the same user (`ssh vm`, then `herdr`, then detach), or from the Mac with `herdr --remote vm`.
-- The bridge talks to herdr's socket. Default: `~/.config/herdr/herdr.sock`. Check it with:
-  ```sh
-  herdr status server      # the "socket:" line
-  ```
-- If yours is elsewhere, set `HERDR_SOCKET_PATH` for the service (step 4). On Linux it must be at most 107 bytes, or `relay serve` exits 78.
-- The bridge starts fine without herdr. `/health` then says `"herdr": "unavailable"` and the app shows the machine with no agents until herdr is up.
-
-## 4. Run it as a systemd user service
-On the VM:
-```sh
-relay install-systemd
-systemctl --user daemon-reload
-systemctl --user enable --now relay.service
-sudo loginctl enable-linger $USER
-```
-- `install-systemd` writes `~/.config/systemd/user/relay.service` (`--port` to change 7878). It doesn't enable it.
-- `enable-linger` starts your user services at boot and keeps them running with nobody logged in. Without it the bridge stops when your last SSH session ends.
-- The unit runs `relay serve --require-tailscale` with `Restart=always`, `RestartSec=5`. If Tailscale isn't up yet the bridge exits 75 and systemd retries every 5 s until it is. A crash restarts it the same way.
-- The unit's `PATH` is `~/.local/bin:~/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. The bridge runs `claude`, `codex` and `pi` itself for usage and controls. If they live elsewhere (npm prefix, nvm), or you need `HERDR_SOCKET_PATH`:
-  ```sh
-  systemctl --user edit relay.service
-  # [Service]
-  # Environment=PATH=/home/you/.npm-global/bin:/home/you/.local/bin:/usr/local/bin:/usr/bin:/bin
-  # Environment=HERDR_SOCKET_PATH=/home/you/.config/herdr/herdr.sock
-  systemctl --user restart relay.service
-  ```
-- Check it:
-  ```sh
-  systemctl --user status relay.service
-  curl -s http://127.0.0.1:7878/health
-  ```
-
-## 5. Pair
-```sh
+ssh vm
+curl -fsSL https://raw.githubusercontent.com/Achno2k/relay/main/scripts/install.sh | sh
 relay pair
 ```
-- Prints a QR code and the `relay://pair?url=…&token=…` link.
+- `install.sh` puts `relay` in `/usr/local/bin` (or `~/.local/bin` without sudo).
+- `relay pair` lists what it is about to do and asks once. Then, skipping whatever is already there:
+  1. **sudo**: checks `sudo -n true`; otherwise asks for your password once and keeps it fresh while it runs.
+  2. **herdr**: installs it to `/usr/local/bin/herdr` if it isn't on `PATH`, from the herdr.dev manifest, checking its sha256. If no herdr server answers on the socket, it writes and starts `herdr-server.service`. A herdr you already run is left alone.
+  3. **Tailscale**: installs it with `https://tailscale.com/install.sh` if missing and starts `tailscaled`. If it's logged out, it runs `tailscale up` and shows the login link as a QR code. Scan it with the phone (or open the link anywhere) and it carries on. `relay pair --authkey tskey-…` logs in without it.
+  4. **relay.service**: writes `/etc/systemd/system/relay.service`, enables it, and starts it. It restarts it only when the unit or the `relay` binary changed. Then it waits up to 45 s for `/health` on the Tailscale IP.
+  5. Prints the pairing QR code and the `relay://pair?url=…&token=…` link.
 - In the app: machine menu > Add machine…, then scan the QR or paste the link.
+- Run it again any time. On a set-up machine it changes nothing and just prints the QR again.
+- `--yes` skips the question (needed without a terminal). `--port` changes 7878.
+
+## Path 2: from the laptop
+```sh
+relay init
+```
+- `relay init` (see `relay-cli.md`) picks the AWS profile, region and an existing instance, sets up SSH, installs the harnesses and logs them in, sets up GitHub, clones your repos and writes the environment plan.
+- At the end it runs `relay pair --yes` on the box over an interactive SSH session. The Tailscale login QR and the pairing QR both show in the laptop terminal.
+- It also gives each cloned repo a herdr workspace, so the app's "New chat" can start agents there.
+- `relay attach` opens the box's herdr on the laptop (`herdr --remote <user>@<host>`).
+
+## The two units
+Both are system units in `/etc/systemd/system` with `User=` set to you, so they start at boot with nobody logged in. No linger needed.
+
+| unit | runs | notes |
+|---|---|---|
+| `herdr-server.service` | `herdr server` | `Restart=always`. Only written when no herdr server already answers. |
+| `relay.service` | `relay serve --port 7878 --require-tailscale` | `Restart=always`, `RestartSec=5`, after `herdr-server` and `tailscaled`. |
+
+- If Tailscale isn't up yet, the bridge exits 75 and systemd retries every 5 s until it is. A crash restarts it the same way.
+- Both units' `PATH` is `~/.local/share/mise/shims:~/.local/bin:~/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. The bridge runs `claude`, `codex` and `pi` itself for usage and controls. If they live elsewhere (npm prefix, nvm):
+  ```sh
+  sudo systemctl edit relay.service
+  # [Service]
+  # Environment=PATH=/home/you/.npm-global/bin:/home/you/.local/bin:/usr/local/bin:/usr/bin:/bin
+  sudo systemctl restart relay.service
+  ```
+  `relay pair` rewrites only the unit file, so the drop-in survives it.
+- A `HERDR_SOCKET_PATH` set when you run `relay pair` goes into both units. On Linux it must be at most 107 bytes, or `relay serve` exits 78.
+- The bridge starts fine without herdr. `/health` then says `"herdr": "unavailable"` and the app shows the machine with no agents until herdr is up.
+- `relay install-systemd` writes `relay.service` alone (with sudo) without enabling it, for doing the rest by hand.
+- A round-9 user unit (`~/.config/systemd/user/relay.service`) is stopped and removed by `relay pair`.
+
+## Pairing URL
 - The URL uses `tailscale ip -4`. If that's wrong (NAT, several tailnet IPs, or you want the MagicDNS name):
   ```sh
   relay pair --url http://vm.tail1234.ts.net:7878
@@ -81,7 +66,7 @@ relay pair
 - Pairing the same machine again (new IP, new token) replaces its entry in the app. Nothing else changes.
 
 ## Network and firewall
-- The bridge listens on the Tailscale IPv4 and `127.0.0.1` only, never `0.0.0.0`. The VM's public interface doesn't expose it, so no firewall rule is needed.
+- The bridge listens on the Tailscale IPv4 and `127.0.0.1` only, never `0.0.0.0`. The VM's public interface doesn't expose it, so no firewall rule is needed. Tailscale only needs outbound traffic.
 - Anyone on your tailnet who can reach the VM still needs the token. Tailscale ACLs can narrow it further (e.g. only your phone to `vm:7878`).
 - If you run `ufw` with a default deny on incoming traffic, allow the port on the Tailscale interface only:
   ```sh
@@ -89,53 +74,53 @@ relay pair
   ```
 
 ## Updating
-On the Mac, rebuild and copy to a temp name, then swap and restart:
-```sh
-scripts/build-linux.sh
-scp bridge/bin/relay-linux-amd64 vm:.local/bin/relay.new
-ssh vm 'mv ~/.local/bin/relay.new ~/.local/bin/relay && systemctl --user restart relay.service'
-ssh vm curl -s http://127.0.0.1:7878/health     # new "version"
-```
+- Path 1: run `install.sh` again, then `relay pair`. It sees the running bridge is the old binary and restarts it.
+- Path 2: `relay deploy` from the laptop.
 - The token lives in `~/.relay/token`, so the app stays paired.
-- `mv` replaces the file atomically. Copying straight over the running binary fails with "text file busy".
+- Building by hand on the Mac still works: `scripts/build-linux.sh` writes `bridge/bin/relay-linux-{amd64,arm64}`. Copy it to a temp name and `mv` it over `/usr/local/bin/relay` (copying straight over the running binary fails with "text file busy"), then `relay pair`.
 
 ## Logs
-- Bridge output: `~/.relay/relay.log`. The bridge rotates it at 10 MB.
+- Bridge output: `~/.relay/relay.log`. The bridge truncates it at 10 MB.
   ```sh
   tail -f ~/.relay/relay.log
   ```
-- Starts, stops, crashes and restarts: `journalctl --user -u relay.service`.
+- Starts, stops, crashes and restarts: `journalctl -u relay.service`, `journalctl -u herdr-server.service`.
 
 ## Token
-- `relay token` prints it. `relay token --rotate` replaces it. Then restart the service and pair again; the app replaces the old entry.
+- `relay token` prints it. `relay token --rotate` replaces it. Then `sudo systemctl restart relay.service` and pair again; the app replaces the old entry.
 
 ## Uninstalling
-On the VM:
-```sh
-systemctl --user disable --now relay.service
-rm ~/.config/systemd/user/relay.service
-systemctl --user daemon-reload
-rm ~/.local/bin/relay
-rm -rf ~/.relay                       # token, uploads, logs
-sudo loginctl disable-linger $USER    # only if nothing else needs it
-```
-Then remove the machine in the app (Manage machines…).
+- Path 2: `relay reset` from the laptop.
+- By hand on the VM:
+  ```sh
+  sudo systemctl disable --now relay.service herdr-server.service
+  sudo rm /etc/systemd/system/relay.service /etc/systemd/system/herdr-server.service
+  sudo systemctl daemon-reload
+  sudo rm /usr/local/bin/relay
+  rm -rf ~/.relay                       # token, uploads, logs
+  ```
+- Then remove the machine in the app (Manage machines…). herdr and Tailscale stay installed.
 
 ## Troubleshooting
 | Symptom | Check |
 |---|---|
-| App shows the machine offline | `systemctl --user status relay.service`; `tailscale status` on the VM and the phone |
-| Service keeps restarting, log says `tailscale ip -4 unavailable` | `sudo tailscale up`; `tailscale ip -4` |
-| Machine online but no agents | herdr isn't running or the socket path is wrong: `herdr status server`, `curl -s 127.0.0.1:7878/health` |
+| `relay pair` says `relay.service doesn't answer` | `systemctl status relay.service`; `tail ~/.relay/relay.log` |
+| App shows the machine offline | `systemctl status relay.service`; `tailscale status` on the VM and the phone |
+| Service keeps restarting, log says `tailscale ip -4 unavailable` | `relay pair` (logs Tailscale in); `tailscale ip -4` |
+| Machine online but no agents | herdr isn't running or the socket path is wrong: `systemctl status herdr-server.service`, `herdr status server`, `curl -s 127.0.0.1:7878/health` |
 | App says re-pair needed | the token changed or the URL now reaches another machine: `relay pair` and scan again |
-| Usage cards say the CLI isn't found | the unit's `PATH` doesn't include it: `systemctl --user edit relay.service` |
-| Bridge stops when you log out | `loginctl show-user $USER -p Linger` should say `yes` |
+| Usage cards say the CLI isn't found | the unit's `PATH` doesn't include it: `sudo systemctl edit relay.service` |
+| `relay pair` stops with "no terminal to confirm on" | run it in a terminal, or pass `--yes` |
 
 ## Tested
-Verified in round 9 on an Ubuntu 24.04 arm64 container with systemd as PID 1 (podman), with a stub `tailscale` that printed the container IP:
-- without Tailscale the unit exits 75 and systemd retries every 5 s;
-- with it, the unit serves `/health` on `127.0.0.1` and the "Tailscale" IP only;
-- `kill -9` of the bridge brings it back in about 5 s;
-- after a container restart with no one logged in (linger) it comes back up by itself;
-- `disable --now` stops it;
-- the amd64 binary runs `--version` under emulation.
+Round 11, `relay pair` on Ubuntu 24.04 arm64 in a podman container with systemd as PID 1, real herdr from herdr.dev, and a stub `tailscale` (logged out at first, prints a login URL from `up`, then reports the container IP):
+- a fresh run installs herdr, starts `herdr-server.service`, shows the login QR, writes and starts `relay.service`, and `/health` answers with `"herdr": "connected"`;
+- a second run changes nothing: same unit files and mtimes, same PIDs and start times, no question asked;
+- replacing `/usr/local/bin/relay` and running it again restarts only `relay.service`;
+- `--authkey` logs in through `--auth-key=file:` and leaves no key file behind;
+- a round-9 user unit is removed;
+- a user without passwordless sudo is asked once (driven with `expect`);
+- without a terminal and without `--yes` it lists the plan and stops;
+- after a container restart both units come back with no one logged in; `kill -9` of the bridge brings it back in about 5 s; with Tailscale stopped the bridge exits 75 and comes back once it's up.
+
+Not tested here: the real Tailscale installer and login (the box tests cover them).

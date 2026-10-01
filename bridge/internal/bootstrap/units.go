@@ -3,39 +3,23 @@ package bootstrap
 import (
 	"bytes"
 	"context"
-	"embed"
 	"fmt"
 	"io"
 	"strings"
-	"text/template"
 
 	"github.com/BurntSushi/toml"
 
 	"relay/internal/config"
+	"relay/internal/setup"
 	"relay/internal/sshx"
 )
 
-//go:embed scripts/herdr-server.service
-var unitFS embed.FS
-
 // Units are the systemd units bootstrap installs, in the order they start.
-var Units = []string{"herdr-server.service"}
+var Units = []string{setup.HerdrUnitName}
 
-// Unit renders one embedded unit template for the given box user.
+// Unit renders one unit template (they live in internal/setup) for the given box user.
 func Unit(name, user, home string) (string, error) {
-	b, err := unitFS.ReadFile("scripts/" + name)
-	if err != nil {
-		return "", fmt.Errorf("no embedded unit %q: %w", name, err)
-	}
-	t, err := template.New(name).Parse(string(b))
-	if err != nil {
-		return "", err
-	}
-	var out bytes.Buffer
-	if err := t.Execute(&out, struct{ User, Home string }{user, home}); err != nil {
-		return "", err
-	}
-	return out.String(), nil
+	return setup.Unit(name, setup.UnitParams{User: user, Home: home})
 }
 
 // InstallUnits writes every unit to /etc/systemd/system and reloads systemd.

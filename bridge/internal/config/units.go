@@ -9,7 +9,7 @@ import (
 
 const LaunchAgentLabel = "com.relay.bridge"
 
-// servicePATH is what launchd/systemd give `relay serve` (and so the agents' CLIs it spawns).
+// servicePATH is what launchd gives `relay serve` (and so the agents' CLIs it spawns).
 const servicePATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 func LaunchAgentPath() string {
@@ -49,44 +49,5 @@ func LaunchAgentPlist(executable string, port int) []byte {
 	<string>` + log + `</string>
 </dict>
 </plist>
-`)
-}
-
-const SystemdUnitName = "relay.service"
-
-func SystemdUnitPath() string {
-	return filepath.Join(userHome(), ".config/systemd/user", SystemdUnitName)
-}
-
-// systemdQuote quotes one ExecStart word if it needs it.
-func systemdQuote(s string) string {
-	if s != "" && !strings.ContainsAny(s, " \t\"'\\;$%") {
-		return s
-	}
-	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `$`, `$$`, `%`, `%%`)
-	return `"` + r.Replace(s) + `"`
-}
-
-// SystemdUnit is the user unit for `relay serve` on Linux, the systemd twin of the LaunchAgent:
-// restart forever (Tailscale may come up late), output appended to the relay log.
-func SystemdUnit(executable string, port int) []byte {
-	home := userHome()
-	path := strings.Join([]string{filepath.Join(home, ".local/bin"), filepath.Join(home, "bin"), "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"}, ":")
-	exec := []string{systemdQuote(executable), "serve", "--port", fmt.Sprint(port), "--require-tailscale"}
-	return []byte(`[Unit]
-Description=Relay bridge (herdr to the Relay iOS app)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-ExecStart=` + strings.Join(exec, " ") + `
-Restart=always
-RestartSec=5
-Environment=` + systemdQuote("PATH="+path) + `
-StandardOutput=append:` + LogPath() + `
-StandardError=append:` + LogPath() + `
-
-[Install]
-WantedBy=default.target
 `)
 }

@@ -1,5 +1,5 @@
 # herdr-server.service — the headless herdr server the relay bridge drives and the
-# laptop attaches to with `herdr --remote {{.User}}@<host>`.
+# laptop attaches to with `herdr --remote {{.User}}@<host>`. Written by `relay pair`.
 #
 # `herdr server` runs in the foreground, needs no tty, and listens on
 # ~/.config/herdr/herdr.sock, so plain Type=simple is enough.
@@ -16,9 +16,12 @@ WorkingDirectory={{.Home}}
 Environment=HOME={{.Home}}
 Environment=RELAY_ON_BOX=1
 Environment=TERM=xterm-256color
-Environment=PATH={{.Home}}/.local/share/mise/shims:{{.Home}}/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/local/bin/herdr server
-ExecStop=/usr/local/bin/herdr server stop
+Environment={{.Path}}
+{{- if .Socket}}
+Environment={{.Socket}}
+{{- end}}
+ExecStart={{.Herdr}} server
+ExecStop={{.Herdr}} server stop
 Restart=always
 RestartSec=2
 KillMode=mixed

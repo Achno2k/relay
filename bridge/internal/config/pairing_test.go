@@ -36,21 +36,6 @@ func TestLaunchAgentPlist(t *testing.T) {
 	}
 }
 
-func TestSystemdUnit(t *testing.T) {
-	t.Setenv("RELAY_HOME", "/tmp/rh")
-	u := string(SystemdUnit("/home/dev/my bin/relay", 7878))
-	for _, want := range []string{
-		`ExecStart="/home/dev/my bin/relay" serve --port 7878 --require-tailscale`,
-		"Restart=always",
-		"StandardOutput=append:/tmp/rh/relay.log",
-		"WantedBy=default.target",
-	} {
-		if !strings.Contains(u, want) {
-			t.Errorf("unit lacks %q\n%s", want, u)
-		}
-	}
-}
-
 func TestParseBaseURL(t *testing.T) {
 	for in, want := range map[string]string{
 		"http://100.101.102.103:7878":     "http://100.101.102.103:7878",
