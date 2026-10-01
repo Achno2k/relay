@@ -14,6 +14,9 @@ Branch `r10/chat`. Commits in pick order:
 | 25b2fcb | B6 resync race |
 | fd29da8 | B3: "Thinking…" under live text that stopped growing |
 | ecc3172 | R10-1 crash: the pong handler resumes once |
+| 8c475f8 | B7 sheet: plan no longer shows through the pinned options (`safeAreaBar`) |
+| caf79a5 | `-mockPlan`: w1:p2 blocked on a plan approval, chat ends with ExitPlanMode (for r10-qa's UI tests) |
+| bd09c1d | xcodeproj regen (MockPlan.swift) |
 
 ## B3 / B8: shimmer bubble
 - `AppStore.awaitingReply`: set on send/retry. Cleared by `working`/`blocked`, a new assistant message, a failed send, stop, agent closed, or 30 s.
@@ -48,6 +51,7 @@ Branch `r10/chat`. Commits in pick order:
 - `PlanCard` shows about 180 pt with a fade and "Show full plan" (ids `planCard`, `planToggle`). `-demo plan` opens it expanded.
 - Approval sheet: with `plan` it opens at `.large`. The plan scrolls in a box (`approvalPlan`) and the options stay pinned below. The card above the composer says "Review the plan".
 - Checked on the mock and against r10-bridge's 7883 (w14:p2's real plan).
+- Mock: launch with `-mockPlan`. w1:p2 is blocked on the plan approval, and its chat ends with a Write plus `ExitPlanMode` carrying the plan. Add `-demo card` to keep the sheet closed.
 
 ## Tests
 - `RelayTests/Round10ChatTests.swift`: awaiting-reply lifecycle, the resync race (done/closed/created mid-resync, snapshot still wins otherwise), toolCall field decoding (including an unknown edit kind), `Approval.plan`, and plan placement.
@@ -55,4 +59,4 @@ Branch `r10/chat`. Commits in pick order:
 
 ## Open
 - r10-qa's B8 note on codex: the typed text stays in the field with a grey arrow, and the bubble shows at about +3 s. I couldn't reproduce it on the mock with 10 Hz `agent.updated` plus a 2 s prompt delay; the field clears and the pending bubble shows at once. It needs a video on a real codex agent.
-- r10-polish asked about a B4 composer change (the `+` menu becomes a sheet). ComposerView is mine; I'll take their patch once the lead decides.
+- r10-polish's B4 change to ComposerView (e9ac406 on r10/polish, the `+` menu becomes a sheet) is reviewed and OK from me. `Round2UITests.testAttachImageAndPDF` on top of it failed once, then passed on a rerun; plain r10/chat passed once. It looks flaky.

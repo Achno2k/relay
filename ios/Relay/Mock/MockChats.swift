@@ -7,7 +7,7 @@ enum MockChats {
     static func all(fixtureMessages: MessagePage) -> [String: [Message]] {
         [
             "w1:p1": fixtureMessages.messages,
-            "w1:p2": flakyTests,
+            "w1:p2": flakyTests + (LaunchOptions.current.mockPlan ? MockPlan.messages : []),
             "w2:p1": longHistory + landing,
             "w2:p3": [],
             "w2:p5": screenRead,
