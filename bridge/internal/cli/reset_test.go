@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Achno2k/agents-cli/internal/awsx"
-	"github.com/Achno2k/agents-cli/internal/bootstrap"
+	"relay/internal/awsx"
+	"relay/internal/bootstrap"
 )
 
 func TestOrderForResetFloatsConfiguredInstance(t *testing.T) {

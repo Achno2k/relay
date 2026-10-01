@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/ui"
 )
 
 func init() {
@@ -23,7 +23,7 @@ func init() {
 		Args:   cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if plain {
-				os.Setenv("AGENTS_UI_PLAIN", "1")
+				os.Setenv("RELAY_UI_PLAIN", "1")
 			}
 			return runUIDemo(cmd.Context(), noPrompts)
 		},
@@ -51,14 +51,14 @@ func runUIDemo(ctx context.Context, noPrompts bool) error {
 
 	ui.Title("Key / value")
 	ui.KV(
-		"profile", "work-dev",
+		"profile", "dev",
 		"region", "eu-west-1",
 		"instance", "i-0abc123def456789 (t4g.xlarge)",
-		"repo", "Achno2k/agents-cli",
+		"repo", "example/webapp",
 	)
 
 	ui.Title("Copyable command")
-	ui.Code("agents attach agents-cli-3")
+	ui.Code("relay attach")
 
 	if err := demoPhases(ctx); err != nil {
 		ui.Fail("phase demo: " + err.Error())
@@ -131,23 +131,23 @@ func demoPickers() error {
 		return quietCancel(err)
 	}
 
-	// Marked options are how `agents init` shows what the box already has.
+	// Marked options are how `relay init` shows what the box already has.
 	harnesses := []string{"claude", "codex", "gemini", "amp"}
 	marks := []string{"installed", "", "installed", ""}
 	if _, err := ui.MultiSelectMarked("Harnesses to install", harnesses, marks, []int{0, 2}); err != nil {
 		return quietCancel(err)
 	}
 
-	if _, err := ui.Input("Repo to clone", "Achno2k/agents-cli"); err != nil {
+	if _, err := ui.Input("Repo to clone", "example/webapp"); err != nil {
 		return quietCancel(err)
 	}
 
 	// The transcript shows the length and nothing else.
-	if _, err := ui.Secret("Slack bot token"); err != nil {
+	if _, err := ui.Secret("GitHub token"); err != nil {
 		return quietCancel(err)
 	}
 
-	if _, err := ui.Confirm("Enable the Slack bot on this box?", true); err != nil {
+	if _, err := ui.Confirm("Clone it on the box?", true); err != nil {
 		return quietCancel(err)
 	}
 
@@ -155,20 +155,18 @@ func demoPickers() error {
 	return nil
 }
 
-// demoReady is the block that ends a real `agents init`.
+// demoReady is the block that ends a real `relay init`.
 func demoReady() {
 	ui.Ready("Machine ready",
-		"Box", "ubuntu@ec2-13-40-1-2.eu-west-1.compute.amazonaws.com (i-0abc123def456789)",
+		"Box", "ubuntu@box.example.com (i-0abc123def456789)",
 		"Region", "eu-west-1",
-		"Repo", "~/work/agents-cli/main",
+		"Repo", "~/work/webapp/main",
 		"Harnesses", "claude, codex",
-		"Bot", "running",
 	)
 	ui.Commands(
-		"agents attach <session>",
-		"agents ssh",
+		"relay attach",
+		"relay ssh",
 	)
-	ui.Info("or mention the bot in Slack: @agents agents-cli fix the failing test")
 }
 
 // demoPhases shows a phase inside a phase, with a checklist at the bottom.
@@ -196,7 +194,7 @@ func demoPhases(ctx context.Context) error {
 				)},
 				{Name: "go mod download", Run: streamer(
 					"downloading github.com/spf13/cobra v1.10.2",
-					"downloading github.com/slack-go/slack v0.17.3",
+					"downloading github.com/BurntSushi/toml v1.6.0",
 				)},
 			})
 		}); err != nil {
@@ -276,16 +274,15 @@ func demoSteps() []ui.Step {
 			"codex 0.149.1",
 		)},
 		{Name: "Writing systemd units", Run: streamer(
-			"agents-bot.service",
-			"herdr.service",
-			"systemctl --user daemon-reload",
+			"herdr-server.service",
+			"systemctl daemon-reload",
 		)},
 		// Deliberately outlasts ui.StepTimeout, so the demo shows what a step
 		// that never finishes looks like. It reports progress with carriage
 		// returns, the way git actually does, which the live tail collapses to
 		// a single updating line.
 		{Name: "Cloning the repo", Run: func(ctx context.Context, log io.Writer) error {
-			fmt.Fprintln(log, "git clone --filter=blob:none git@github.com:Achno2k/agents-cli")
+			fmt.Fprintln(log, "git clone --filter=blob:none git@github.com:example/webapp")
 			for pct := 0; ; pct = (pct + 3) % 100 {
 				if err := sleepCtx(ctx, 200*time.Millisecond); err != nil {
 					return err

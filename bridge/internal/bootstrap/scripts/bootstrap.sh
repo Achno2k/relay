@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bootstrap.sh — base toolchain for an agents box. Ubuntu 24.04, user `ubuntu`.
+# bootstrap.sh — base toolchain for a relay box. Ubuntu 24.04, user `ubuntu`.
 #
 # Every function is idempotent and safe to re-run. The Go side sends this file
 # on stdin with a single function call appended, so each install shows up as its
@@ -11,7 +11,7 @@ set -euo pipefail
 
 MISE_SHIMS="$HOME/.local/share/mise/shims"
 LOCAL_BIN="$HOME/.local/bin"
-AGENTS_DIR="${AGENTS_HOME:-$HOME/.agents}"
+RELAY_DIR="${RELAY_HOME:-$HOME/.relay}"
 export PATH="$MISE_SHIMS:$LOCAL_BIN:/usr/local/bin:$PATH"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -21,7 +21,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 # apt-get update at most once an hour, and at most once per bootstrap run.
 apt_refresh() {
-    local stamp=/var/lib/apt/periodic/agents-update-stamp
+    local stamp=/var/lib/apt/periodic/relay-update-stamp
     if [ -f "$stamp" ] && [ -z "$(find "$stamp" -mmin +60 2>/dev/null)" ]; then
         return 0
     fi
@@ -54,7 +54,7 @@ bs_sudo_check() {
         die "sudo is not installed on this box"
     fi
     if ! sudo -n true 2>/dev/null; then
-        die "passwordless sudo is required. Add to /etc/sudoers.d/90-agents:
+        die "passwordless sudo is required. Add to /etc/sudoers.d/90-relay:
     $(id -un) ALL=(ALL) NOPASSWD:ALL"
     fi
     say "passwordless sudo ok for $(id -un)"
@@ -179,23 +179,23 @@ bs_codex() { npm_global @openai/codex codex; }
 
 # ------------------------------------------------------------ 6. profile -----
 
-# bs_agents_home creates ~/.agents and marks this machine as the box so the CLI
+# bs_relay_home creates ~/.relay and marks this machine as the box so the CLI
 # knows not to proxy itself over ssh.
-bs_agents_home() {
-    mkdir -p "$AGENTS_DIR" "$AGENTS_DIR/plans"
-    chmod 0700 "$AGENTS_DIR"
-    touch "$AGENTS_DIR/on-box"
+bs_relay_home() {
+    mkdir -p "$RELAY_DIR" "$RELAY_DIR/plans"
+    chmod 0700 "$RELAY_DIR"
+    touch "$RELAY_DIR/on-box"
 
-    local line_env='export AGENTS_ON_BOX=1'
+    local line_env='export RELAY_ON_BOX=1'
     local line_path="export PATH=\"\$HOME/.local/share/mise/shims:\$HOME/.local/bin:/usr/local/bin:\$PATH\""
     local rc
     for rc in "$HOME/.profile" "$HOME/.bashrc"; do
         touch "$rc"
-        grep -qxF "$line_env"  "$rc" || printf '\n# agents\n%s\n' "$line_env"  >> "$rc"
+        grep -qxF "$line_env"  "$rc" || printf '\n# relay\n%s\n' "$line_env"  >> "$rc"
         grep -qxF "$line_path" "$rc" || printf '%s\n' "$line_path" >> "$rc"
     done
-    say "AGENTS_ON_BOX=1 written to ~/.profile and ~/.bashrc"
-    say "$AGENTS_DIR ready"
+    say "RELAY_ON_BOX=1 written to ~/.profile and ~/.bashrc"
+    say "$RELAY_DIR ready"
 }
 
 # Allow `bash bootstrap.sh <fn>`; when piped on stdin the Go side appends the

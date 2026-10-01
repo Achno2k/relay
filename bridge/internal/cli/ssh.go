@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/config"
-	"github.com/Achno2k/agents-cli/internal/sshx"
 	"github.com/spf13/cobra"
+	"relay/internal/config"
+	"relay/internal/sshx"
 )
 
 func init() { Register(newSSHCmd()) }

@@ -1,5 +1,5 @@
 // Package envplan: harness writes a plan once, CLI replays it forever.
-// Owner: session "env". Plans are cached at ~/.agents/plans/<repo>.json.
+// Owner: session "env". Plans are cached at ~/.relay/plans/<repo>.json.
 package envplan
 
 import (
@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/config"
+	"relay/internal/config"
 )
 
 type Step struct {
@@ -45,13 +45,13 @@ type Executor interface {
 	VerifyOnly(ctx context.Context, p Plan, repoDir string) error
 }
 
-// ---- high level API used by `agents init` and `agents env` ----
+// ---- high level API used by `relay init` and `relay env` ----
 
 // Plans are stored on the machine that runs the executor (the box).
 
-// PlanPath returns the cache file for a repo: ~/.agents/plans/<repo>.json.
+// PlanPath returns the cache file for a repo: ~/.relay/plans/<repo>.json.
 func PlanPath(repo string) string {
-	return filepath.Join(config.Dir(), "plans", slug(repo)+".json")
+	return filepath.Join(config.Home(), "plans", slug(repo)+".json")
 }
 
 // slug makes a repo name safe to use as a file name.

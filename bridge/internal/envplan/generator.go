@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/harness"
+	"relay/internal/harness"
 )
 
 // planSchema is the JSON schema the harness must answer with for a full plan.
@@ -51,10 +51,10 @@ const stepSchema = `{
   }
 }`
 
-// alreadyOnBox lists what `agents init` has already installed. The generator
+// alreadyOnBox lists what `relay init` has already installed. The generator
 // is told to leave every one of these alone.
 const alreadyOnBox = `git, gh, curl, unzip, mise, node 22 (installed via mise), herdr in
-/usr/local/bin, the claude and codex CLIs, the agents binary, ~/.agents and its
+/usr/local/bin, the claude and codex CLIs, the relay binary, ~/.relay and its
 config, the systemd units, the aws cli and session-manager-plugin`
 
 // generatePrompt asks the harness to inspect the repo and write a plan.
@@ -88,7 +88,7 @@ Rules:
 - Set "needs_sudo": true for any step that changes system state, and write the
   sudo into the "run" command itself (non-interactive, e.g. ` + "`sudo -n apt-get -y ...`" + `).
 - Never edit shell profiles (.bashrc, .profile, .zshrc or anything in /etc/profile.d)
-  and never touch ~/.agents. mise is already activated for this shell.
+  and never touch ~/.relay. mise is already activated for this shell.
 - Do not start long-running servers, do not run the test suite, do not clone the
   repo, and never do anything destructive.
 - End with a "verify" list: one short command per runtime or service that proves the

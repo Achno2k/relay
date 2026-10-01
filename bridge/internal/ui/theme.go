@@ -162,7 +162,7 @@ func isTTY(w io.Writer) bool {
 
 // interactive reports whether we can drive an animated UI: stdout has to be a
 // terminal we may redraw, stdin has to be readable by a human, and the user
-// must not have asked for plain output with AGENTS_UI_PLAIN or a dumb TERM.
+// must not have asked for plain output with RELAY_UI_PLAIN or a dumb TERM.
 // Everything else gets static lines and huh's numbered stdin prompts.
 //
 // NO_COLOR deliberately plays no part here. It asks for no colour, not for no
@@ -180,10 +180,10 @@ func interactive() bool {
 }
 
 // envAllowsAnimation is the environment half of interactive(), split out so the
-// rules can be tested without a pty. It consults AGENTS_UI_PLAIN and TERM, and
+// rules can be tested without a pty. It consults RELAY_UI_PLAIN and TERM, and
 // nothing else: NO_COLOR governs colour, not motion.
 func envAllowsAnimation() bool {
-	if os.Getenv("AGENTS_UI_PLAIN") == "1" {
+	if os.Getenv("RELAY_UI_PLAIN") == "1" {
 		return false
 	}
 	switch os.Getenv("TERM") {

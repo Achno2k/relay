@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/harness"
-	"github.com/Achno2k/agents-cli/internal/sshx"
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/harness"
+	"relay/internal/sshx"
+	"relay/internal/ui"
 )
 
 // Login signs in to each named harness on the box and returns the names that
@@ -97,12 +97,12 @@ func KnownHarnesses() []string {
 // `ssh host bash -s` gets a non-login shell, so the mise shims are not on PATH
 // unless we put them there.
 func loginShell(cmd string) string {
-	return `export AGENTS_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" + cmd + "\n"
+	return `export RELAY_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"` + "\n" + cmd + "\n"
 }
 
 // InteractiveCmd wraps a command for sshx.Interactive with the same PATH.
 func InteractiveCmd(cmd string) string {
-	return `export AGENTS_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"; ` + cmd
+	return `export RELAY_ON_BOX=1 PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:/usr/local/bin:$PATH"; ` + cmd
 }
 
 // postLogin applies per-harness settings that an interactive first run would
@@ -112,18 +112,14 @@ func InteractiveCmd(cmd string) string {
 func postLogin(ctx context.Context, r sshx.Runner, name string) error {
 	switch name {
 	case "claude":
-		script := loginShell(`python3 - <<'AGENTS_PY'
+		script := loginShell(`python3 - <<'RELAY_PY'
 import json, os
 p = os.path.expanduser("~/.claude.json")
 d = json.load(open(p)) if os.path.exists(p) else {}
 d["hasCompletedOnboarding"] = True
 d.setdefault("theme", "dark")
-# The user chose unattended mode in agents config; this records their
-# acceptance of Claude Code's bypass-permissions notice so a pane agent
-# does not stall on it. Harmless when the mode is not used.
-d["bypassPermissionsModeAccepted"] = True
 json.dump(d, open(p, "w"))
-AGENTS_PY`)
+RELAY_PY`)
 		return r.Run(ctx, script, io.Discard, io.Discard)
 	}
 	return nil

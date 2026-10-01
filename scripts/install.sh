@@ -1,9 +1,9 @@
 #!/bin/sh
-# Install agents from the latest GitHub release.
-# Usage: curl -fsSL https://raw.githubusercontent.com/Achno2k/agents-cli/main/scripts/install.sh | sh
+# Install relay from the latest GitHub release.
+# Usage: curl -fsSL https://raw.githubusercontent.com/Achno2k/relay/main/scripts/install.sh | sh
 set -eu
 
-REPO="Achno2k/agents-cli"
+REPO="Achno2k/relay"
 BASE="https://github.com/${REPO}/releases"
 
 say() { printf '%s\n' "$*"; }
@@ -28,15 +28,15 @@ detect_arch() {
 install_bin() {
 	src=$1
 	if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then
-		mv "$src" /usr/local/bin/agents
+		mv "$src" /usr/local/bin/relay
 		echo /usr/local/bin
 	elif command -v sudo >/dev/null 2>&1; then
-		sudo mv "$src" /usr/local/bin/agents
+		sudo mv "$src" /usr/local/bin/relay
 		echo /usr/local/bin
 	else
 		dest="${HOME}/.local/bin"
 		mkdir -p "$dest"
-		mv "$src" "$dest/agents"
+		mv "$src" "$dest/relay"
 		echo "$dest"
 	fi
 }
@@ -49,28 +49,28 @@ main() {
 	*) die "no release for ${os}/${arch}; darwin/arm64, linux/amd64 and linux/arm64 are built" ;;
 	esac
 
-	url="${BASE}/latest/download/agents_${os}_${arch}.tar.gz"
+	url="${BASE}/latest/download/relay_${os}_${arch}.tar.gz"
 	say "Downloading ${url}"
 	tmp=$(mktemp -d) || die "mktemp failed"
 	trap 'rm -rf "$tmp"' EXIT
 	if command -v curl >/dev/null 2>&1; then
-		curl -fsSL "$url" -o "$tmp/agents.tgz" || die "download failed"
+		curl -fsSL "$url" -o "$tmp/relay.tgz" || die "download failed"
 	elif command -v wget >/dev/null 2>&1; then
-		wget -qO "$tmp/agents.tgz" "$url" || die "download failed"
+		wget -qO "$tmp/relay.tgz" "$url" || die "download failed"
 	else
 		die "need curl or wget to download"
 	fi
-	tar -xzf "$tmp/agents.tgz" -C "$tmp" || die "extract failed"
-	[ -f "$tmp/agents" ] || die "archive did not contain an agents binary"
-	chmod +x "$tmp/agents"
+	tar -xzf "$tmp/relay.tgz" -C "$tmp" || die "extract failed"
+	[ -f "$tmp/relay" ] || die "archive did not contain an relay binary"
+	chmod +x "$tmp/relay"
 
-	dest=$(install_bin "$tmp/agents")
-	say "Installed agents to ${dest}/agents"
+	dest=$(install_bin "$tmp/relay")
+	say "Installed relay to ${dest}/relay"
 	case ":${PATH}:" in
 	*":${dest}:"*) ;;
-	*) say "warning: ${dest} is not on your PATH; add it to use \`agents\`" ;;
+	*) say "warning: ${dest} is not on your PATH; add it to use \`relay\`" ;;
 	esac
-	"${dest}/agents" --version || true
+	"${dest}/relay" --version || true
 }
 
 main "$@"

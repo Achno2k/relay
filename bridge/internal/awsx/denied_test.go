@@ -86,8 +86,8 @@ func TestIsDenied(t *testing.T) {
 
 func TestPutUserPolicyCmd(t *testing.T) {
 	got := putUserPolicyCmd("aman")
-	want := "aws iam put-user-policy --user-name aman --policy-name agents-cli-read " +
-		"--policy-document file://agents-cli-policy.json"
+	want := "aws iam put-user-policy --user-name aman --policy-name relay-read " +
+		"--policy-document file://relay-policy.json"
 	if got != want {
 		t.Errorf("putUserPolicyCmd = %q, want %q", got, want)
 	}

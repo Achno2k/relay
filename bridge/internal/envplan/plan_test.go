@@ -9,7 +9,7 @@ import (
 )
 
 func TestPlanRoundTrip(t *testing.T) {
-	t.Setenv("AGENTS_HOME", t.TempDir())
+	t.Setenv("RELAY_HOME", t.TempDir())
 
 	if _, found, err := Load("acme/api"); err != nil || found {
 		t.Fatalf("empty cache: found=%v err=%v", found, err)
@@ -39,7 +39,7 @@ func TestPlanRoundTrip(t *testing.T) {
 
 func TestPlanPathSlugsRepo(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("AGENTS_HOME", home)
+	t.Setenv("RELAY_HOME", home)
 
 	got := PlanPath("acme/api.git")
 	want := filepath.Join(home, "plans", "acme-api.json")
@@ -53,7 +53,7 @@ func TestPlanPathSlugsRepo(t *testing.T) {
 
 func TestSaveCreatesCacheDir(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("AGENTS_HOME", home)
+	t.Setenv("RELAY_HOME", home)
 
 	if err := Save(Plan{Repo: "api", Steps: []Step{{Name: "x", Run: "true"}}}); err != nil {
 		t.Fatalf("save: %v", err)
@@ -138,8 +138,8 @@ func TestGeneratePromptNamesBoxExclusions(t *testing.T) {
 		"node 22",
 		"herdr in\n/usr/local/bin",
 		"claude and codex CLIs",
-		"the agents binary",
-		"~/.agents",
+		"the relay binary",
+		"~/.relay",
 		"systemd units",
 		"aws cli and session-manager-plugin",
 	} {
@@ -152,7 +152,7 @@ func TestGeneratePromptNamesBoxExclusions(t *testing.T) {
 		"Do not install, upgrade, reinstall",
 		"At most 10 steps",
 		"Never edit shell profiles",
-		"never touch ~/.agents",
+		"never touch ~/.relay",
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("generate prompt missing instruction %q", want)

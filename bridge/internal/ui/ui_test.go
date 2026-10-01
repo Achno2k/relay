@@ -425,7 +425,7 @@ func TestTextHelpersAreUnstyledOffATerminal(t *testing.T) {
 // silently removed the loader for anyone who sets it in their profile.
 func TestNoColorDropsColourButNotAnimation(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
-	t.Setenv("AGENTS_UI_PLAIN", "")
+	t.Setenv("RELAY_UI_PLAIN", "")
 
 	t.Setenv("NO_COLOR", "1")
 	if !envAllowsAnimation() {
@@ -457,7 +457,7 @@ func TestEnvAllowsAnimation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("TERM", tc.term)
-			t.Setenv("AGENTS_UI_PLAIN", tc.plain)
+			t.Setenv("RELAY_UI_PLAIN", tc.plain)
 			if got := envAllowsAnimation(); got != tc.want {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
@@ -995,8 +995,8 @@ func TestBannerWordmarkIsRectangular(t *testing.T) {
 	}
 }
 
-func TestBannerSpellsAgents(t *testing.T) {
-	if bannerWord != "AGENTS" {
+func TestBannerSpellsRelay(t *testing.T) {
+	if bannerWord != "RELAY" {
 		t.Fatalf("wordmark spells %q", bannerWord)
 	}
 	for _, r := range bannerWord {
@@ -1209,7 +1209,7 @@ func TestBannerPrintsAtOnceOffATerminal(t *testing.T) {
 	if lines[0] != "" {
 		t.Fatalf("banner should open with a blank line, got %q", lines[0])
 	}
-	if lines[len(lines)-1] != "agents v1.2.3" {
+	if lines[len(lines)-1] != "relay v1.2.3" {
 		t.Fatalf("version line = %q", lines[len(lines)-1])
 	}
 	if !strings.Contains(buf.String(), "█") {

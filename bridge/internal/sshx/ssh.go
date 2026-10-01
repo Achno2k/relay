@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Achno2k/agents-cli/internal/config"
+	"relay/internal/config"
 )
 
 type Target struct {
@@ -84,7 +84,7 @@ func hostOf(t Target) string {
 func destOf(t Target) string { return t.User + "@" + hostOf(t) }
 
 // ControlDir holds the ssh multiplexing sockets.
-func ControlDir() string { return filepath.Join(config.Dir(), "cm") }
+func ControlDir() string { return filepath.Join(config.Home(), "cm") }
 
 // ControlPath is the multiplexing socket for a target. It is a short hash so
 // the path stays under the unix socket length limit.

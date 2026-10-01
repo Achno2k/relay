@@ -12,11 +12,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Achno2k/agents-cli/internal/awsx"
-	"github.com/Achno2k/agents-cli/internal/bootstrap"
-	"github.com/Achno2k/agents-cli/internal/config"
-	"github.com/Achno2k/agents-cli/internal/sshx"
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/awsx"
+	"relay/internal/bootstrap"
+	"relay/internal/config"
+	"relay/internal/sshx"
+	"relay/internal/ui"
 )
 
 // resetConfirmWord is what the user types to go ahead. Exact, case sensitive.
@@ -26,9 +26,9 @@ func init() {
 	var yes, local bool
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: "Remove everything agents installed on the box",
-		Long: "Stops the bot and herdr units, signs out of Claude, Codex and GitHub,\n" +
-			"deletes the runtimes, caches, clones and worktrees, and the agents config\n" +
+		Short: "Remove everything relay installed on the box",
+		Long: "Stops the relay and herdr units, signs out of Claude, Codex and GitHub,\n" +
+			"deletes the runtimes, caches, clones and worktrees, and the relay config\n" +
 			"on the box. The instance, OS and your ssh access stay. Uncommitted work in\n" +
 			"~/work is lost. For a truly fresh machine, terminate the instance instead.",
 		Args: cobra.NoArgs,
@@ -37,7 +37,7 @@ func init() {
 		},
 	}
 	cmd.Flags().BoolVar(&yes, "yes", false, "skip the confirmation")
-	cmd.Flags().BoolVar(&local, "local", false, "also delete ~/.agents on this laptop")
+	cmd.Flags().BoolVar(&local, "local", false, "also delete the relay config (~/.relay/config.toml) on this laptop")
 	Register(cmd)
 }
 
@@ -77,14 +77,18 @@ func runReset(ctx context.Context, yes, local bool) error {
 	runner := sshx.New(sshx.TargetFromConfig(cfg.AWS, cfg.Box))
 	steps := bootstrap.ResetSteps(runner)
 	if local {
-		dir := filepath.Clean(config.Dir())
+		// Only the laptop-side files: ~/.relay also holds the bridge token
+		// when this Mac runs `relay serve`.
+		paths := []string{filepath.Clean(config.ConfigPath()), filepath.Clean(sshx.ControlDir())}
 		steps = append(steps, ui.Step{
-			Name: "Removing " + dir + " on this laptop",
+			Name: "Removing the relay config on this laptop",
 			Run: func(_ context.Context, log io.Writer) error {
-				if err := os.RemoveAll(dir); err != nil {
-					return err
+				for _, p := range paths {
+					if err := os.RemoveAll(p); err != nil {
+						return err
+					}
+					fmt.Fprintf(log, "removed %s\n", p)
 				}
-				fmt.Fprintf(log, "removed %s\n", dir)
 				return nil
 			},
 		})
@@ -94,7 +98,7 @@ func runReset(ctx context.Context, yes, local bool) error {
 	if err != nil {
 		return fmt.Errorf("reset: %w", err)
 	}
-	ui.Info("Run `agents init` to set the box up again.")
+	ui.Info("Run `relay init` to set the box up again.")
 	return nil
 }
 

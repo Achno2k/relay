@@ -1,18 +1,19 @@
 package cli
 
 import (
-	"github.com/Achno2k/agents-cli/internal/ui"
 	"github.com/spf13/cobra"
+
+	"relay/internal/ui"
 )
 
 func init() { Register(versionCmd) }
 
-// versionCmd prints the build version. Also available as `agents --version`.
+// versionCmd prints the build version. Also available as `relay --version`.
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the agents version",
+	Short: "Print the relay version",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("agents " + Version)
+		ui.Info("relay " + Version)
 	},
 }

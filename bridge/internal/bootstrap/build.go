@@ -13,17 +13,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/sshx"
+	"relay/internal/sshx"
 )
 
 // ModulePath is this module, used to find its source tree when cross compiling.
-const ModulePath = "github.com/Achno2k/agents-cli"
+const ModulePath = "relay"
 
 // remoteUpload is where the binary lands before it is installed with sudo.
-const remoteUpload = "/tmp/agents.upload"
+const remoteUpload = "/tmp/relay.upload"
 
 // BuildForBox cross compiles this module for linux/<goarch> and returns the
-// path of the binary. CGO is off; sqlite is modernc, so a static build is fine.
+// path of the binary. CGO is off, so a static build is fine.
 func BuildForBox(ctx context.Context, goarch string) (string, error) {
 	if goarch == "" {
 		goarch = "amd64"
@@ -32,13 +32,13 @@ func BuildForBox(ctx context.Context, goarch string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out := filepath.Join(os.TempDir(), "agents-linux-"+goarch)
+	out := filepath.Join(os.TempDir(), "relay-linux-"+goarch)
 
 	cmd := exec.CommandContext(ctx, "go", "build",
 		"-trimpath",
 		"-ldflags", "-s -w",
 		"-o", out,
-		"./cmd/agents",
+		"./cmd/relay",
 	)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+goarch, "CGO_ENABLED=0")
@@ -50,23 +50,23 @@ func BuildForBox(ctx context.Context, goarch string) (string, error) {
 }
 
 // InstallBinary uploads a locally built binary and installs it as
-// /usr/local/bin/agents on the box.
+// /usr/local/bin/relay on the box.
 func InstallBinary(ctx context.Context, r sshx.Runner, localPath string) error {
 	same, err := boxHasBinary(ctx, r, localPath)
 	if err == nil && same {
 		return nil
 	}
 	if err := r.Copy(ctx, localPath, remoteUpload); err != nil {
-		return fmt.Errorf("upload agents binary: %w", err)
+		return fmt.Errorf("upload relay binary: %w", err)
 	}
 	script := "set -e\n" +
-		"sudo -n install -m 0755 " + remoteUpload + " /usr/local/bin/agents\n" +
+		"sudo -n install -m 0755 " + remoteUpload + " /usr/local/bin/relay\n" +
 		"rm -f " + remoteUpload + "\n" +
-		"/usr/local/bin/agents version || true\n"
-	return run(ctx, r, script, "install agents binary")
+		"/usr/local/bin/relay --version || true\n"
+	return run(ctx, r, script, "install relay binary")
 }
 
-// boxHasBinary reports whether /usr/local/bin/agents on the box has the same
+// boxHasBinary reports whether /usr/local/bin/relay on the box has the same
 // sha256 as localPath, so an unchanged build is not uploaded again.
 func boxHasBinary(ctx context.Context, r sshx.Runner, localPath string) (bool, error) {
 	f, err := os.Open(localPath)
@@ -80,30 +80,30 @@ func boxHasBinary(ctx context.Context, r sshx.Runner, localPath string) (bool, e
 	}
 	local := hex.EncodeToString(h.Sum(nil))
 	var out bytes.Buffer
-	if err := r.Run(ctx, "sha256sum /usr/local/bin/agents 2>/dev/null | cut -d' ' -f1", &out, io.Discard); err != nil {
+	if err := r.Run(ctx, "sha256sum /usr/local/bin/relay 2>/dev/null | cut -d' ' -f1", &out, io.Discard); err != nil {
 		return false, err
 	}
 	return strings.TrimSpace(out.String()) == local, nil
 }
 
-// ErrNoModuleSource means the agents source tree is not reachable from here, so
+// ErrNoModuleSource means the relay source tree is not reachable from here, so
 // the box binary cannot be built.
-var ErrNoModuleSource = errors.New("cannot find the agents-cli source tree; set AGENTS_SRC to its path")
+var ErrNoModuleSource = errors.New("cannot find the relay source tree (bridge/); set RELAY_SRC to its path")
 
-// ModuleDir locates this module's source tree: $AGENTS_SRC first, then the
+// ModuleDir locates this module's source tree: $RELAY_SRC first, then the
 // working directory and the running binary's directory, walking up for a go.mod
 // that declares ModulePath.
 // BuildSourceDir is the checkout this binary was built from, stamped by the
 // Makefile with -ldflags "-X .../bootstrap.BuildSourceDir=<dir>". It lets
-// `agents init` cross-compile the box binary from any working directory.
+// `relay init` cross-compile the box binary from any working directory.
 var BuildSourceDir string
 
 func ModuleDir() (string, error) {
-	if src := os.Getenv("AGENTS_SRC"); src != "" {
+	if src := os.Getenv("RELAY_SRC"); src != "" {
 		if ok, _ := isModuleRoot(src); ok {
 			return src, nil
 		}
-		return "", fmt.Errorf("%w (AGENTS_SRC=%s is not it)", ErrNoModuleSource, src)
+		return "", fmt.Errorf("%w (RELAY_SRC=%s is not it)", ErrNoModuleSource, src)
 	}
 	if BuildSourceDir != "" {
 		if ok, _ := isModuleRoot(BuildSourceDir); ok {

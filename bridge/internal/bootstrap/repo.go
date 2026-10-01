@@ -10,12 +10,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/sshx"
+	"relay/internal/sshx"
 )
 
-// Origin describes the repo `agents init` was run inside.
+// Origin describes the repo `relay init` was run inside.
 type Origin struct {
-	Name          string // short name, "agents-cli"
+	Name          string // short name, "relay"
 	URL           string // remote url as git reports it
 	DefaultBranch string // "main"
 }
@@ -110,7 +110,7 @@ var TokenScopes = []string{
 }
 
 // ghTokenDelim ends the heredoc that carries the token to the box.
-const ghTokenDelim = "AGENTS_GH_TOKEN_EOF"
+const ghTokenDelim = "RELAY_GH_TOKEN_EOF"
 
 // GitHubTokenLogin authenticates gh on the box with a fine-grained personal
 // access token and wires git to use it. The token travels inside a quoted
@@ -194,7 +194,7 @@ func LooksLikeGitAuthFailure(out string) bool {
 // ClassicTokenURL creates a classic personal access token. Classic tokens are
 // account wide, which is the only way to reach repos in orgs that do not issue
 // fine-grained tokens, or to open PRs on repos the user does not own.
-const ClassicTokenURL = "https://github.com/settings/tokens/new?scopes=repo,read:org,workflow&description=agents-cli"
+const ClassicTokenURL = "https://github.com/settings/tokens/new?scopes=repo,read:org,workflow&description=relay"
 
 // ClassicTokenScopes are the scopes a classic token needs.
 var ClassicTokenScopes = []string{

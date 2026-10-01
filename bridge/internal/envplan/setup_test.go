@@ -43,7 +43,7 @@ func stubSetup(t *testing.T, gen Generator, ex Executor) *[]string {
 }
 
 func TestSetupCachesPlanBeforeExecuting(t *testing.T) {
-	t.Setenv("AGENTS_HOME", t.TempDir())
+	t.Setenv("RELAY_HOME", t.TempDir())
 
 	generated := Plan{
 		Repo:      "ignored",

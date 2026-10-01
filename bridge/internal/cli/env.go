@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Achno2k/agents-cli/internal/config"
-	"github.com/Achno2k/agents-cli/internal/envplan"
-	"github.com/Achno2k/agents-cli/internal/sshx"
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/config"
+	"relay/internal/envplan"
+	"relay/internal/sshx"
+	"relay/internal/ui"
 )
 
 var (
@@ -124,7 +124,7 @@ func envProxyToBox(ctx context.Context) error {
 		Profile:    cfg.AWS.Profile,
 		Region:     cfg.AWS.Region,
 	})
-	return r.Interactive(ctx, "agents "+envQuoteArgs(os.Args[1:]))
+	return r.Interactive(ctx, "relay "+envQuoteArgs(os.Args[1:]))
 }
 
 // envLoadPlan reads the cached plan or explains how to make one.
@@ -134,7 +134,7 @@ func envLoadPlan(repo string) (envplan.Plan, error) {
 		return p, err
 	}
 	if !found {
-		return p, fmt.Errorf("no plan for %q yet, run `agents env setup %s`", repo, repo)
+		return p, fmt.Errorf("no plan for %q yet, run `relay env setup %s`", repo, repo)
 	}
 	return p, nil
 }

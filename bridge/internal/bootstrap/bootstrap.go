@@ -1,6 +1,6 @@
 // Package bootstrap brings a fresh Ubuntu 24.04 box up to spec: base tools,
-// mise + node, herdr, the coding harnesses, the agents binary, and the systemd
-// units that keep the herdr server and the Slack bot alive.
+// mise + node, herdr, the coding harnesses, the relay binary, and the systemd
+// unit that keeps the herdr server alive.
 //
 // scripts/bootstrap.sh holds one idempotent bash function per install. Each one
 // is run separately so it renders as its own ui.Step.
@@ -13,8 +13,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/sshx"
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/sshx"
+	"relay/internal/ui"
 )
 
 //go:embed scripts/bootstrap.sh
@@ -56,9 +56,9 @@ func HarnessTasks(names []string) []Task {
 	return out
 }
 
-// ProfileTask writes ~/.agents and the AGENTS_ON_BOX marker. It runs last so a
+// ProfileTask writes ~/.relay and the RELAY_ON_BOX marker. It runs last so a
 // half-finished box is never marked ready.
-func ProfileTask() Task { return Task{"Writing ~/.agents and shell profile", "bs_agents_home"} }
+func ProfileTask() Task { return Task{"Writing ~/.relay and shell profile", "bs_relay_home"} }
 
 // Script returns bootstrap.sh with a call to fn appended. sshx.Runner feeds a
 // script on stdin and has no argv, so the call travels with the source.
@@ -84,14 +84,13 @@ func Steps(r sshx.Runner, tasks []Task) []ui.Step {
 // Options controls what Install puts on the box.
 type Options struct {
 	Harnesses []string // "claude", "codex"
-	GoArch    string   // amd64 | arm64, for the cross-compiled agents binary
+	GoArch    string   // amd64 | arm64, for the cross-compiled relay binary
 	User      string   // box login user, "ubuntu"
 	Home      string   // that user's home, defaults to /home/<User>
-	WithBot   bool     // also install the agents-bot unit (tokens come later)
 }
 
 // Install runs the whole bootstrap as one numbered checklist: bash functions,
-// then the cross-compiled agents binary, then the systemd units.
+// then the cross-compiled relay binary, then the systemd units.
 func Install(ctx context.Context, r sshx.Runner, o Options) error {
 	o = o.withDefaults()
 
@@ -100,7 +99,7 @@ func Install(ctx context.Context, r sshx.Runner, o Options) error {
 	steps := Steps(r, tasks)
 
 	steps = append(steps, ui.Step{
-		Name: "Building and uploading agents binary",
+		Name: "Building and uploading relay binary",
 		Run: func(ctx context.Context, log io.Writer) error {
 			path, err := BuildForBox(ctx, o.GoArch)
 			if err != nil {
@@ -108,13 +107,6 @@ func Install(ctx context.Context, r sshx.Runner, o Options) error {
 			}
 			fmt.Fprintf(log, "built %s\n", path)
 			return InstallBinary(ctx, r, path)
-		},
-	})
-
-	steps = append(steps, ui.Step{
-		Name: "Installing agent instructions",
-		Run: func(ctx context.Context, log io.Writer) error {
-			return InstallInstructions(ctx, r, o.Home, log)
 		},
 	})
 

@@ -1,15 +1,16 @@
 version: 2
 
-project_name: agents
+project_name: relay
 
 before:
   hooks:
-    - go mod tidy
+    - sh -c "cd bridge && go mod tidy"
 
 builds:
-  - id: agents
-    main: ./cmd/agents
-    binary: agents
+  - id: relay
+    dir: bridge
+    main: ./cmd/relay
+    binary: relay
     env:
       - CGO_ENABLED=0
     goos:
@@ -23,11 +24,11 @@ builds:
         goarch: amd64
     ldflags:
       - -s -w
-      - -X github.com/Achno2k/agents-cli/internal/cli.Version={{ .Version }}
+      - -X relay/internal/api.Version={{ .Version }}
 
 archives:
-  - id: agents
-    ids: [agents]
+  - id: relay
+    ids: [relay]
     formats: [tar.gz]
     # No version in the asset name so the install script can use the stable
     # /releases/latest/download/<asset> URL.
@@ -41,5 +42,5 @@ snapshot:
 
 release:
   github:
-    owner: you
-    name: agents-cli
+    owner: Achno2k
+    name: relay

@@ -59,7 +59,7 @@ func TestShellQuote(t *testing.T) {
 }
 
 func TestModulePathOf(t *testing.T) {
-	gomod := "module github.com/Achno2k/agents-cli\n\ngo 1.24\n"
+	gomod := "module relay\n\ngo 1.25\n"
 	if got := modulePathOf(gomod); got != ModulePath {
 		t.Errorf("modulePathOf = %q, want %q", got, ModulePath)
 	}
@@ -108,32 +108,12 @@ func TestUnitsRender(t *testing.T) {
 		}
 	}
 
-	bot, err := Unit("agents-bot.service", "ubuntu", "/home/ubuntu")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{
-		"EnvironmentFile=/home/ubuntu/.agents/slack.env",
-		"Environment=AGENTS_ON_BOX=1",
-		"ExecStart=/usr/local/bin/agents bot",
-	} {
-		if !strings.Contains(bot, want) {
-			t.Errorf("agents-bot.service missing %q", want)
-		}
-	}
-
 	herdr, err := Unit("herdr-server.service", "ubuntu", "/home/ubuntu")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(herdr, "ExecStart=/usr/local/bin/herdr server") {
 		t.Error("herdr-server.service does not run `herdr server`")
-	}
-}
-
-func TestSlackEnvPath(t *testing.T) {
-	if got, want := SlackEnvPath("/home/ubuntu"), "/home/ubuntu/.agents/slack.env"; got != want {
-		t.Errorf("SlackEnvPath = %q, want %q", got, want)
 	}
 }
 

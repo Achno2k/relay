@@ -5,3 +5,4 @@ DerivedData/
 .swiftpm/
 docs/screenshots/ref/
 docs/design/
+dist/

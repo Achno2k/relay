@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// bannerGlyphs is the AGENTS wordmark, drawn here rather than pulled from a
-// font package: six letters at five rows each is less code than a dependency,
+// bannerGlyphs is the RELAY wordmark, drawn here rather than pulled from a
+// font package: five letters at five rows each is less code than a dependency,
 // and it never changes. Every glyph is exactly bannerGlyphWidth columns so the
 // letters can be animated independently.
 const (
@@ -27,12 +27,12 @@ var bannerGlyphs = map[rune][bannerRows]string{
 		"█   █",
 		"█   █",
 	},
-	'G': {
-		" ████",
-		"█    ",
-		"█  ██",
+	'R': {
+		"████ ",
 		"█   █",
-		" ████",
+		"████ ",
+		"█  █ ",
+		"█   █",
 	},
 	'E': {
 		"█████",
@@ -41,33 +41,26 @@ var bannerGlyphs = map[rune][bannerRows]string{
 		"█    ",
 		"█████",
 	},
-	'N': {
-		"█   █",
-		"██  █",
-		"█ █ █",
-		"█  ██",
-		"█   █",
-	},
-	'T': {
-		"█████",
-		"  █  ",
-		"  █  ",
-		"  █  ",
-		"  █  ",
-	},
-	'S': {
-		" ████",
+	'L': {
 		"█    ",
-		" ███ ",
-		"    █",
-		"████ ",
+		"█    ",
+		"█    ",
+		"█    ",
+		"█████",
+	},
+	'Y': {
+		"█   █",
+		" █ █ ",
+		"  █  ",
+		"  █  ",
+		"  █  ",
 	},
 }
 
 // bannerWord is what the wordmark spells.
-const bannerWord = "AGENTS"
+const bannerWord = "RELAY"
 
-// Animation timings. Six letters at bannerLetterGap plus the flicker and the
+// Animation timings. Five letters at bannerLetterGap plus the flicker and the
 // fade keeps the whole sequence comfortably under two seconds.
 const (
 	bannerLetterGap   = 180 * time.Millisecond // from one letter to the next
@@ -224,7 +217,7 @@ func fadeSub(sub string, step int) string {
 	return strings.Repeat(string(bannerFadeShades[step]), len([]rune(sub)))
 }
 
-// Banner prints the AGENTS wordmark with the version under it.
+// Banner prints the RELAY wordmark with the version under it.
 //
 // On a terminal the letters arrive one at a time from the left, each one
 // glitching through a few frames of block shade before it snaps into shape;
@@ -232,7 +225,7 @@ func fadeSub(sub string, step int) string {
 // the finished banner is printed at once, because an animation nobody watches
 // is just noise in a log.
 func Banner(version string) {
-	sub := "agents " + version
+	sub := "relay " + version
 
 	if !interactive() {
 		line("")

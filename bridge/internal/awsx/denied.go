@@ -6,12 +6,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/ui"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/smithy-go"
+	"relay/internal/ui"
 )
 
-// IAMPolicyJSON is the minimal policy agents-cli needs. It is the same
+// IAMPolicyJSON is the minimal policy relay init needs. It is the same
 // document as docs/iam-policy.json, embedded so the CLI can print it without
 // the repo checked out.
 const IAMPolicyJSON = `{
@@ -126,7 +126,7 @@ func deniedAction(msg string) string {
 // putUserPolicyCmd is the one-liner that attaches the policy to an IAM user.
 func putUserPolicyCmd(user string) string {
 	return "aws iam put-user-policy --user-name " + user +
-		" --policy-name agents-cli-read --policy-document file://agents-cli-policy.json"
+		" --policy-name relay-read --policy-document file://relay-policy.json"
 }
 
 // explainDenied turns an IAM denial into a printed explanation plus a short
@@ -148,10 +148,10 @@ func explainDenied(err error, fallbackAction string) error {
 	}
 	ui.Fail(fmt.Sprintf("%s is not allowed to call %s", who, action))
 
-	ui.Info("Attach the minimal policy below, also kept at docs/iam-policy.json in the agents-cli repo:")
+	ui.Info("Attach the minimal policy below, also kept at docs/iam-policy.json in the relay repo:")
 	ui.Code(IAMPolicyJSON)
 	if user := iamUserName(arn); user != "" {
-		ui.Info("Save it as agents-cli-policy.json, then run:")
+		ui.Info("Save it as relay-policy.json, then run:")
 		ui.Code(putUserPolicyCmd(user))
 	} else {
 		ui.Info("Attach it to the role behind this profile, or ask whoever owns the account to.")

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Undo everything agents bootstrap installed on this box. Run as the box user
+# Undo everything relay bootstrap installed on this box. Run as the box user
 # with passwordless sudo. Leaves the OS, ssh access and the user account alone.
 #
 # One function per phase so the Go side can run them one at a time and render
@@ -60,7 +60,7 @@ rs_units() {
         finish
         return
     fi
-    for unit in agents-bot.service herdr-server.service; do
+    for unit in relay.service agents-bot.service herdr-server.service; do
         if systemctl cat "$unit" >/dev/null 2>&1; then
             if sudo -n systemctl disable --now "$unit" >/dev/null 2>&1; then
                 note "stopped $unit"
@@ -71,6 +71,7 @@ rs_units() {
             note "$unit not installed"
         fi
     done
+    rm_root /etc/systemd/system/relay.service
     rm_root /etc/systemd/system/agents-bot.service
     rm_root /etc/systemd/system/herdr-server.service
     sudo -n systemctl daemon-reload >/dev/null 2>&1 || die "systemctl daemon-reload failed"
@@ -127,6 +128,7 @@ rs_signout() {
 
 # rs_binaries removes what bootstrap put in system paths.
 rs_binaries() {
+    rm_root /usr/local/bin/relay
     rm_root /usr/local/bin/agents
     rm_root /usr/local/bin/herdr
 
@@ -173,6 +175,7 @@ rs_runtimes() {
     rm_user "$HOME/.codex"
     rm_user "$HOME/.config/gh"
     rm_user "$HOME/.config/herdr"
+    rm_user "$HOME/.relay"
     rm_user "$HOME/.agents"
     rm_user "$HOME/work"
     rm_user "$HOME/.gitconfig"
@@ -189,12 +192,12 @@ rs_profiles() {
             note "$rc absent"
             continue
         fi
-        if ! sed -i '/^# agents$/d; /^export AGENTS_ON_BOX=1$/d; /mise\/shims/d' "$rc"; then
+        if ! sed -i '/^# relay$/d; /^export RELAY_ON_BOX=1$/d; /^# agents$/d; /^export RELAY_ON_BOX=1$/d; /mise\/shims/d' "$rc"; then
             die "could not edit $rc"
             continue
         fi
-        if grep -q 'AGENTS_ON_BOX\|mise/shims' "$rc"; then
-            die "$rc still mentions agents"
+        if grep -q 'RELAY_ON_BOX\|RELAY_ON_BOX\|mise/shims' "$rc"; then
+            die "$rc still mentions relay"
         else
             note "cleaned $rc"
         fi

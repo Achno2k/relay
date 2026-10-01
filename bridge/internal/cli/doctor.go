@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/config"
-	"github.com/Achno2k/agents-cli/internal/sshx"
-	"github.com/Achno2k/agents-cli/internal/ui"
 	"github.com/spf13/cobra"
+	"relay/internal/config"
+	"relay/internal/sshx"
+	"relay/internal/ui"
 )
 
 func init() { Register(doctorCmd) }
@@ -81,7 +81,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		}},
 	}
 
-	failed, err := ui.RunChecks(ctx, "agents doctor", checks)
+	failed, err := ui.RunChecks(ctx, "relay doctor", checks)
 	if err != nil {
 		return err
 	}

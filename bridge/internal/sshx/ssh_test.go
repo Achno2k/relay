@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Achno2k/agents-cli/internal/config"
+	"relay/internal/config"
 )
 
 func withAgentsHome(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Setenv("AGENTS_HOME", dir)
+	t.Setenv("RELAY_HOME", dir)
 	return dir
 }
 
@@ -159,7 +159,7 @@ func TestControlPathIsStableAndPerTarget(t *testing.T) {
 	if got := filepath.Base(ControlPath(a)); len(got) != 12 {
 		t.Errorf("socket name %q should be 12 chars to stay under the unix path limit", got)
 	}
-	if ControlDir() != filepath.Join(config.Dir(), "cm") {
+	if ControlDir() != filepath.Join(config.Home(), "cm") {
 		t.Errorf("ControlDir = %q", ControlDir())
 	}
 }

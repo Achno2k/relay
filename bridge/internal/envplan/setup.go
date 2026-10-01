@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/ui"
 )
 
 // Seams for tests: the real ui and executor by default.
@@ -17,7 +17,7 @@ var (
 
 // Setup is the whole flow: load the cached plan or infer one, run it, verify.
 // It runs unattended: nothing is printed but progress, and nothing is asked.
-// Use `agents env show` to read the plan itself.
+// Use `relay env show` to read the plan itself.
 func Setup(ctx context.Context, repo, repoDir, harnessName string, regen bool) error {
 	return phaseFn(ctx, "Setting up dev environment", func(ctx context.Context) error {
 		return setup(ctx, repo, repoDir, harnessName, regen)

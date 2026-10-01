@@ -6,16 +6,21 @@ on:
   pull_request:
 
 jobs:
-  build:
+  bridge:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: bridge
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-      - run: go build ./...
+          go-version-file: bridge/go.mod
+          cache-dependency-path: bridge/go.sum
+      - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      - run: go test ./...
+      - run: GOOS=linux go vet ./...
+      - run: go test -race ./...

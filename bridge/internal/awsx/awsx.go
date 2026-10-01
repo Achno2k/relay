@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Achno2k/agents-cli/internal/config"
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/config"
+	"relay/internal/ui"
 )
 
 // Instance is one running EC2 instance as shown in the picker.

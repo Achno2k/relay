@@ -7,17 +7,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Achno2k/agents-cli/internal/awsx"
-	"github.com/Achno2k/agents-cli/internal/bootstrap"
-	"github.com/Achno2k/agents-cli/internal/config"
-	"github.com/Achno2k/agents-cli/internal/sshx"
-	"github.com/Achno2k/agents-cli/internal/ui"
+	"relay/internal/awsx"
+	"relay/internal/bootstrap"
+	"relay/internal/config"
+	"relay/internal/sshx"
+	"relay/internal/ui"
 )
 
 func init() {
 	Register(&cobra.Command{
 		Use:   "deploy",
-		Short: "Build the agents binary, upload it to the box, sync config and restart the bot",
+		Short: "Build relay, upload it to the box, sync config and restart the bridge",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runDeploy(cmd.Context())
@@ -34,7 +34,7 @@ func runDeploy(ctx context.Context) error {
 		return err
 	}
 	if cfg.Box.Host == "" && cfg.AWS.InstanceID == "" {
-		return errors.New("no box in config, run `agents init`")
+		return errors.New("no box in config, run `relay init`")
 	}
 	runner := sshx.New(sshx.TargetFromConfig(cfg.AWS, cfg.Box))
 	goarch, err := awsx.InstanceArch(ctx, cfg.AWS)
@@ -43,7 +43,7 @@ func runDeploy(ctx context.Context) error {
 	}
 	var bin string
 	return ui.RunSteps(ctx, "Deploying to "+cfg.Box.User+"@"+cfg.Box.Host, []ui.Step{
-		{Name: "Building agents for linux/" + goarch, Run: func(ctx context.Context, _ io.Writer) error {
+		{Name: "Building relay for linux/" + goarch, Run: func(ctx context.Context, _ io.Writer) error {
 			bin, err = bootstrap.BuildForBox(ctx, goarch)
 			return err
 		}},
@@ -53,11 +53,8 @@ func runDeploy(ctx context.Context) error {
 		{Name: "Syncing config", Run: func(ctx context.Context, _ io.Writer) error {
 			return bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg)
 		}},
-		{Name: "Syncing agent instructions", Run: func(ctx context.Context, log io.Writer) error {
-			return bootstrap.InstallInstructions(ctx, runner, boxHome(cfg), log)
-		}},
-		{Name: "Restarting bot", Run: func(ctx context.Context, _ io.Writer) error {
-			return bootstrap.RestartBotIfActive(ctx, runner)
+		{Name: "Restarting relay.service", Run: func(ctx context.Context, _ io.Writer) error {
+			return bootstrap.RestartRelayIfActive(ctx, runner)
 		}},
 	})
 }
