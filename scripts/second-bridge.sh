@@ -7,10 +7,10 @@
 #   PORT                 default 7881 (7878 is the live bridge and is refused)
 #   RELAY_MACHINE_ID     default test-vm
 #   RELAY_MACHINE_NAME   default "Test VM"
-#   RELAY_BIN            run this binary instead of building bridge-go
+#   RELAY_BIN            run this binary instead of building bridge/cmd/relay
 #   KEEP=1               keep the temp home (token, relay.log) afterwards
 set -euo pipefail
-cd "$(dirname "$0")/../bridge-go"
+cd "$(dirname "$0")/../bridge"
 port=${PORT:-7881}
 if [ "$port" = 7878 ]; then
   echo "second-bridge: 7878 is the live bridge; pick another PORT" >&2

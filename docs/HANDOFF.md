@@ -3,7 +3,7 @@
 ## What this is
 - The user (Aman) wanted to drive the coding agents in their **herdr** terminal session from their iPhone. It replaces the old `~/projects/forge` (FastAPI + Flutter), which is left untouched.
 - Result: **Relay**, repo `~/projects/relay` (renamed from "Herd" on 2026-09-25).
-  - `bridge/`: Swift daemon `relay` (Hummingbird 2, module RelayCore). It talks to herdr's unix socket, tails Claude / Codex / pi transcripts, and serves REST + WS.
+  - `bridge/`: Go daemon `relay` (ported from Swift in round 8). It talks to herdr's unix socket, tails Claude / Codex / pi transcripts, and serves REST + WS. Runs on macOS and Linux.
   - `ios/`: SwiftUI app, iOS 26, Liquid Glass, ChatGPT/Codex iOS feel. Built with XcodeGen (`Relay.xcodeproj`), module RelayKit.
 - Docs:
   - Contract: `docs/api.md` (change it first).
@@ -15,7 +15,7 @@
 - **Bridge:** LaunchAgent `com.relay.bridge` on port 7878.
   - Binds Tailscale `100.101.102.103` and localhost. Starts with `--require-tailscale`, so it retries until Tailscale is up.
   - Data lives in `~/.relay` (token, uploads, log). `~/.herd` is a symlink to it.
-  - Rebuild: `cd bridge && swift build -c release && launchctl kickstart -k gui/$(id -u)/com.relay.bridge`
+  - Rebuild: `cd bridge && go build -trimpath -o bin/relay ./cmd/relay && launchctl kickstart -k gui/$(id -u)/com.relay.bridge`
   - Pairing QR: `bridge/.build/release/relay pair`
 - **Phone:** the user's iPhone 13 (iOS 26.5, device id `00008110-000414D91422801E`) has the latest build. It's paired over Tailscale.
   - Bundle id is still `dev.amansingh.herd`, on purpose, so installs update in place.
@@ -24,7 +24,7 @@
   - The free team can't do App Groups; `ios/Relay/Relay-FreeTeam.entitlements` strips them.
   - Xcode sometimes loses its account ("No Accounts"). The user must re-sign in under Xcode → Settings → Accounts.
 - **Tests:**
-  - Bridge: `cd bridge && swift test` (247).
+  - Bridge: `cd bridge && go test -race ./...`. Parity tool against another bridge: `bridge/parity/run.sh`.
   - iOS unit: `xcodebuild test -scheme Relay -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RelayTests` (121).
   - UI tests: mock suites. The live ones need env vars `TEST_RUNNER_RELAY_E2E_LINK/AGENT/PI_AGENT/CODEX_AGENT`.
 - **Test agents:** herdr workspace `herd-e2e`, cwd `~/.relay/e2e`.
@@ -41,8 +41,8 @@
 - **Hardening:** reconnects, races, a production fd double-close fix, log rotation.
 
 ## State on 2026-10-01 (lead `relay-lead`, pane w13:pP)
-- **Round 8 (done, on master):** the bridge was ported to Go in `bridge-go/` (behavior-identical, parity harness `bridge-go/parity/run.sh`); 25 bridge and 7 app bugs fixed.
-- **Go cutover, half done (2026-10-01):** the LaunchAgent `com.relay.bridge` now runs the Go binary `bridge-go/bin/relay` (built from master, gitignored), with the same token. The swap of the Swift `bridge/` for `bridge-go/` is still to do and needs the user (auto mode blocks deleting `bridge/`): `git rm -r bridge && rm -rf bridge && git mv bridge-go bridge`, then rebuild into `bridge/bin/relay`, `relay install-launchd`, and reload.
+- **Round 8 (done, on master):** the bridge was ported to Go (behavior-identical, parity harness `bridge/parity/run.sh`); 25 bridge and 7 app bugs fixed.
+- **Go cutover done (2026-10-01):** the Swift bridge is deleted (it's still in git history). `bridge/` is the Go module, and the LaunchAgent runs `bridge/bin/relay`.
 - **Phone:** the user's iPhone 17 has the round-10 build from 2026-10-01 (expires about 2026-10-08).
 - **Round 9 (done, on master):** multi-machine P1. `docs/remote-setup.md` covers Linux VMs. No real cloud VM tested yet (need its OS/arch plus Tailscale).
 - **New app icon** (geometric R), on master.

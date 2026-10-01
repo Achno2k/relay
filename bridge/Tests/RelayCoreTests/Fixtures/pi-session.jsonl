@@ -1,7 +1,0 @@
-{"type":"session","id":"sess","cwd":"/Users/dev/website","timestamp":"2026-09-23T10:00:00.000Z","version":3}
-{"type":"model_change","id":"mc1","parentId":null,"provider":"p","modelId":"m","timestamp":"2026-09-23T10:00:00.100Z"}
-{"type":"message","id":"p1","parentId":"mc1","timestamp":"2026-09-23T10:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"List the pages"}],"timestamp":1790157601000}}
-{"type":"message","id":"p2","parentId":"p1","timestamp":"2026-09-23T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Look at the pages dir.","thinkingSignature":""},{"type":"toolCall","id":"c1","name":"bash","arguments":{"command":"ls /Users/dev/website/pages"}}],"stopReason":"toolUse"}}
-{"type":"message","id":"p3","parentId":"p2","timestamp":"2026-09-23T10:00:03.000Z","message":{"role":"toolResult","toolCallId":"c1","toolName":"bash","content":[{"type":"text","text":"index.tsx\nabout.tsx"}],"isError":false}}
-{"type":"message","id":"p4","parentId":"p3","timestamp":"2026-09-23T10:00:04.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Two pages: index and about."}],"stopReason":"stop"}}
-{"type":"message","id":"p5","parentId":"p4","timestamp":"2026-09-23T10:00:05.000Z","message":{"role":"assistant","content":[],"errorMessage":"aborted"}}

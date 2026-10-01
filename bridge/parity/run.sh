@@ -1,14 +1,14 @@
 #!/bin/sh
-# Parity check: the Go bridge against the live Swift bridge (7878). One command:
+# Parity check: a Go bridge built from this tree against a reference bridge (default the live one on 7878). One command:
 #
-#   bridge-go/parity/run.sh [parity flags]        e.g. -v, -agents w14:p2, -e2e w14:p2,w14:p4,w14:p5
+#   bridge/parity/run.sh [parity flags]        e.g. -v, -agents w14:p2, -e2e w14:p2,w14:p4,w14:p5
 #
-# Builds bridge-go/cmd/relay, starts it on a temp RELAY_HOME (never ~/.relay) on GO_PORT (7880),
+# Builds bridge/cmd/relay, starts it on a temp RELAY_HOME (never ~/.relay) on GO_PORT (7880),
 # runs the parity tool against both, then stops it. Exits non-zero on any mismatch.
 #
 # Env:
 #   GO_PORT     port for the Go bridge (default 7880; 7878 is refused)
-#   RELAY_BIN   run this bridge binary instead of building one (e.g. a Swift build, to self-test)
+#   RELAY_BIN   run this bridge binary instead of building one (e.g. an older build, to self-test)
 #   SWIFT_URL   the reference bridge (default http://127.0.0.1:7878)
 #   KEEP=1      keep the temp home (logs, token) afterwards
 set -eu
@@ -16,7 +16,7 @@ set -eu
 cd "$(dirname "$0")/.."
 port=${GO_PORT:-7880}
 if [ "$port" = 7878 ]; then
-  echo "parity: 7878 is the live Swift bridge; pick another GO_PORT" >&2
+  echo "parity: 7878 is the live bridge; pick another GO_PORT" >&2
   exit 2
 fi
 if curl -s -o /dev/null "http://127.0.0.1:$port/health"; then

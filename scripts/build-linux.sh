@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build the Go bridge for Linux (amd64 + arm64), static (CGO_ENABLED=0), version stamped.
-#   scripts/build-linux.sh                  -> bridge-go/bin/relay-linux-{amd64,arm64} + SHA256SUMS
+#   scripts/build-linux.sh                  -> bridge/bin/relay-linux-{amd64,arm64} + SHA256SUMS
 # Env:
-#   OUT       output dir (default bridge-go/bin)
+#   OUT       output dir (default bridge/bin)
 #   VERSION   version /health reports (default <api.Version>-<git short sha>[-dirty])
 #   ARCHES    space-separated GOARCH list (default "amd64 arm64")
 set -euo pipefail
-cd "$(dirname "$0")/../bridge-go"
+cd "$(dirname "$0")/../bridge"
 out=${OUT:-$PWD/bin}
 mkdir -p "$out"
 if [ -z "${VERSION:-}" ]; then

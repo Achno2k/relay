@@ -24,14 +24,14 @@ tailscale ip -4          # e.g. 100.101.102.103
 On the Mac:
 ```sh
 scripts/build-linux.sh
-# -> bridge-go/bin/relay-linux-amd64, relay-linux-arm64, SHA256SUMS
+# -> bridge/bin/relay-linux-amd64, relay-linux-arm64, SHA256SUMS
 ssh vm uname -m          # x86_64 -> amd64, aarch64 -> arm64
 ssh vm mkdir -p .local/bin
-scp bridge-go/bin/relay-linux-amd64 vm:.local/bin/relay
+scp bridge/bin/relay-linux-amd64 vm:.local/bin/relay
 ssh vm 'chmod +x ~/.local/bin/relay && ~/.local/bin/relay --version'
 ```
 - Static (`CGO_ENABLED=0`), no libc dependency.
-- The version is stamped as `<version>-<git sha>`, with `-dirty` if `bridge-go/` had uncommitted changes. `/health` reports it, and so does the app's Machines screen.
+- The version is stamped as `<version>-<git sha>`, with `-dirty` if `bridge/` had uncommitted changes. `/health` reports it, and so does the app's Machines screen.
 - `VERSION=… scripts/build-linux.sh` sets it by hand. `ARCHES=arm64` builds one arch.
 
 ## 3. herdr
@@ -92,7 +92,7 @@ relay pair
 On the Mac, rebuild and copy to a temp name, then swap and restart:
 ```sh
 scripts/build-linux.sh
-scp bridge-go/bin/relay-linux-amd64 vm:.local/bin/relay.new
+scp bridge/bin/relay-linux-amd64 vm:.local/bin/relay.new
 ssh vm 'mv ~/.local/bin/relay.new ~/.local/bin/relay && systemctl --user restart relay.service'
 ssh vm curl -s http://127.0.0.1:7878/health     # new "version"
 ```

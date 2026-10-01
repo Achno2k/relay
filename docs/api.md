@@ -1,6 +1,6 @@
 # Relay bridge API (v1 contract)
 
-The contract between `bridge/` (a Swift daemon on the Mac) and `ios/` (the SwiftUI app).
+The contract between `bridge/` (the Go daemon `relay`, on the Mac or a Linux machine) and `ios/` (the SwiftUI app).
 Both sides build against `docs/fixtures/*.json`. Change this file first, then the code.
 
 ## Transport

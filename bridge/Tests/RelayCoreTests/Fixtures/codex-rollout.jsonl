@@ -1,3 +1,0 @@
-{"timestamp":"2026-09-24T13:18:01.000Z","type":"session_meta","payload":{"id":"01a0d390-0000-7a41-979a-000000000002","model_provider":"openai"}}
-{"timestamp":"2026-09-24T13:18:05.000Z","type":"turn_context","payload":{"model":"gpt-5.5","effort":"low","approval_policy":"on-request","approvals_reviewer":"user","sandbox_policy":{"type":"workspace-write"},"collaboration_mode":{"mode":"default"}}}
-{"timestamp":"2026-09-24T13:20:05.000Z","type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"high","approval_policy":"on-request","approvals_reviewer":"auto_review","sandbox_policy":{"type":"workspace-write"},"collaboration_mode":{"mode":"default"}}}
