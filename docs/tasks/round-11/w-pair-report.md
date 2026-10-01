@@ -51,3 +51,33 @@
 - For w-init:
   - `bootstrap.InstallUnits` / `EnableHerdrServer` and the `Units` list still exist; remove them when init switches to `relay pair --yes`.
   - `reset.sh` already removes both units from `/etc/systemd/system`.
+
+## Box test fixes (2026-10-01)
+### What changed
+- **herdr integrations.**
+  - `relay pair` looks for `claude`, `codex` and `pi` on `PATH`, then in `~/.local/share/mise/shims`, `~/.local/bin`, `~/.npm-global/bin` and `$(npm prefix -g)/bin`. npm itself is found the same way.
+  - For each one found, it reads `herdr integration status` and runs `herdr integration install <kind>` unless the status starts with `current`. So "not installed", "outdated" or a missing line all install.
+  - This is the `Plan.Integrations` field. It needs no sudo.
+  - A failed install is a warning, not fatal. The bridge still works; only that agent's chat stays empty. herdr refuses when the CLI's config dir (`~/.claude`, `~/.codex`) doesn't exist yet, so the warning says to start that CLI once and run `pair` again.
+  - Path 2 gets this too, since `relay init` runs `relay pair --yes` after the harnesses are installed.
+- **Quiet Tailscale install.** `tailscale.com/install.sh` now runs as root behind one `ui.Spinner` line, with its output appended to `~/.relay/setup.log` (0600). On failure, the last 20 lines and the log path are printed. Integration installs use the same runner.
+- `setup.UI` gained `Muted` and `Spinner`. `Plan` has a slice now, so `Empty` uses `reflect.DeepEqual`.
+- Docs: `remote-setup.md` has the new step, troubleshooting rows and a test record. The `api.md` pairing steps are updated.
+
+### Verification
+- All four checks pass.
+- New tests:
+  - `Decide` for missing, outdated and current integrations, for no harnesses, and for a herdr status that failed to read;
+  - integrations alone don't ask for sudo;
+  - `ParseIntegrationStatus` against the real output format;
+  - `lastLines`.
+- podman (Ubuntu 24.04 arm64, systemd, real herdr 0.9.3), run under `expect` so the spinner is live. Stub `claude` was in `~/.local/bin` and stub `codex` in the mise shims, neither on the exec `PATH`. Stub `pi` was under a fake `npm prefix -g`.
+  - Without `~/.claude` and `~/.codex`: herdr's message was shown, then a warning, and setup finished with `/health` answering.
+  - With the dirs: all three integrations were installed and `herdr integration status` said `current` for each.
+  - The next run printed "herdr integrations are current". Hook file mtimes, unit mtimes and service PIDs/start times were identical, and `setup.log` was untouched.
+  - The real Tailscale installer ran with only `[✓] install Tailscale` on screen. The apt lines, `+ set +x` and "Installation complete!" are in `setup.log` only.
+
+### Known gaps
+- In the container, `tailscaled` can't start because there is no tun device, so the run after the install stopped at "tailscaled doesn't answer". On the box this works, as the box test showed.
+- The integration check only runs on harnesses that are already installed. A CLI installed after `pair` needs another `relay pair`.
+- Every run with a CLI that has never been started repeats the warning until that CLI has its config dir.
