@@ -15,6 +15,10 @@ import (
 // same structure. Fixtures are read from docs/ directly (not copied) so they can't drift.
 const fixtures = "../../../docs/fixtures"
 
+// rawFixtures are bytes, not JSON: tool-image.png is what GET …/tool-images serves for
+// messages-images.json's first image.
+var rawFixtures = map[string]bool{"tool-image.png": true}
+
 // derived keys the bridge always sends even when an older fixture leaves them out.
 var derived = map[string]bool{"transcriptState": true}
 
@@ -34,6 +38,7 @@ func fixtureTypes() map[string]func() any {
 		"machine.json":               func() any { return new(Machine) },
 		"messages-attachments.json":  func() any { return new(MessagePage) },
 		"messages-edits.json":        func() any { return new(MessagePage) },
+		"messages-images.json":       func() any { return new(MessagePage) },
 		"messages.json":              func() any { return new(MessagePage) },
 		"usage.json":                 func() any { return new(UsageSnapshot) },
 		"workspaces.json":            func() any { return new([]Workspace) },
@@ -48,7 +53,7 @@ func TestEveryFixtureIsCovered(t *testing.T) {
 	}
 	types := fixtureTypes()
 	for _, e := range entries {
-		if _, ok := types[e.Name()]; !ok {
+		if _, ok := types[e.Name()]; !ok && !rawFixtures[e.Name()] {
 			t.Errorf("fixture %s has no api type in fixtures_test.go", e.Name())
 		}
 	}

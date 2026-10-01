@@ -64,7 +64,8 @@ Block (tagged on "type"):
     "path": "docs/api.md",       // optional (round 10); see "Tool call files and edits"
     "edit": ToolEdit,            // optional (round 10)
     "plan": "# Plan\n..." }      // optional (round 10), ExitPlanMode only; see "Plans"
-  { "type": "toolResult", "toolCallId": "toolu_..", "isError": false, "preview": "<first ~400 chars>" }
+  { "type": "toolResult", "toolCallId": "toolu_..", "isError": false, "preview": "<first ~400 chars>",
+    "images": [ToolImage] }      // optional (round 12); see "Tool result images"
   { "type": "attachment", "id": "9f2c4e1a7b3d5f60", "name": "screenshot.jpg", "kind": "image" }   // user messages only; see Attachments
 
 Approval {
@@ -81,6 +82,13 @@ ToolEdit {                        // round 10; what a file-changing toolCall did
   "content": "...",               // kind write: the full content written
   "diff": "--- a/x\n+++ b/x\n@@ …", // kind diff: a unified diff (codex FileChange; may cover several files)
   "truncated": false              // true if any string above was cut (see caps)
+}
+
+ToolImage {                       // round 12; an image inside a toolResult, bytes via GET /agents/:id/tool-images/…
+  "index": 0,                     // position among this result's images, from 0, in transcript order
+  "mediaType": "image/png",       // always image/*
+  "bytes": 183245,                // decoded size
+  "width": 1170, "height": 2532   // optional pixels, from the header (png, jpeg, gif, webp); left out when unknown
 }
 
 FileContent {                     // round 10; GET /agents/:id/file
@@ -172,6 +180,7 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | POST | /agents/:id/text | `{"text": "...", "submit": true}` | `202 {}`. Types `text` literally into the pane as it is now (herdr `pane.send_text`), with no clearing and no Esc, then presses Enter if `submit` (default true). Used for free-text approval answers. `400 bad_request` if `text` is empty. |
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
 | GET | /agents/:id/file?path=<cwd-relative path> | – | `FileContent` for text; raw bytes with their `Content-Type` for images. See Files. |
+| GET | /agents/:id/tool-images/:toolCallId/:index | – | the raw bytes of one `ToolImage`, with its `mediaType` as `Content-Type`. See "Tool result images". |
 | GET | /controls | – | `Controls`: Claude's list only, kept for older apps. Use `/agents/:id/controls`. |
 | GET | /controls?kind=claude\|codex\|pi | – | `AgentControls` for a kind with no agent yet (the New chat sheet), with `defaultModel`/`defaultEffort` (each left out when the agent has no saved default, e.g. no `model` in `~/.claude/settings.json`; the app then shows no default) and, for pi and codex, `effortsByModel`. `400 unsupported` for other kinds. |
 | GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
@@ -228,6 +237,23 @@ Round 10. The app shows a file the agent read or changed ("tap files in chat"). 
 - Images (`png`, `jpg`/`jpeg`, `gif`, `webp`, `heic`, `bmp`, `tiff`, by extension, checked against the file's magic bytes): `200` with the raw bytes and their `Content-Type` (e.g. `image/png`), `Cache-Control: no-store`. Cap 20 MB: `413 too_large`. `svg` is text. An image extension whose bytes don't match is treated like any other file (text if it's text, else `415`).
 - Anything else that isn't text: `415 unsupported`.
 - Clients tell the two `200` shapes apart by `Content-Type` (starts with `application/json` vs `image/`).
+
+## Tool result images
+
+Round 12. When an agent reads an image (Claude's `Read` on a `.png`, a screenshot tool, an MCP tool returning an image), the chat shows the image itself.
+
+- The transcript keeps the image as base64 inside the tool result. The file itself is often outside the cwd (a temp dir), so it's served from the transcript, not from disk.
+- `toolResult.images` lists them in order; left out when there are none. `preview` still says `[image]` for each, so older apps don't change.
+  - Only `image/*` media types count. `bytes` comes from the base64 length; `width`/`height` from the header only (the whole image is never decoded to list it).
+  - Live replies over the WebSocket carry the same field (they're the same blocks).
+- `GET /agents/:id/tool-images/:toolCallId/:index` (`:toolCallId` percent-encoded):
+  - `200` with the decoded bytes, `Content-Type` = `mediaType`, `Cache-Control: private, max-age=86400` (the bytes never change).
+  - `404 not_found`: no transcript, no such tool result in it, no image at that index, or base64 that doesn't decode. `413 too_large` over 20 MB. `400 bad_request` for an index that isn't a number ≥ 0.
+  - The bridge finds the result in the agent's transcript by `toolCallId`, reading the same window as the messages (the last 64 MB). It decodes on request and keeps a small in-memory cache of recent images. No paths on the wire.
+- Kinds:
+  - Claude: `tool_result` content `{"type":"image","source":{"type":"base64","media_type":…,"data":…}}` (Read on an image, MCP images).
+  - pi: `toolResult` content `{"type":"image","data":…,"mimeType":…}` (its read tool, extension tools).
+  - codex: `McpToolCall` result content `{"type":"image","data":…,"mimeType":…}`. Not `view_image`: it never reaches `item_completed` (only the raw `response_item`s, which the bridge ignores), so there's no tool row to put it on.
 
 ## Tool call files and edits
 

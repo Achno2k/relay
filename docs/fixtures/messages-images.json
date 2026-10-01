@@ -1,0 +1,10 @@
+{"hasMore":false,"messages":[
+ {"id":"g1","role":"user","createdAt":"2026-10-02T09:00:00+00:00","blocks":[{"type":"text","text":"Does the new header look right?"}]},
+ {"id":"g2","role":"assistant","createdAt":"2026-10-02T09:00:04+00:00","blocks":[
+  {"type":"toolCall","id":"toolu_01img","name":"Read","summary":"Read header-light.png","input":"{\"file_path\":\"header-light.png\"}"},
+  {"type":"toolResult","toolCallId":"toolu_01img","isError":false,"preview":"[image]","images":[{"index":0,"mediaType":"image/png","bytes":73,"width":3,"height":2}]},
+  {"type":"toolCall","id":"toolu_02two","name":"browser.screenshot","summary":"Called browser.screenshot","input":"{}"},
+  {"type":"toolResult","toolCallId":"toolu_02two","isError":false,"preview":"Captured 2 frames\n[image]\n[image]","images":[{"index":0,"mediaType":"image/png","bytes":73,"width":3,"height":2},{"index":1,"mediaType":"image/webp","bytes":5120}]},
+  {"type":"text","text":"The header renders as designed."}
+ ]}
+]}
