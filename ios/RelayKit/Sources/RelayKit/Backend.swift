@@ -12,6 +12,8 @@ public protocol Backend: Sendable {
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> Attachment
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data
+    /// `GET /agents/:id/tool-images/:toolCallId/:index`: an image a tool returned, as raw bytes.
+    func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data
     /// `GET /agents/:id/file`: a file inside the agent's project, by cwd-relative path.
     func file(agentId: String, path: String) async throws -> AgentFile
     func machine() async throws -> Machine
@@ -48,6 +50,10 @@ public extension Backend {
     func kinds() async throws -> [KindStatus] {
         throw RelayError.http(status: 404, code: "not_found", message: nil)
     }
+    /// Test doubles without tool images (and what an older bridge answers).
+    func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        throw RelayError.http(status: 404, code: "not_found", message: nil)
+    }
     /// Test doubles that don't serve files.
     func file(agentId: String, path: String) async throws -> AgentFile {
         throw RelayError.http(status: 404, code: "not_found", message: nil)
@@ -79,6 +85,9 @@ public struct LiveBackend: Backend {
     }
     public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
         try await client.attachmentData(agentId: agentId, attachmentId: attachmentId)
+    }
+    public func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        try await client.toolImage(agentId: agentId, toolCallId: toolCallId, index: index)
     }
     public func file(agentId: String, path: String) async throws -> AgentFile {
         try await client.file(agentId: agentId, path: path)

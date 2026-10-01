@@ -94,6 +94,8 @@ final class AppStore {
     }
     /// Thumbnails and files already fetched, by attachment id.
     private var attachmentCache: [String: Data] = [:]
+    /// Tool-result image bytes, by endpoint path. They never change, so a hit is always good.
+    private let toolImageCache = ToolImageCache()
     var errorMessage: String?
 
     /// Between `start()` and `stop()`: machines added meanwhile start right away.
@@ -879,6 +881,15 @@ final class AppStore {
         let data = try await backend.attachmentData(agentId: agentId, attachmentId: attachmentId)
         if attachmentCache.count > 60 { attachmentCache.removeAll() }
         attachmentCache[attachmentId] = data
+        return data
+    }
+
+    /// An image a tool returned (`GET /agents/:id/tool-images/:toolCallId/:index`), cached in memory.
+    func toolImageData(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        let key = ToolImageCache.key(agentId: agentId, toolCallId: toolCallId, index: index)
+        if let data = toolImageCache[key] { return data }
+        let data = try await backend.toolImage(agentId: agentId, toolCallId: toolCallId, index: index)
+        toolImageCache[key] = data
         return data
     }
 

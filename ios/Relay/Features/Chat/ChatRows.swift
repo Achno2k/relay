@@ -83,12 +83,17 @@ struct ToolGroupView: View {
     let steps: [ToolStep]
     let isLive: Bool
     let duration: TimeInterval?
+    /// For fetching result images; without a store the rows keep their `[image]` previews.
+    var agentId = ""
+    var store: AppStore?
     @State private var expanded: Bool
 
-    init(steps: [ToolStep], isLive: Bool, duration: TimeInterval?, expanded: Bool = false) {
+    init(steps: [ToolStep], isLive: Bool, duration: TimeInterval?, expanded: Bool = false, agentId: String = "", store: AppStore? = nil) {
         self.steps = steps
         self.isLive = isLive
         self.duration = duration
+        self.agentId = agentId
+        self.store = store
         _expanded = State(initialValue: expanded)
     }
 
@@ -109,7 +114,7 @@ struct ToolGroupView: View {
             if expanded {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(steps.enumerated()), id: \.element.id) { i, step in
-                        ToolStepRow(step: step, isLast: i == steps.count - 1, isLive: isLive)
+                        ToolStepRow(step: step, isLast: i == steps.count - 1, isLive: isLive, agentId: agentId, store: store)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -123,11 +128,20 @@ private struct ToolStepRow: View {
     let step: ToolStep
     let isLast: Bool
     let isLive: Bool
+    let agentId: String
+    let store: AppStore?
     @State private var showPreview = false
+    /// The bridge answered 404 for the images (older bridge): back to the `[image]` preview.
+    @State private var imagesUnavailable = false
     @Environment(\.openFile) private var openFile
 
+    private var showsImages: Bool { !step.images.isEmpty && store != nil && !imagesUnavailable }
+
+    /// Shown images replace their `[image]` placeholder lines.
+    private var preview: String? { showsImages ? step.textPreview : step.preview }
+
     /// Error previews always show; only a togglable preview needs a tap affordance.
-    private var isToggleable: Bool { !step.isError && !(step.preview ?? "").isEmpty }
+    private var isToggleable: Bool { !step.isError && !(preview ?? "").isEmpty }
 
     /// A Read/Write/Edit row opens the file viewer instead; its output moves to the context menu.
     private var file: FileRequest? { openFile == nil ? nil : FileRequest(step: step) }
@@ -147,30 +161,13 @@ private struct ToolStepRow: View {
                     Rectangle().fill(.quaternary).frame(width: 1.5).frame(maxHeight: .infinity)
                 }
             }
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Text(step.summary.isEmpty ? step.name : step.summary)
-                        .font(.subheadline)
-                        .foregroundStyle(step.isError ? .red : .primary)
-                        .lineLimit(2)
-                    if !step.finished && isLive {
-                        ProgressView().controlSize(.mini).accessibilityHidden(true)
-                    }
-                    if file != nil {
-                        Image(systemName: "chevron.right")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .accessibilityHidden(true)
-                    }
-                }
-                if showPreview || step.isError, let preview = step.preview, !preview.isEmpty {
-                    Text(preview)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(step.isError ? .red.opacity(0.85) : .secondary)
-                        .lineLimit(6)
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 8) {
+                header
+                if showsImages, let store {
+                    ToolImagesView(
+                        toolCallId: step.id, images: step.images, title: step.summary.isEmpty ? step.name : step.summary,
+                        agentId: agentId, store: store, onUnavailable: { imagesUnavailable = true }
+                    )
                 }
             }
             .padding(.top, 5)
@@ -194,12 +191,62 @@ private struct ToolStepRow: View {
                 }
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(file != nil || isToggleable ? .isButton : [])
-        .accessibilityHint(
-            file != nil ? fileHint : isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : ""
-        )
-        .accessibilityIdentifier(file != nil ? "toolStepFile" : "toolStep")
+        .stepAccessibility(!showsImages, self)
+    }
+
+    /// The summary and its output. With images it's the row's accessibility element on its own, so the
+    /// thumbnails stay their own buttons; without, the whole row is (as before images).
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(step.summary.isEmpty ? step.name : step.summary)
+                    .font(.subheadline)
+                    .foregroundStyle(step.isError ? .red : .primary)
+                    .lineLimit(2)
+                if !step.finished && isLive {
+                    ProgressView().controlSize(.mini).accessibilityHidden(true)
+                }
+                if file != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+            if showPreview || step.isError, let preview, !preview.isEmpty {
+                Text(preview)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(step.isError ? .red.opacity(0.85) : .secondary)
+                    .lineLimit(6)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 10))
+            }
+        }
+        .stepAccessibility(showsImages, self)
+    }
+
+    fileprivate var accessibilityTraits: AccessibilityTraits { file != nil || isToggleable ? .isButton : [] }
+
+    fileprivate var accessibilityHint: String {
+        file != nil ? fileHint : isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : ""
+    }
+
+    fileprivate var accessibilityId: String { file != nil ? "toolStepFile" : "toolStep" }
+}
+
+private extension View {
+    /// The step's one combined accessibility element, applied where `on` says.
+    @ViewBuilder
+    func stepAccessibility(_ on: Bool, _ row: ToolStepRow) -> some View {
+        if on {
+            accessibilityElement(children: .combine)
+                .accessibilityAddTraits(row.accessibilityTraits)
+                .accessibilityHint(row.accessibilityHint)
+                .accessibilityIdentifier(row.accessibilityId)
+        } else {
+            self
+        }
     }
 }
 

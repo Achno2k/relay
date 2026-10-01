@@ -57,6 +57,14 @@ actor FakeBridge: Backend {
         progress: @escaping @Sendable (Double) -> Void
     ) async throws -> RelayKit.Attachment { RelayKit.Attachment(id: "a1", name: filename, kind: .file, size: data.count) }
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data { Data() }
+    private(set) var toolImageFetches: [String] = []
+    /// Answers with bytes naming the bridge and the raw request, so a test can see where it was routed.
+    func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        try check()
+        let request = "\(agentId)|\(toolCallId)|\(index)"
+        toolImageFetches.append(request)
+        return Data("\(id)|\(request)".utf8)
+    }
     func machine() async throws -> Machine { try check(); return Machine(id: id, name: "Name \(id)", kind: .desktop, os: "Linux") }
     func health() async throws -> Health { try check(); return Health(ok: true, version: "9.9.9", herdr: "connected") }
     func sendKeys(agentId: String, keys: [String]) async throws { try check() }

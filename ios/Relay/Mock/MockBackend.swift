@@ -161,6 +161,15 @@ actor MockBackend: Backend {
         return upload.data
     }
 
+    func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        try check()
+        try await Task.sleep(for: latency)
+        guard let data = MockToolImages.data(toolCallId: toolCallId, index: index) else {
+            throw RelayError.http(status: 404, code: "not_found", message: "No such image.")
+        }
+        return data
+    }
+
     func file(agentId: String, path: String) async throws -> AgentFile {
         try check()
         try await Task.sleep(for: latency)

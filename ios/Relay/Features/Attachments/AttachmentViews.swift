@@ -262,50 +262,6 @@ private struct FileChip: View {
     }
 }
 
-/// Full-screen image with pinch to zoom.
-private struct ImageViewer: View {
-    let image: UIImage
-    let name: String
-    @Environment(\.dismiss) private var dismiss
-    @State private var scale: CGFloat = 1
-    @GestureState private var pinch: CGFloat = 1
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .scaleEffect(scale * pinch)
-                .gesture(
-                    MagnifyGesture()
-                        .updating($pinch) { value, state, _ in state = value.magnification }
-                        .onEnded { value in withAnimation(.smooth) { scale = min(max(scale * value.magnification, 1), 5) } }
-                )
-                .onTapGesture(count: 2) { withAnimation(.smooth) { scale = scale > 1 ? 1 : 2.5 } }
-        }
-        .overlay(alignment: .topTrailing) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.white)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .padding()
-            .accessibilityLabel("Close")
-        }
-        .overlay(alignment: .bottom) {
-            Text(name)
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.8))
-                .padding(.bottom, 24)
-        }
-        .preferredColorScheme(.dark)
-    }
-}
-
 // MARK: - Camera
 
 struct CameraPicker: UIViewControllerRepresentable {

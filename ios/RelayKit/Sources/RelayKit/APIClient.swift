@@ -95,6 +95,12 @@ public struct APIClient: Sendable {
         return data
     }
 
+    public func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        let path = "/agents/\(Self.encode(agentId))/tool-images/\(Self.encode(toolCallId))/\(index)"
+        let (data, _) = try await raw("GET", path, timeout: 60)
+        return data
+    }
+
     /// `GET /agents/:id/file?path=`: a text file, or an image's bytes. A `403` here means the path is outside the
     /// agent's project, not a bad token (that's `401`), so it stays `RelayError.http` instead of `.unauthorized`.
     public func file(agentId: String, path: String) async throws -> AgentFile {

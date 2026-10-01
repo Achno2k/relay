@@ -102,6 +102,9 @@ public struct NamespacedBackend: Backend {
     public func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
         try await inner.attachmentData(agentId: raw(agentId), attachmentId: attachmentId)
     }
+    public func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        try await inner.toolImage(agentId: raw(agentId), toolCallId: toolCallId, index: index)
+    }
     public func file(agentId: String, path: String) async throws -> AgentFile {
         try await inner.file(agentId: raw(agentId), path: path)
     }
