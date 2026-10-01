@@ -104,3 +104,13 @@ Stay inside your own worktree. Never touch the main checkout (`~/projects/relay`
 Append one time-prefixed line per milestone to `/private/tmp/claude-504/-Users-you-projects-relay/aa6e06bd-1c65-4a90-92b1-bd6f6916ce71/scratchpad/r11/status-<name>.md`:
 `plan ready` · `<step> done` · `checks pass` · `COMMITTED <sha>` · `DONE <sha>`.
 Questions for the lead start with `QUESTION:`; then wait. Never type into the lead's pane. When done, write `docs/tasks/round-11/<name>-report.md` (what changed, how it was verified, known gaps), commit it, and write `DONE <sha>`.
+
+## 2026-10-01 box test fixes
+Box test on a real EC2 box (Ubuntu 26.04, x86_64) passed Path 1 and Path 2. Fix these, each on your branch after `git merge --ff-only master` (master = r11 with both your branches merged):
+- **w-pair**
+  1. `relay pair` must run `herdr integration install <kind>` for each of claude, codex, pi that is on PATH (include the mise shims dir, `~/.local/bin`, npm global bin), only if not installed yet. Without it herdr reports `agent_session: null`, the bridge never finds the transcript and the app shows an empty chat. This covers both paths, since `relay init` runs `relay pair --yes` after the harnesses are installed.
+  2. The Tailscale install script's output (apt lines, `+ set +x`, "Installation complete!") spills into the terminal. Run it behind a spinner step and keep the output in a log; print it only on failure.
+- **w-init**
+  1. After cloning, pre-trust the repo folder for Claude (`~/.claude.json` → `projects["<abs path>"].hasTrustDialogAccepted = true`, keep other keys), so a new agent from the app doesn't stop at "Trust this folder?". Same idea for Codex if it has a trust prompt.
+  2. UI: after the "SSH private key" input, the collapsed answer line is blank. It should show the path.
+  3. Auto mode: Claude Code now defaults to auto mode on its own (seen on the box: "Auto mode is now Claude Code's default permission mode"). Leave Claude alone. Drop the gap note for Claude; Codex stays as is.
