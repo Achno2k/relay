@@ -191,9 +191,11 @@ private struct ToolStepRow: View {
                 }
             }
         }
+        .stepAccessibility(!showsImages, self)
     }
 
-    /// The summary and its output. One accessibility element, so the thumbnails below stay their own buttons.
+    /// The summary and its output. With images it's the row's accessibility element on its own, so the
+    /// thumbnails stay their own buttons; without, the whole row is (as before images).
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
@@ -221,14 +223,30 @@ private struct ToolStepRow: View {
                     .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 10))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(file != nil || isToggleable ? .isButton : [])
-        .accessibilityHint(
-            file != nil ? fileHint : isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : ""
-        )
-        .accessibilityIdentifier(file != nil ? "toolStepFile" : "toolStep")
+        .stepAccessibility(showsImages, self)
+    }
+
+    fileprivate var accessibilityTraits: AccessibilityTraits { file != nil || isToggleable ? .isButton : [] }
+
+    fileprivate var accessibilityHint: String {
+        file != nil ? fileHint : isToggleable ? (showPreview ? "Double tap to hide output" : "Double tap to show output") : ""
+    }
+
+    fileprivate var accessibilityId: String { file != nil ? "toolStepFile" : "toolStep" }
+}
+
+private extension View {
+    /// The step's one combined accessibility element, applied where `on` says.
+    @ViewBuilder
+    func stepAccessibility(_ on: Bool, _ row: ToolStepRow) -> some View {
+        if on {
+            accessibilityElement(children: .combine)
+                .accessibilityAddTraits(row.accessibilityTraits)
+                .accessibilityHint(row.accessibilityHint)
+                .accessibilityIdentifier(row.accessibilityId)
+        } else {
+            self
+        }
     }
 }
 
