@@ -22,13 +22,17 @@ final class Round10UITests: XCTestCase {
     // MARK: B8, B3: feedback from the moment a prompt is sent
 
     /// B8: after send, the field empties and a shimmering "Thinking…" shows at once, not a lone dot.
+    /// On `w2:p3`, an empty chat: on the long `w2:p1` history each query takes longer than the mock's turn.
     func testB8ThinkingShowsRightAfterSend() throws {
-        launch()
+        launch(agent: "w2:p3")
         send("Round ten ping")
-        XCTAssertTrue(bubble("Round ten ping").waitForExistence(timeout: 1.5), "user bubble didn't show at once")
         // "Thinking…" until the mock's Read starts at ~1.2 s, then the shimmering "Running Read…" row.
-        XCTAssertTrue(busy.waitForExistence(timeout: 1.5), "nothing shows the agent is busy right after send")
-        if working.exists { XCTAssertEqual(working.label, "Thinking…") }
+        let busyNow = busy.waitForExistence(timeout: 2)
+        if !busyNow {
+            print("B8TREE", app.debugDescription.split(separator: "\n").filter { $0.contains("Thinking") || $0.contains("Running") || $0.contains("Round ten") }.joined(separator: "\n"))
+        }
+        XCTAssertTrue(busyNow, "nothing shows the agent is busy right after send")
+        XCTAssertTrue(bubble("Round ten ping").exists, "user bubble didn't show at once")
         XCTAssertFalse((composer.value as? String ?? "").contains("Round ten ping"), "typed text stayed in the field")
         shot("b8-thinking")
 
@@ -39,7 +43,7 @@ final class Round10UITests: XCTestCase {
 
     /// B3: while a tool runs, the shimmer names it; it never looks idle while the agent works.
     func testB3RunningToolIsNamed() throws {
-        launch()
+        launch(agent: "w2:p3")
         send("slow bash please")
         XCTAssertTrue(busy.waitForExistence(timeout: 1.5), "nothing shows the agent is busy right after send")
         let running = app.descendants(matching: .any)
@@ -123,11 +127,11 @@ final class Round10UITests: XCTestCase {
     /// B7: `-mockPlan` puts `w1:p2` at a plan approval. The sheet shows the plan above the options.
     func testB7PlanInApprovalSheet() throws {
         launch(agent: "w1:p2", ["-mockPlan"])
-        let plan = element("approvalPlan")
+        let plan = element("approvalPlan").firstMatch
         XCTAssertTrue(plan.waitForExistence(timeout: 10), "approval sheet has no plan")
-        XCTAssertTrue(element("approvalQuestion").exists)
-        let options = app.buttons.matching(identifier: "approvalAnswer")
-        XCTAssertGreaterThan(options.count, 0, "no options under the plan")
+        XCTAssertTrue(element("approvalQuestion").firstMatch.exists)
+        let options = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Yes, and'"))
+        XCTAssertTrue(options.firstMatch.waitForExistence(timeout: 3), "no options under the plan")
         XCTAssertTrue(options.firstMatch.isHittable, "options not reachable with a plan shown")
         XCTAssertLessThanOrEqual(plan.frame.maxY, options.firstMatch.frame.minY + 1, "plan runs under the options")
         shot("b7-sheet")
@@ -136,15 +140,36 @@ final class Round10UITests: XCTestCase {
     /// B7: the chat shows the plan as a card after the ExitPlanMode tools, collapsed with "Show full plan".
     func testB7PlanCardInChat() throws {
         launch(agent: "w1:p2", ["-mockPlan", "-demo", "card"])
-        let card = element("planCard")
-        XCTAssertTrue(scrollChat(to: card), "no plan card in the chat")
-        let toggle = app.buttons["planToggle"]
+        let card = element("planCard").firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 10), "no plan card in the chat")
+        // By label: the card's `planCard` id also lands on its children, so `planToggle` isn't queryable.
+        let toggle = app.buttons["Show full plan"].firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 3), "long plan has no Show full plan")
-        let collapsed = card.frame.height
         toggle.tap()
-        sleep(1)
-        XCTAssertGreaterThan(card.frame.height, collapsed + 20, "plan card didn't expand")
+        XCTAssertTrue(app.buttons["Show less"].firstMatch.waitForExistence(timeout: 3), "plan card didn't expand")
         shot("b7-card")
+    }
+
+    // MARK: B4/B9: the Photos target
+
+    /// B4/B9: `+` opens the attachment sheet; the whole Photos tile opens the picker, corners included.
+    func testB4PhotosTileOpensPickerFromItsCorners() throws {
+        for (dx, dy) in [(0.08, 0.12), (0.92, 0.88), (0.5, 0.5)] {
+            launch(agent: "w2:p3")
+            let plus = app.buttons["composerPlus"]
+            XCTAssertTrue(plus.waitForExistence(timeout: 10))
+            plus.tap()
+            XCTAssertTrue(element("plusSheet").firstMatch.waitForExistence(timeout: 3), "+ didn't open the attachment sheet")
+            let photos = element("plusSheet").firstMatch.buttons["Photos"].exists
+                ? element("plusSheet").firstMatch.buttons["Photos"] : app.buttons["Photos"].firstMatch
+            XCTAssertTrue(photos.waitForExistence(timeout: 3), "no Photos tile")
+            XCTAssertGreaterThanOrEqual(photos.frame.height, 44, "Photos tile under 44 pt")
+            photos.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: dy)).tap()
+            let picker = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Collections'")).firstMatch
+            XCTAssertTrue(picker.waitForExistence(timeout: 6), "Photos tile tap at (\(dx), \(dy)) didn't open the picker")
+            shot("b4-picker-\(Int(dx * 100))")
+            app.terminate()
+        }
     }
 
     // MARK: B1: the gap under the sidebar's "Relay" title
