@@ -43,6 +43,7 @@
 		506A057C19B556A24ADDA85C /* DesignQAShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8644DFA6912C27E53A50CB93 /* DesignQAShots.swift */; };
 		526CC581323542FEA1CF344F /* LiveKindControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A82BCCC3A5466E4DBBC2AB4 /* LiveKindControlsTests.swift */; };
 		53F9AE60581D9F3A710E34D6 /* UsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 392F2BF99D8E32E0E09B5BFF /* UsageView.swift */; };
+		5971EDF0147F1973E07C5EE1 /* Round10UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91EF4DF0EE80F2A5DCE2AC9B /* Round10UITests.swift */; };
 		5F91F886EC55EED4FD3F8C93 /* SessionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4566E83031C2B4FDD021C4 /* SessionRow.swift */; };
 		637D335E0DDD25A1F2B4CF54 /* RelayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EABCC8390D9298E86FFF168 /* RelayState.swift */; };
 		66C1F33B161E533D81BED6CB /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05730F308651B253D7F455FD /* MainView.swift */; };
@@ -189,6 +190,7 @@
 		8E4566E83031C2B4FDD021C4 /* SessionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRow.swift; sourceTree = "<group>"; };
 		90196BBD5CED7BA229F94D64 /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
 		911B728F87D66ED9C7393DCA /* LiveToolUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveToolUITests.swift; sourceTree = "<group>"; };
+		91EF4DF0EE80F2A5DCE2AC9B /* Round10UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Round10UITests.swift; sourceTree = "<group>"; };
 		93FAEBF9FC6FDCDBD9837274 /* MockUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockUITests.swift; sourceTree = "<group>"; };
 		981548A0980C5B9934F4B0F0 /* MachinesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachinesTests.swift; sourceTree = "<group>"; };
 		A002275E7E5C75D936C3983A /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
@@ -417,6 +419,7 @@
 				529DFC90FF6C08A096A6FA9B /* Round8UITests.swift */,
 				542B25F8ED297554650A550C /* Round9LiveUITests.swift */,
 				0B3D6F1C42AEEF2E695FFE56 /* Round9UITests.swift */,
+				91EF4DF0EE80F2A5DCE2AC9B /* Round10UITests.swift */,
 				417A0DA3F5D971C8037B3AB9 /* SidebarFilterMenuUITests.swift */,
 				DA005D7CFA44FD73D66D7313 /* SidebarListsUITests.swift */,
 				B08D3D1786AE5BC795D70059 /* SidebarMotionUITests.swift */,
@@ -679,6 +682,7 @@
 				F0E1F063F8C80074396C0D40 /* LiveToolUITests.swift in Sources */,
 				1DE542C7C80DB21ADB144893 /* MockUITests.swift in Sources */,
 				43B00B6D80DAE4131F4C9BAF /* NewChatUITests.swift in Sources */,
+				5971EDF0147F1973E07C5EE1 /* Round10UITests.swift in Sources */,
 				3E03058DD86EB9DEE1DA4D9C /* Round2UITests.swift in Sources */,
 				303A3EA21AC18011F2DAAADD /* Round3UITests.swift in Sources */,
 				CEA681B5D4F61D7ACFF1AEC7 /* Round8UITests.swift in Sources */,
