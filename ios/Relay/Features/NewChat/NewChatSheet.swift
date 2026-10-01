@@ -180,13 +180,18 @@ struct NewChatSheet: View {
 
     private func status(of kind: String) -> KindStatus? { kindStatuses?.first { $0.kind == kind } }
 
-    /// Unknown (no `/kinds` answer yet, or an older bridge) counts as startable; the bridge has the last word.
-    private var kindCanStart: Bool { status(of: kind)?.canStart ?? true }
+    private var kindCanStart: Bool { Self.canStart(kind, statuses: kindStatuses) }
+
+    /// Unknown counts as startable: no `/kinds` answer yet, an older bridge (404) or any other failure (nil),
+    /// or a kind the bridge didn't list. The `409` from `POST /agents` then has the last word.
+    nonisolated static func canStart(_ kind: String, statuses: [KindStatus]?) -> Bool {
+        statuses?.first { $0.kind == kind }?.canStart ?? true
+    }
 
     /// One agent kind. One that can't start on this machine is greyed out with the bridge's hint under it.
     private func kindRow(_ kind: String) -> some View {
         let status = status(of: kind)
-        let enabled = status?.canStart ?? true
+        let enabled = Self.canStart(kind, statuses: kindStatuses)
         return Button {
             self.kind = kind
         } label: {
@@ -224,8 +229,8 @@ struct NewChatSheet: View {
     /// The kind to have selected once `/kinds` answers: the current one if it can start (or nothing is
     /// known), else the first that can. None can: keep it, so its hint shows and Create stays off.
     nonisolated static func pickKind(_ current: String, statuses: [KindStatus]?) -> String {
-        guard let statuses, statuses.first(where: { $0.kind == current })?.canStart == false else { return current }
-        return kinds.first { k in statuses.first { $0.kind == k }?.canStart ?? true } ?? current
+        guard !canStart(current, statuses: statuses) else { return current }
+        return kinds.first { canStart($0, statuses: statuses) } ?? current
     }
 
     @ViewBuilder

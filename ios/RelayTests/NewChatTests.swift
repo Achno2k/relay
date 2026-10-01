@@ -114,10 +114,37 @@ struct StoreKindsTests {
         #expect(await store.kinds(machineId: "nope") == nil)
     }
 
-    @Test func olderBridgeWithoutKindsIsUnknown() async throws {
-        let (store, _, machine) = try await store()
-        #expect(await store.kinds(machineId: machine) == nil)
-        #expect(store.errorMessage == nil, "a missing /kinds isn't an error")
+    /// Older bridges (the Mac's until it's rebuilt) answer `GET /kinds` with 404. That, or any other
+    /// failure, is "unknown": every kind stays startable like before, and the 409 from Create decides.
+    @Test func olderBridgeOrFailedKindsLeavesEveryKindStartable() async throws {
+        let (store, backend, machine) = try await store()
+        for error: RelayError? in [nil, .http(status: 500, code: "internal", message: "boom"), .unreachable(timedOut: true), .badResponse] {
+            await backend.setKindsError(error) // nil: RecordingBackend's 404, like an older bridge
+            let statuses = await store.kinds(machineId: machine)
+            #expect(statuses == nil, "\(String(describing: error)) reads as unknown")
+            for kind in ["claude", "codex", "pi"] {
+                #expect(NewChatSheet.canStart(kind, statuses: statuses), "\(kind) stays startable")
+                #expect(NewChatSheet.pickKind(kind, statuses: statuses) == kind, "the pick isn't moved")
+            }
+            #expect(store.errorMessage == nil, "a failed /kinds isn't shown as an error")
+        }
+
+        // Then Create still meets the bridge's 409 and shows its hint.
+        let hint = "Run `codex login` on this machine, then try again."
+        await backend.setCreateError(.http(status: 409, code: "not_signed_in", message: hint))
+        #expect(await store.createAgent(workspaceId: "w2", kind: "codex", model: nil, effort: nil) == .kindNotReady(hint))
+    }
+
+    @Test func canStartFollowsTheStatus() {
+        let statuses = [
+            KindStatus(kind: "claude", installed: true, signedIn: true),
+            KindStatus(kind: "codex", installed: true, signedIn: false, signInHint: "h"),
+            KindStatus(kind: "pi", installed: false, signedIn: false, signInHint: "h"),
+        ]
+        #expect(NewChatSheet.canStart("claude", statuses: statuses))
+        #expect(!NewChatSheet.canStart("codex", statuses: statuses))
+        #expect(!NewChatSheet.canStart("pi", statuses: statuses))
+        #expect(NewChatSheet.canStart("pi", statuses: []), "an empty answer knows nothing about pi")
     }
 
     @Test func refusedCreateIsNotReadyNotABanner() async throws {

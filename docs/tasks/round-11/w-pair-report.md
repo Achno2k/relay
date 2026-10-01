@@ -125,3 +125,13 @@ All runs headless: Simulator app closed, iPhone 17 Pro on iOS 26.4, xcodebuild o
 - The alert's message is plain text, because alerts don't render markdown, so the backticks are dropped there. The rows show them as code.
 - After a 409 race, the refetch only greys the row if the bridge's `/kinds` has caught up; it caches for up to 15 s.
 - There is no live UI test for this, since it would need a CLI that is signed out on the test machine.
+
+### Lead note: older bridges answer `/kinds` with 404
+- This was already the behaviour: `store.kinds` uses `try?`, so a 404 or any other failure comes back as nil, and nil means "unknown".
+- The sheet's rule is now one helper, `NewChatSheet.canStart(kind, statuses:)`. The rows, Create and `pickKind` all use it. Unknown, or a kind the bridge didn't list, counts as startable.
+- New unit test `olderBridgeOrFailedKindsLeavesEveryKindStartable`:
+  - covers 404, 500, unreachable and a bad response;
+  - each one gives nil from the store, every kind startable, the selection unchanged, and no banner;
+  - after that, Create still gets the 409 as `.kindNotReady(hint)`.
+- Also new: `canStartFollowsTheStatus`.
+- RelayTests: 212 pass. `NewChatKindsUITests` and `NewChatUITests` pass again, headless.

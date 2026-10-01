@@ -54,8 +54,12 @@ actor RecordingBackend: Backend {
     var kindStatuses: [KindStatus]?
     private(set) var kindsFetches = 0
     func setKindStatuses(_ statuses: [KindStatus]?) { kindStatuses = statuses }
+    /// Thrown by `/kinds` instead of answering (offline, a 500).
+    var kindsError: RelayError?
+    func setKindsError(_ error: RelayError?) { kindsError = error }
     func kinds() async throws -> [KindStatus] {
         kindsFetches += 1
+        if let kindsError { throw kindsError }
         guard let kindStatuses else { throw RelayError.http(status: 404, code: "not_found", message: "Not Found") }
         return kindStatuses
     }
