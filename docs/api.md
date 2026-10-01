@@ -176,7 +176,8 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | GET | /controls?kind=claude\|codex\|pi | – | `AgentControls` for a kind with no agent yet (the New chat sheet), with `defaultModel`/`defaultEffort` (each left out when the agent has no saved default, e.g. no `model` in `~/.claude/settings.json`; the app then shows no default) and, for pi and codex, `effortsByModel`. `400 unsupported` for other kinds. |
 | GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
 | POST | /agents/:id/control | exactly one of `{"model":"sonnet"}`, `{"permissionMode":"plan"}`, `{"effort":"high"}`, `{"command":"compact"}`, `{"command":"clear"}` | `202 Agent` (fresh, with the new value) once the change shows on screen or in the transcript. Errors below. |
-| POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","model":"optional","effort":"optional"}` | `201 Agent`: a new tab in the workspace (cwd = the workspace's first pane's cwd), the agent started with that model and effort. See "Starting an agent". |
+| GET | /kinds | – | `[KindStatus]`, one each for claude, codex, pi: whether that CLI is installed and signed in on this machine. See "Agent kinds". |
+| POST | /agents | `{"workspaceId":"w13","kind":"claude","name":"optional","model":"optional","effort":"optional"}` | `201 Agent`: a new tab in the workspace (cwd = the workspace's first pane's cwd), the agent started with that model and effort. See "Starting an agent". `409 not_installed` / `409 not_signed_in` before anything is created. |
 | GET | /usage | – | `{"providers":[UsageProvider]}`. Always the cache; never triggers a live fetch. See Usage. |
 | POST | /usage/refresh | – | `202 {}`: asks the bridge to refresh now. `429 rate_limited` if called again within 15 s of the last refresh (manual or automatic). |
 
@@ -377,6 +378,29 @@ AgentControls {
   - `clear` (`/new`) puts pi and codex back on their saved default model and effort.
 - Fixtures: `docs/fixtures/agent-controls-claude.json`, `agent-controls-pi.json`, `agent-controls-codex.json`, and `agents-multi.json` (a pi and a codex agent with these fields).
 
+### Agent kinds (`GET /kinds`)
+
+```jsonc
+KindStatus {
+  "kind": "codex",          // claude | codex | pi, always all three, in that order
+  "installed": true,        // the CLI is on the bridge's PATH
+  "signedIn": false,        // it has credentials (below); false whenever installed is false
+  "signInHint": "Run `codex login` on this machine, then try again."  // left out when installed && signedIn
+}
+```
+- `signedIn` per kind:
+  - claude: `~/.claude/.credentials.json` exists, or else `claude auth status --json` says `loggedIn` (for credentials kept elsewhere, e.g. the macOS keychain).
+  - codex: `~/.codex/auth.json` exists, or `CODEX_API_KEY` / `OPENAI_API_KEY` is set in the bridge's environment.
+  - pi: `~/.pi/agent/auth.json` (or `$PI_CODING_AGENT_DIR/auth.json`) holds at least one provider.
+- `signInHint`:
+  - not installed: "`<kind>` isn't installed on this machine."
+  - installed, not signed in:
+    - claude: "Run `claude auth login` on this machine, then try again."
+    - codex: "Run `codex login` on this machine, then try again."
+    - pi: "Run `pi` on this machine and sign in with `/login`, then try again."
+- Re-derived on every call, with at most a 15 s cache. No paths on the wire.
+- The app fetches it when the New chat sheet opens, per machine. A kind that isn't signed in (or installed) shows disabled with its hint and can't be picked. No WebSocket event.
+
 ### Starting an agent (`POST /agents`)
 
 - Body:
@@ -391,6 +415,7 @@ AgentControls {
 - A startup dialog (e.g. folder trust) still comes back as `status: "blocked"` plus `/approval`. The agent then starts with the chosen model/effort once it's answered.
 - `prompt` (optional) is still accepted and sent once the agent is ready, but the app no longer uses it. The first message goes through `POST /agents/:id/prompt` like any other.
 - `cwdFromPane` (optional, for tests): start in that pane's cwd instead of the workspace's first pane's.
+- `409 not_installed` when the kind's CLI isn't installed, `409 not_signed_in` when it is but has no credentials (same checks as `GET /kinds`, without the cache). `error.message` is the kind's `signInHint`. Checked before herdr is touched, so no tab or pane is created.
 
 ### Claude details
 

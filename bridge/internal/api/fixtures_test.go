@@ -30,6 +30,7 @@ func fixtureTypes() map[string]func() any {
 		"attachment.json":            func() any { return new(Attachment) },
 		"controls.json":              func() any { return new(Controls) },
 		"file.json":                  func() any { return new(FileContent) },
+		"kinds.json":                 func() any { return new([]KindStatus) },
 		"machine.json":               func() any { return new(Machine) },
 		"messages-attachments.json":  func() any { return new(MessagePage) },
 		"messages-edits.json":        func() any { return new(MessagePage) },

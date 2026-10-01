@@ -25,6 +25,15 @@ type Machine struct {
 	OS    string `json:"os"`
 }
 
+// KindStatus is one entry of GET /kinds: whether an agent CLI can be started
+// on this machine.
+type KindStatus struct {
+	Kind       string `json:"kind"`
+	Installed  bool   `json:"installed"`
+	SignedIn   bool   `json:"signedIn"`
+	SignInHint string `json:"signInHint,omitempty"`
+}
+
 // Health is GET /health.
 type Health struct {
 	OK            bool   `json:"ok"`

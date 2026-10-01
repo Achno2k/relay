@@ -1,0 +1,5 @@
+[
+  {"kind":"claude","installed":true,"signedIn":true},
+  {"kind":"codex","installed":true,"signedIn":false,"signInHint":"Run `codex login` on this machine, then try again."},
+  {"kind":"pi","installed":false,"signedIn":false,"signInHint":"`pi` isn't installed on this machine."}
+]
