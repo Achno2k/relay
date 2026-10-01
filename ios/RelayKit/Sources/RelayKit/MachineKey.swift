@@ -121,6 +121,7 @@ public struct NamespacedBackend: Backend {
     }
     public func controls() async throws -> ControlsCatalog { try await inner.controls() }
     public func kindControls(kind: String) async throws -> AgentControlsInfo { try await inner.kindControls(kind: kind) }
+    public func kinds() async throws -> [KindStatus] { try await inner.kinds() }
     public func agentControls(agentId: String) async throws -> AgentControlsInfo { try await inner.agentControls(agentId: raw(agentId)) }
     public func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
         try await inner.control(agentId: raw(agentId), request).keyed(machineId)

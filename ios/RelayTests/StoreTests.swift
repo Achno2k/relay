@@ -44,7 +44,20 @@ actor RecordingBackend: Backend {
     func approval(agentId: String) async throws -> Approval? { calls.isEmpty ? pendingApproval : afterAnswer }
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
         created.append(request)
+        if let createError { throw createError }
         return agent
+    }
+    /// What `POST /agents` throws instead of creating (a 409 race).
+    var createError: RelayError?
+    func setCreateError(_ error: RelayError?) { createError = error }
+    /// nil = an older bridge without `/kinds` (404).
+    var kindStatuses: [KindStatus]?
+    private(set) var kindsFetches = 0
+    func setKindStatuses(_ statuses: [KindStatus]?) { kindStatuses = statuses }
+    func kinds() async throws -> [KindStatus] {
+        kindsFetches += 1
+        guard let kindStatuses else { throw RelayError.http(status: 404, code: "not_found", message: "Not Found") }
+        return kindStatuses
     }
     func controls() async throws -> ControlsCatalog { try FixtureFiles.decode(ControlsCatalog.self, "controls.json") }
     /// nil = an older bridge without the per-agent route (404).

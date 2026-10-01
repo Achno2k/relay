@@ -390,7 +390,7 @@ struct MachinesTests {
         let vm = bridge("vm", title: "v")
         let store = makeStore([connection(mac, id: "mac"), connection(vm, id: "vm")])
         await store.refresh()
-        #expect(await store.createAgent(workspaceId: "vm/w1", kind: "claude", model: nil, effort: nil))
+        #expect(await store.createAgent(workspaceId: "vm/w1", kind: "claude", model: nil, effort: nil) == .created)
         #expect(await vm.created.map(\.workspaceId) == ["w1"])
         #expect(await mac.created.isEmpty)
         #expect(store.selectedAgentId == "vm/w1:p99")

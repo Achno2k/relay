@@ -72,3 +72,88 @@ final class NewChatUITests: XCTestCase {
         try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
     }
 }
+
+/// Agent kinds that can't start on the machine (`GET /kinds`): greyed out with the bridge's hint, never picked.
+/// A `409` from Create (the bridge knew better) shows as an alert. Mock only; runs headless.
+@MainActor
+final class NewChatKindsUITests: XCTestCase {
+    private var app: XCUIApplication!
+
+    override func setUp() async throws {
+        continueAfterFailure = false
+    }
+
+    private func launch(_ extra: [String]) {
+        app = XCUIApplication()
+        app.launchArguments = ["-uitest", "-mock", "-replay", "off", "-resetSidebar", "-agent", "w1:p1"] + extra
+        app.launch()
+        let newChat = app.navigationBars.buttons["New chat"].firstMatch
+        XCTAssertTrue(newChat.waitForExistence(timeout: 10))
+        newChat.tap()
+        XCTAssertTrue(app.navigationBars["New chat"].waitForExistence(timeout: 5))
+    }
+
+    private func row(_ kind: String) -> XCUIElement { app.buttons["newChatKind-\(kind)"] }
+
+    func testSignedOutAndMissingKindsAreDisabledWithTheirHints() throws {
+        launch(["-mockSignedOut", "codex", "-mockNotInstalled", "pi"])
+        let codex = row("codex")
+        XCTAssertTrue(codex.waitForExistence(timeout: 5))
+        let hinted = NSPredicate(format: "isEnabled == false AND label CONTAINS 'codex login'")
+        expectation(for: hinted, evaluatedWith: codex)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(row("pi").isEnabled)
+        XCTAssertTrue(row("pi").label.contains("isn't installed on this machine"), "pi reads \(row("pi").label)")
+        XCTAssertTrue(row("claude").isEnabled)
+        XCTAssertTrue(row("claude").isSelected, "Claude stays picked")
+        shot("newchat-kinds-disabled")
+
+        codex.tap()
+        XCTAssertFalse(codex.isSelected, "a signed-out kind can't be picked")
+        XCTAssertTrue(row("claude").isSelected)
+
+        app.buttons["Create"].tap()
+        let empty = app.descendants(matching: .any)["emptyAgentChat"]
+        XCTAssertTrue(empty.waitForExistence(timeout: 10))
+        XCTAssertTrue(empty.label.contains("New Claude chat"), "empty state reads \(empty.label)")
+    }
+
+    func testOnlySignedInKindIsPickedForYou() throws {
+        launch(["-mockSignedOut", "claude,pi"])
+        let codex = row("codex")
+        XCTAssertTrue(codex.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: codex)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(row("claude").isEnabled)
+        XCTAssertTrue(row("claude").label.contains("claude auth login"), "claude reads \(row("claude").label)")
+        XCTAssertTrue(app.buttons["newChatModel"].waitForExistence(timeout: 5), "codex's models load")
+        XCTAssertTrue(app.buttons["Create"].isEnabled)
+    }
+
+    func testRefusedCreateShowsTheHintAsAnAlert() throws {
+        launch(["-mockSignedOut", "codex", "-mockKindsStale"])
+        let codex = row("codex")
+        XCTAssertTrue(codex.waitForExistence(timeout: 5))
+        sleep(1) // let the (stale) /kinds answer land first
+        XCTAssertTrue(codex.isEnabled, "/kinds says it can start")
+        codex.tap()
+        XCTAssertTrue(app.buttons["newChatModel"].waitForExistence(timeout: 5))
+        app.buttons["Create"].tap()
+
+        let alert = app.alerts["Can't start Codex"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.staticTexts.containing(NSPredicate(format: "label CONTAINS 'codex login'")).firstMatch.exists,
+                      "the bridge's hint, not a generic error")
+        shot("newchat-kinds-alert")
+        alert.buttons["OK"].tap()
+        XCTAssertTrue(app.navigationBars["New chat"].exists, "the sheet stays open")
+        XCTAssertFalse(app.descendants(matching: .any)["emptyAgentChat"].exists, "no chat was started")
+    }
+
+    private func shot(_ name: String) {
+        guard let dir = ProcessInfo.processInfo.environment["RELAY_SHOTS"] else { return }
+        sleep(1)
+        try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+    }
+}
+

@@ -5,7 +5,7 @@ import Observation
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
 /// `-demo sidebar|tools|top|card|newChat|usage|pairing`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
 /// Machines (docs/tasks/round-9/interfaces.md): `-mockVM`, `-mockOffline <id>`, `-mockOnlineAfter <s>`, `-mockDrop <id> <s>`,
-/// `-seedLegacyPairing <link>`.
+/// `-seedLegacyPairing <link>`. Agent kinds: `-mockSignedOut codex,pi`, `-mockNotInstalled pi`, `-mockKindsStale`.
 struct LaunchOptions {
     var mock = false
     var demo: String?
@@ -34,6 +34,13 @@ struct LaunchOptions {
     var mockDrop: (id: String, after: Double)?
     /// `-seedLegacyPairing <link>` (with `-uitest`): write the pre-round-9 single pairing before launch.
     var seedLegacyPairing: URL?
+    /// `-mockSignedOut <kinds>`: on every mock machine those CLIs are installed but not signed in.
+    var mockSignedOut: Set<String> = []
+    /// `-mockNotInstalled <kinds>`: on every mock machine those CLIs aren't installed.
+    var mockNotInstalled: Set<String> = []
+    /// `-mockKindsStale`: `GET /kinds` says every kind can start, but `POST /agents` still refuses the ones
+    /// above (the race the New chat alert covers).
+    var mockKindsStale = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -58,6 +65,10 @@ struct LaunchOptions {
         mockOnlineAfter = value("-mockOnlineAfter").flatMap(Double.init)
         if let id = value("-mockDrop"), let after = value("-mockDrop", 2).flatMap(Double.init) { mockDrop = (id, after) }
         seedLegacyPairing = value("-seedLegacyPairing").flatMap(URL.init(string:))
+        func kinds(_ flag: String) -> Set<String> { Set((value(flag) ?? "").split(separator: ",").map(String.init)) }
+        mockSignedOut = kinds("-mockSignedOut")
+        mockNotInstalled = kinds("-mockNotInstalled")
+        mockKindsStale = arguments.contains("-mockKindsStale")
         #endif
     }
 

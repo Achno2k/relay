@@ -11,6 +11,13 @@ public enum RelayError: LocalizedError, Equatable, Sendable {
     /// The link reaches a different machine than the one being re-paired (api.md "Multiple machines").
     case differentMachine
 
+    /// `409 not_installed` / `409 not_signed_in` from `POST /agents`: the kind's CLI can't start on that
+    /// machine. The message is the bridge's sign-in hint.
+    public var kindNotReady: String? {
+        guard case .http(409, let code?, let message) = self, code == "not_installed" || code == "not_signed_in" else { return nil }
+        return message ?? (code == "not_installed" ? "That agent isn't installed on this machine." : "Sign in to that agent on this machine first.")
+    }
+
     public var errorDescription: String? {
         switch self {
         case .unauthorized: "The bridge rejected the token. Pair again."
@@ -143,6 +150,9 @@ public struct APIClient: Sendable {
         )
         return try decode(Agent.self, from: data)
     }
+
+    /// `GET /kinds`: claude, codex and pi, installed and signed in or not.
+    public func kinds() async throws -> [KindStatus] { try await send("GET", "/kinds") }
 
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
         try await send("POST", "/agents", body: request)

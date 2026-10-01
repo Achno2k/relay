@@ -23,6 +23,8 @@ public protocol Backend: Sendable {
     /// `nil` when the agent isn't blocked (204).
     func approval(agentId: String) async throws -> Approval?
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent
+    /// `GET /kinds`: which agent kinds are installed and signed in on this machine.
+    func kinds() async throws -> [KindStatus]
     /// `GET /controls` (Claude's list; kept for older bridges).
     func controls() async throws -> ControlsCatalog
     /// `GET /controls?kind=`: choices and defaults for a new agent of that kind (the New chat sheet).
@@ -42,6 +44,10 @@ public protocol Backend: Sendable {
 public extension Backend {
     /// Test doubles that don't care about `/health`.
     func health() async throws -> Health { Health(ok: true) }
+    /// Bridges from before `/kinds`, and test doubles: unknown, so the app lets every kind be picked.
+    func kinds() async throws -> [KindStatus] {
+        throw RelayError.http(status: 404, code: "not_found", message: nil)
+    }
     /// Test doubles that don't serve files.
     func file(agentId: String, path: String) async throws -> AgentFile {
         throw RelayError.http(status: 404, code: "not_found", message: nil)
@@ -85,6 +91,7 @@ public struct LiveBackend: Backend {
     }
     public func approval(agentId: String) async throws -> Approval? { try await client.approval(agentId: agentId) }
     public func createAgent(_ request: CreateAgentRequest) async throws -> Agent { try await client.createAgent(request) }
+    public func kinds() async throws -> [KindStatus] { try await client.kinds() }
     public func controls() async throws -> ControlsCatalog { try await client.controls() }
     public func agentControls(agentId: String) async throws -> AgentControlsInfo { try await client.agentControls(agentId: agentId) }
     public func kindControls(kind: String) async throws -> AgentControlsInfo { try await client.kindControls(kind: kind) }
