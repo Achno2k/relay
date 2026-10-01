@@ -1,6 +1,6 @@
 // Package bootstrap brings a fresh Ubuntu 24.04 box up to spec: base tools,
-// mise + node, herdr, the coding harnesses, the relay binary, and the systemd
-// unit that keeps the herdr server alive.
+// mise + node, herdr, the coding harnesses and the relay binary. The systemd
+// units are `relay pair`'s job, which init runs on the box afterwards.
 //
 // scripts/bootstrap.sh holds one idempotent bash function per install. Each one
 // is run separately so it renders as its own ui.Step.
@@ -9,7 +9,6 @@ package bootstrap
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"io"
 	"strings"
 
@@ -46,6 +45,7 @@ func HarnessTasks(names []string) []Task {
 	byName := map[string]Task{
 		"claude": {"Installing Claude Code", "bs_claude"},
 		"codex":  {"Installing Codex", "bs_codex"},
+		"pi":     {"Installing pi", "bs_pi"},
 	}
 	var out []Task
 	for _, n := range names {
@@ -54,6 +54,15 @@ func HarnessTasks(names []string) []Task {
 		}
 	}
 	return out
+}
+
+// WorkspaceTask creates the herdr workspace for a repo, with its checkout under
+// workDir as the cwd.
+func WorkspaceTask(workDir, repo string) Task {
+	return Task{
+		Name: "herdr workspace " + repo,
+		Func: "bs_workspace " + shellQuote(repo) + " " + shellPath(CheckoutDir(workDir, repo)),
+	}
 }
 
 // ProfileTask writes ~/.relay and the RELAY_ON_BOX marker. It runs last so a
@@ -83,14 +92,14 @@ func Steps(r sshx.Runner, tasks []Task) []ui.Step {
 
 // Options controls what Install puts on the box.
 type Options struct {
-	Harnesses []string // "claude", "codex"
-	GoArch    string   // amd64 | arm64, for the cross-compiled relay binary
+	Harnesses []string // "claude", "codex", "pi"
+	GoArch    string   // amd64 | arm64, the box's relay binary
 	User      string   // box login user, "ubuntu"
 	Home      string   // that user's home, defaults to /home/<User>
 }
 
 // Install runs the whole bootstrap as one numbered checklist: bash functions,
-// then the cross-compiled relay binary, then the systemd units.
+// then the relay binary.
 func Install(ctx context.Context, r sshx.Runner, o Options) error {
 	o = o.withDefaults()
 
@@ -99,24 +108,13 @@ func Install(ctx context.Context, r sshx.Runner, o Options) error {
 	steps := Steps(r, tasks)
 
 	steps = append(steps, ui.Step{
-		Name: "Building and uploading relay binary",
+		Name: "Installing relay to /usr/local/bin/relay",
 		Run: func(ctx context.Context, log io.Writer) error {
-			path, err := BuildForBox(ctx, o.GoArch)
+			path, err := BoxBinary(ctx, o.GoArch, log)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(log, "built %s\n", path)
 			return InstallBinary(ctx, r, path)
-		},
-	})
-
-	steps = append(steps, ui.Step{
-		Name: "Installing systemd units",
-		Run: func(ctx context.Context, log io.Writer) error {
-			if err := InstallUnits(ctx, r, o.User, o.Home, log); err != nil {
-				return err
-			}
-			return EnableHerdrServer(ctx, r, log)
 		},
 	})
 

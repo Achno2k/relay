@@ -39,7 +39,7 @@ func init() {
 			})
 		},
 	}
-	setup.Flags().StringVar(&envHarness, "harness", "", "harness that writes the plan: claude|codex")
+	setup.Flags().StringVar(&envHarness, "harness", "", "harness that writes the plan: claude|codex|pi")
 	setup.Flags().BoolVar(&envRegen, "regen", false, "ignore the cached plan and generate a new one")
 
 	verify := &cobra.Command{
@@ -84,7 +84,7 @@ func init() {
 			})
 		},
 	}
-	regen.Flags().StringVar(&envHarness, "harness", "", "harness that writes the plan: claude|codex")
+	regen.Flags().StringVar(&envHarness, "harness", "", "harness that writes the plan: claude|codex|pi")
 
 	for _, sub := range []*cobra.Command{setup, verify, show, regen} {
 		sub.Flags().StringVar(&envDir, "dir", "", "path to the repo checkout (default <work_dir>/<repo>)")

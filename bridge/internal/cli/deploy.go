@@ -17,7 +17,7 @@ import (
 func init() {
 	Register(&cobra.Command{
 		Use:   "deploy",
-		Short: "Build relay, upload it to the box, sync config and restart the bridge",
+		Short: "Put this relay on the box, sync config and restart the bridge",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runDeploy(cmd.Context())
@@ -43,8 +43,8 @@ func runDeploy(ctx context.Context) error {
 	}
 	var bin string
 	return ui.RunSteps(ctx, "Deploying to "+cfg.Box.User+"@"+cfg.Box.Host, []ui.Step{
-		{Name: "Building relay for linux/" + goarch, Run: func(ctx context.Context, _ io.Writer) error {
-			bin, err = bootstrap.BuildForBox(ctx, goarch)
+		{Name: "Getting relay for linux/" + goarch, Run: func(ctx context.Context, log io.Writer) error {
+			bin, err = bootstrap.BoxBinary(ctx, goarch, log)
 			return err
 		}},
 		{Name: "Uploading binary", Run: func(ctx context.Context, _ io.Writer) error {
@@ -54,7 +54,7 @@ func runDeploy(ctx context.Context) error {
 			return bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg)
 		}},
 		{Name: "Restarting relay.service", Run: func(ctx context.Context, _ io.Writer) error {
-			return bootstrap.RestartRelayIfActive(ctx, runner)
+			return bootstrap.RestartRelay(ctx, runner)
 		}},
 	})
 }

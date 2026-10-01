@@ -27,7 +27,8 @@ func newInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Set up the EC2 box: tools, harnesses and a repo",
 		Long: "Runs the full first-run flow from your laptop: pick the instance, install the\n" +
-			"base toolchain and harnesses, sign in, clone a repo and build its environment.",
+			"base toolchain and harnesses, sign in, clone a repo and build its environment,\n" +
+			"then run `relay pair` on the box and open a herdr workspace for the repo.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runInit(cmd.Context(), fresh)
@@ -127,7 +128,8 @@ func runInit(ctx context.Context, fresh bool) error {
 		}
 	}
 
-	// 4. bootstrap: base tools, herdr, harnesses, relay binary, systemd units.
+	// 4. bootstrap: base tools, herdr, harnesses, relay binary. The units come
+	// from `relay pair` in step 8.
 	ui.Title("Box setup")
 	goarch, err := awsx.InstanceArch(ctx, cfg.AWS)
 	if err != nil {
@@ -173,7 +175,25 @@ func runInit(ctx context.Context, fresh bool) error {
 		}
 	}
 
-	// 8. summary.
+	// 8. pairing. `relay pair --yes` installs herdr's server, Tailscale and
+	// relay.service as needed, then prints the Tailscale login QR (when
+	// logged out) and the pairing QR, here in this terminal.
+	ui.Title("Pairing")
+	if err := runner.Interactive(ctx, bootstrap.InteractiveCmd("relay pair --yes")); err != nil {
+		return fmt.Errorf("relay pair on the box: %w (run `relay ssh relay pair` to retry)", err)
+	}
+
+	// 9. a herdr workspace with the repo as its cwd, so the app's "New chat"
+	// can start agents there. It needs the herdr server pair just set up.
+	if repo != "" {
+		if err := ui.RunSteps(ctx, "Workspace", bootstrap.Steps(runner, []bootstrap.Task{
+			bootstrap.WorkspaceTask(cfg.Box.WorkDir, repo),
+		})); err != nil {
+			return err
+		}
+	}
+
+	// 10. summary.
 	initSummary(cfg, repo)
 	return nil
 }
@@ -345,6 +365,9 @@ func initSummary(cfg config.Config, repo string) {
 		"Harnesses", harnesses,
 	)
 
+	ui.Muted("Pair the app: scan the QR above, or print it again with")
+	ui.Commands("relay ssh relay pair")
+	ui.Muted("Attach to herdr on the box, or open a shell there:")
 	ui.Commands(
 		"relay attach",
 		"relay ssh",

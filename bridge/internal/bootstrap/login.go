@@ -39,7 +39,7 @@ func Login(ctx context.Context, r sshx.Runner, names []string) ([]string, error)
 			ui.Warn(h.Name() + " skipped")
 			continue
 		}
-		ui.Info("Signing in to " + h.Name() + ". Open the URL it prints and paste the code back here. Ctrl-C to skip.")
+		ui.Info("Signing in to " + h.Name() + ". " + loginHint(h) + " Ctrl-C to skip.")
 		if err := r.Interactive(ctx, InteractiveCmd(h.LoginCmd())); err != nil {
 			if ctx.Err() != nil {
 				return ok, ctx.Err()
@@ -81,6 +81,14 @@ func IsInstalled(ctx context.Context, r sshx.Runner, h harness.Harness) bool {
 		return false
 	}
 	return r.Run(ctx, loginShell(cmd), io.Discard, io.Discard) == nil
+}
+
+// loginHint tells the user what the login command expects of them.
+func loginHint(h harness.Harness) string {
+	if lh, ok := h.(harness.LoginHinter); ok {
+		return lh.LoginHint()
+	}
+	return "Open the URL it prints and paste the code back here."
 }
 
 // KnownHarnesses lists the registered harness names, sorted, for the picker.
