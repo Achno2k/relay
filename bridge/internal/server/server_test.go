@@ -12,6 +12,7 @@ import (
 	"relay/internal/api"
 	"relay/internal/files"
 	"relay/internal/herdr"
+	"relay/internal/transcript"
 )
 
 const testToken = "test-token"
@@ -40,6 +41,9 @@ func (stubBackend) Upload(context.Context, string, []byte, string) (api.Attachme
 func (stubBackend) FindUpload(string) (string, bool) { return "", false }
 func (stubBackend) File(context.Context, string, string) (files.Result, error) {
 	return files.Result{}, errUnused
+}
+func (stubBackend) ToolImage(context.Context, string, string, int) (transcript.ToolImage, error) {
+	return transcript.ToolImage{}, errUnused
 }
 func (stubBackend) Catalog() api.Controls { return api.Controls{} }
 func (stubBackend) KindControls(string) (api.AgentControls, error) {

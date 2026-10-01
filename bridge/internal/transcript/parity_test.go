@@ -52,10 +52,11 @@ func TestSwiftParserParity(t *testing.T) {
 				if isNow(g.CreatedAt) {
 					g.CreatedAt = w.CreatedAt
 				}
-				// Round 10 fields are Go-only (the Swift bridge is frozen).
+				// Round 10 and 12 fields are Go-only (the Swift bridge is frozen).
 				g.Blocks = append([]api.Block(nil), g.Blocks...)
 				for j := range g.Blocks {
 					g.Blocks[j].Path, g.Blocks[j].Edit, g.Blocks[j].Plan = "", nil, ""
+					g.Blocks[j].Images = nil
 				}
 				expectEqual(t, g, w)
 			}

@@ -45,6 +45,8 @@ type Service struct {
 	cache map[string]*cachedTranscript
 	// Kinds from POST /agents, for the moment before herdr has classified the new agent.
 	createdKinds map[string]createdKind
+	// Recently served tool images (GET …/tool-images).
+	images imageCache
 }
 
 var _ server.Backend = (*Service)(nil)

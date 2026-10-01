@@ -249,7 +249,7 @@ Round 12. When an agent reads an image (Claude's `Read` on a `.png`, a screensho
 - `GET /agents/:id/tool-images/:toolCallId/:index` (`:toolCallId` percent-encoded):
   - `200` with the decoded bytes, `Content-Type` = `mediaType`, `Cache-Control: private, max-age=86400` (the bytes never change).
   - `404 not_found`: no transcript, no such tool result in it, no image at that index, or base64 that doesn't decode. `413 too_large` over 20 MB. `400 bad_request` for an index that isn't a number ≥ 0.
-  - The bridge finds the result in the agent's transcript by `toolCallId`, reading the same window as the messages (the last 64 MB). It decodes on request and keeps a small in-memory cache of recent images. No paths on the wire.
+  - The bridge finds the result in the agent's transcript by `toolCallId`, scanning the whole file one line at a time (memory stays at one line, not the file), so an image from early in a long chat still loads. When several results share the id (pi reuses short ids), the first that has an image at `:index` wins. It decodes on request and keeps a small in-memory cache of recent images. No paths on the wire.
 - Kinds:
   - Claude: `tool_result` content `{"type":"image","source":{"type":"base64","media_type":…,"data":…}}` (Read on an image, MCP images).
   - pi: `toolResult` content `{"type":"image","data":…,"mimeType":…}` (its read tool, extension tools).

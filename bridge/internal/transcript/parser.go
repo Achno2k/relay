@@ -314,8 +314,9 @@ func (p *Parser) consumeClaude(o map[string]any) *api.Message {
 		switch strOr(b["type"], "") {
 		case "tool_result":
 			isErr, _ := boolean(b["is_error"])
-			results = append(results, api.ToolResultBlock(
-				strOr(b["tool_use_id"], ""), isErr, Preview(resultText(b["content"]), p.scrubber)))
+			result := api.ToolResultBlock(strOr(b["tool_use_id"], ""), isErr, Preview(resultText(b["content"]), p.scrubber))
+			result.Images = toolImages(b["content"])
+			results = append(results, result)
 		case "text":
 			if t, ok := str(b["text"]); ok {
 				texts = append(texts, t)
@@ -408,8 +409,9 @@ func (p *Parser) consumePi(o map[string]any) *api.Message {
 		return p.appendAssistant(id, at, blocks)
 	case "toolResult":
 		isErr, _ := boolean(message["isError"])
-		return p.attachResults([]api.Block{api.ToolResultBlock(
-			strOr(message["toolCallId"], ""), isErr, Preview(resultText(content), p.scrubber))})
+		result := api.ToolResultBlock(strOr(message["toolCallId"], ""), isErr, Preview(resultText(content), p.scrubber))
+		result.Images = toolImages(content)
+		return p.attachResults([]api.Block{result})
 	}
 	return nil
 }
@@ -570,7 +572,9 @@ func (p *Parser) codexTool(typ string, item map[string]any, id string) []api.Blo
 		if callName == "" {
 			callName = "MCP"
 		}
-		return pair(callName, "Called "+name, args, strings.Join(texts, "\n"), failed || isTrue(result["isError"]))
+		blocks := pair(callName, "Called "+name, args, strings.Join(texts, "\n"), failed || isTrue(result["isError"]))
+		blocks[1].Images = toolImages(result["content"])
+		return blocks
 	case "Extension":
 		query, ok := str(item["query"])
 		if !ok {

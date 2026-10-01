@@ -52,6 +52,8 @@ type Backend interface {
 	FindUpload(attachmentID string) (path string, ok bool)
 	// File reads a cwd-relative file of the agent's project (GET /agents/:id/file).
 	File(ctx context.Context, id, path string) (files.Result, error)
+	// ToolImage is one image of a tool result, from the transcript (GET /agents/:id/tool-images/…).
+	ToolImage(ctx context.Context, id, toolCallID string, index int) (transcript.ToolImage, error)
 	Catalog() api.Controls
 	KindControls(kind string) (api.AgentControls, error)
 	Controls(ctx context.Context, id string) (api.AgentControls, error)
@@ -368,6 +370,32 @@ func (s *Server) agentRoute(w http.ResponseWriter, r *http.Request, rawID string
 		h.Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(res.Image)
+		return nil
+
+	case len(rest) == 3 && sub == "tool-images" && get:
+		id, err := agentID(rawID)
+		if err != nil {
+			return err
+		}
+		callID := unescape(rest[1])
+		if callID == "" || len(callID) > 256 || strings.ContainsFunc(callID, func(r rune) bool { return r < 0x20 }) {
+			return api.BadRequest("invalid tool call id")
+		}
+		index, err := strconv.Atoi(rest[2])
+		if err != nil || index < 0 || strings.ContainsAny(rest[2], "+-") {
+			return api.BadRequest("index must be a number ≥ 0")
+		}
+		img, err := b.ToolImage(ctx, id, callID, index)
+		if err != nil {
+			return err
+		}
+		h := w.Header()
+		h.Set("Content-Type", img.MediaType)
+		h.Set("Content-Length", strconv.Itoa(len(img.Data)))
+		h.Set("Cache-Control", "private, max-age=86400")
+		h.Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(img.Data)
 		return nil
 
 	case len(rest) == 2 && sub == "attachments" && get:

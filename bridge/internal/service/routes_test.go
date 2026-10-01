@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -32,6 +33,8 @@ type routesApp struct {
 	ts   *httptest.Server
 	fake *herdrtest.Server
 	hub  *server.Hub
+	// w1:p1's transcript, for tests that append lines.
+	transcript string
 }
 
 func str(s string) *string { return &s }
@@ -117,7 +120,7 @@ func withApp(t *testing.T, status func(string) string) routesApp {
 		Machine: func() api.Machine { return testMachine() },
 	}))
 	t.Cleanup(ts.Close)
-	return routesApp{ts: ts, fake: fake, hub: hub}
+	return routesApp{ts: ts, fake: fake, hub: hub, transcript: filepath.Join(dir, "sess-1.jsonl")}
 }
 
 type resp struct {
@@ -290,7 +293,7 @@ func TestRoutes_ScreenFallbackWithoutTranscript(t *testing.T) {
 		t.Fatalf("%+v", p)
 	}
 	b := p.Messages[0].Blocks
-	if len(b) != 1 || b[0] != api.TextBlock("```\n$ codex\n> working in src\n```") {
+	if len(b) != 1 || !reflect.DeepEqual(b[0], api.TextBlock("```\n$ codex\n> working in src\n```")) {
 		t.Errorf("%+v", b)
 	}
 }
@@ -522,6 +525,7 @@ func TestRoutes_NoRouteEverLeaksAnAbsolutePath(t *testing.T) {
 		"/agents/w1%3Ap1/controls", "/agents/w1%3Ap2/approval", "/agents/w1%3Ap1/approval",
 		"/agents/w9%3Ap9", // not_found error body
 		"/agents/w1%3Ap1/attachments/0000000000000000", // not_found error body
+		"/agents/w1%3Ap1/tool-images/toolu_nope/0",     // not_found error body
 	} {
 		check(uri, app.get(t, uri).body)
 	}
