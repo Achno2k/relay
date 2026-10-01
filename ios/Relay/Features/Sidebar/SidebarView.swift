@@ -1,10 +1,10 @@
 import RelayKit
 import SwiftUI
 
-/// The drawer, design B · Grouped: a pinned glass toolbar, a large title, then the "Now" card and one card
-/// per project on a grouped ground (filter All), or a flat list for another filter or a search. Search and
-/// New chat float at the bottom. The cards and rows come from SidebarNowCard, SidebarProjectSection and
-/// SidebarSessionList; this view only lays them out. It also presents the Machines screen and Add machine.
+/// The drawer: a pinned bar with the large title, a glass pill and the machine menu under the title (design
+/// A · Quiet list), then the "Now" card and one card per project on a grouped ground (filter All), or a flat
+/// list for another filter or a search. Search and New chat float at the bottom. The cards and rows come from
+/// SidebarNowCard, SidebarProjectSection and SidebarSessionList; this view only lays them out. It also presents the Machines screen and Add machine.
 struct SidebarView: View {
     @Bindable var store: AppStore
     let onSelect: (String) -> Void
@@ -45,7 +45,6 @@ struct SidebarView: View {
     private var list: some View {
         let sidebar = store.sidebar
         return List {
-            title
             if isSearching {
                 SidebarSessionList(
                     title: "Results", agents: sidebar.sessions(.all, query: query),
@@ -103,19 +102,6 @@ struct SidebarView: View {
 
     private var isSearching: Bool {
         searching && !query.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    /// "Relay", 34 pt bold at 20 pt from the sidebar edge (the cards sit at 16).
-    private var title: some View {
-        Section {
-            Text("Relay")
-                .font(.largeTitle.bold())
-                .accessibilityAddTraits(.isHeader)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        }
     }
 
     private var emptyText: String {

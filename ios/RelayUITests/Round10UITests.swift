@@ -172,19 +172,20 @@ final class Round10UITests: XCTestCase {
         }
     }
 
-    // MARK: B1: the gap under the sidebar's "Relay" title
+    // MARK: B1: the gap under the sidebar's title block
 
-    /// B1: the first section sits close under the large title (r10-polish: 8 pt under it), not a big gap.
+    /// B1: the first section sits close under the toolbar's last row, the machine menu (r12-nav: the title and
+    /// the machine menu are in the toolbar), not a big gap.
     func testB1TitleGap() throws {
         launch(["-demo", "sidebar"])
-        let title = app.staticTexts["Relay"].firstMatch
+        let title = app.buttons["sidebarMachineMenu"]
         XCTAssertTrue(title.waitForExistence(timeout: 10))
         let now = app.descendants(matching: .any)["nowHeader"]
         XCTAssertTrue(now.waitForExistence(timeout: 5))
         let gap = now.frame.minY - title.frame.maxY
         shot("b1-title")
-        XCTAssertGreaterThanOrEqual(gap, 0, "Now header overlaps the title")
-        XCTAssertLessThanOrEqual(gap, 24, "gap under the title is \(gap) pt")
+        XCTAssertGreaterThanOrEqual(gap, 0, "Now header overlaps the machine menu")
+        XCTAssertLessThanOrEqual(gap, 24, "gap under the machine menu is \(gap) pt")
     }
 
     // MARK: Elements and steps

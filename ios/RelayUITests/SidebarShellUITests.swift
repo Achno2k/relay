@@ -64,6 +64,32 @@ final class SidebarShellUITests: XCTestCase {
         XCTAssertTrue(!machine.exists || machine.frame.minX < 0, "tapping the peek didn't return to the chat")
     }
 
+    /// Design A: "Relay" and the Filter/••• pill share the top row; the machine menu is the plain subtitle under it.
+    func testTitleSharesTheBar() throws {
+        let title = app.staticTexts["Relay"].firstMatch, filter = app.buttons["sidebarFilter"]
+        let more = app.buttons["sidebarMore"], machine = app.buttons["sidebarMachineMenu"]
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        XCTAssertEqual(title.frame.midY, more.frame.midY, accuracy: 4, "title and pill aren't on one row")
+        XCTAssertLessThan(title.frame.maxX, filter.frame.minX, "title runs into the pill")
+        XCTAssertLessThan(title.frame.minX, 30, "title should sit at the sidebar's left")
+        XCTAssertGreaterThan(more.frame.maxX, 300, "pill should sit at the sidebar's right")
+        XCTAssertGreaterThanOrEqual(machine.frame.minY, title.frame.maxY - 4, "machine menu should sit under the title")
+        XCTAssertLessThan(machine.frame.minX, 30, "machine menu should line up with the title")
+        XCTAssertGreaterThanOrEqual(machine.frame.height, 44)
+        // Scrolled, the bar stays and the rows stop at its bottom edge: nothing slides under the pill.
+        let barBottom = machine.frame.maxY
+        app.swipeUp()
+        sleep(1)
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'session-'"))
+        for row in rows.allElementsBoundByIndex where row.isHittable {
+            XCTAssertFalse(row.frame.intersects(more.frame), "\(row.label) overlaps the pill")
+        }
+        XCTAssertEqual(title.frame.midY, more.frame.midY, accuracy: 4, "title left the bar on scroll")
+        XCTAssertTrue(machine.isHittable, "machine menu scrolled away")
+        XCTAssertEqual(machine.frame.maxY, barBottom, accuracy: 1, "the bar moved on scroll")
+        shot("shell-scrolled")
+    }
+
     /// New chat opens the sheet.
     func testNewChat() throws {
         app.buttons["sidebarNewChat"].tap()
@@ -82,7 +108,8 @@ final class SidebarShellUITests: XCTestCase {
             }
             return r.lowerBound
         }
-        let machine = position("sidebarMachineMenu"), more = position("sidebarMore")
+        let machine = position("sidebarMachineMenu"), more = position("sidebarMore"), filter = position("sidebarFilter")
+        XCTAssertLessThan(filter, machine, "the bar should come before the machine menu under it")
         let row = tree.range(of: "Weekly report export")?.lowerBound ?? tree.endIndex
         let search = position("sidebarSearch"), newChat = position("sidebarNewChat")
         XCTAssertLessThan(machine, row, "toolbar should come before the list")
@@ -102,8 +129,10 @@ final class SidebarShellUITests: XCTestCase {
             let newChat = app.buttons["sidebarNewChat"]
             XCTAssertEqual(newChat.label, "New chat")
             XCTAssertLessThanOrEqual(newChat.frame.height, 60, "New chat wrapped at \(size)")
+            let title = app.staticTexts["Relay"].firstMatch
             XCTAssertGreaterThanOrEqual(machine.frame.minX, 0)
-            XCTAssertLessThanOrEqual(machine.frame.maxX, more.frame.minX, "machine menu runs into the pill at \(size)")
+            XCTAssertLessThanOrEqual(machine.frame.maxX, 342, "machine menu spills out of the sidebar at \(size)")
+            XCTAssertLessThanOrEqual(title.frame.maxX, app.buttons["sidebarFilter"].frame.minX, "title runs into the pill at \(size)")
             XCTAssertLessThanOrEqual(more.frame.maxX, 342, "pill spills out of the sidebar at \(size)")
             XCTAssertGreaterThanOrEqual(more.frame.width, 44)
             shot("shell-\(size)")

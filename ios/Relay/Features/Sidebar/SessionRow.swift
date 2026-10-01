@@ -223,7 +223,7 @@ struct SidebarSectionHeader<Content: View>: View {
     }
 }
 
-/// The empty header that spaces a card with no title from the one above; 8 pt under the "Relay" title.
+/// The empty header that spaces a card with no title from the one above; 8 pt under the toolbar.
 struct SidebarGapHeader: View {
     let height: CGFloat
     @Environment(\.sidebarLeadsList) private var leadsList
@@ -234,8 +234,8 @@ struct SidebarGapHeader: View {
 }
 
 extension EnvironmentValues {
-    /// Set on the first section under the "Relay" title. Its header drops the top gap meant for between
-    /// cards, which under the 34 pt title read as ~34 pt of dead space (B1).
+    /// Set on the first section under the toolbar. Its header drops the top gap meant for between
+    /// cards, which under the title read as ~34 pt of dead space (B1).
     @Entry var sidebarLeadsList = false
 }
 

@@ -430,7 +430,7 @@ final class Round9UITests: XCTestCase {
     func testAccessibilitySizes() throws {
         launch(["-mockVM", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         XCTAssertGreaterThanOrEqual(machineMenu.frame.minX, 0)
-        XCTAssertLessThanOrEqual(machineMenu.frame.maxX, app.buttons["sidebarMore"].frame.minX, "capsule runs into •••")
+        XCTAssertLessThanOrEqual(machineMenu.frame.maxX, 342, "machine menu spills out of the sidebar")
         shot("ax-sidebar")
         openMachines()
         let vm = app.descendants(matching: .any)["machineRow-mock-vm"]
