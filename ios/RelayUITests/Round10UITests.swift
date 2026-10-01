@@ -150,6 +150,28 @@ final class Round10UITests: XCTestCase {
         shot("b7-card")
     }
 
+    // MARK: B4/B9: the Photos target
+
+    /// B4/B9: `+` opens the attachment sheet; the whole Photos tile opens the picker, corners included.
+    func testB4PhotosTileOpensPickerFromItsCorners() throws {
+        for (dx, dy) in [(0.08, 0.12), (0.92, 0.88), (0.5, 0.5)] {
+            launch(agent: "w2:p3")
+            let plus = app.buttons["composerPlus"]
+            XCTAssertTrue(plus.waitForExistence(timeout: 10))
+            plus.tap()
+            XCTAssertTrue(element("plusSheet").firstMatch.waitForExistence(timeout: 3), "+ didn't open the attachment sheet")
+            let photos = element("plusSheet").firstMatch.buttons["Photos"].exists
+                ? element("plusSheet").firstMatch.buttons["Photos"] : app.buttons["Photos"].firstMatch
+            XCTAssertTrue(photos.waitForExistence(timeout: 3), "no Photos tile")
+            XCTAssertGreaterThanOrEqual(photos.frame.height, 44, "Photos tile under 44 pt")
+            photos.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: dy)).tap()
+            let picker = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Collections'")).firstMatch
+            XCTAssertTrue(picker.waitForExistence(timeout: 6), "Photos tile tap at (\(dx), \(dy)) didn't open the picker")
+            shot("b4-picker-\(Int(dx * 100))")
+            app.terminate()
+        }
+    }
+
     // MARK: B1: the gap under the sidebar's "Relay" title
 
     /// B1: the first section sits close under the large title (r10-polish: 8 pt under it), not a big gap.
