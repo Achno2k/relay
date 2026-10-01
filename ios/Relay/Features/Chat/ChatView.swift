@@ -421,7 +421,9 @@ private struct ChatTranscript: View {
                 steps: steps,
                 isLive: isLast && working && steps.contains { !$0.finished },
                 duration: duration(of: messageIds),
-                expanded: LaunchOptions.current.isDemo("tools")
+                expanded: LaunchOptions.current.isDemo("tools"),
+                agentId: agent.id,
+                store: store
             )
         }
     }

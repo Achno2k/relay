@@ -223,11 +223,71 @@ public struct ToolResult: Codable, Hashable, Sendable {
     public var toolCallId: String
     public var isError: Bool
     public var preview: String?
+    /// Images the tool returned (a Read of a PNG, a screenshot), in order. Older bridges never send it.
+    /// Fetch the bytes with `GET /agents/:id/tool-images/:toolCallId/:index`.
+    public var images: [ToolImage]
 
-    public init(toolCallId: String, isError: Bool, preview: String? = nil) {
+    public init(toolCallId: String, isError: Bool, preview: String? = nil, images: [ToolImage] = []) {
         self.toolCallId = toolCallId
         self.isError = isError
         self.preview = preview
+        self.images = images
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case toolCallId, isError, preview, images
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        toolCallId = try c.decode(String.self, forKey: .toolCallId)
+        isError = try c.decodeIfPresent(Bool.self, forKey: .isError) ?? false
+        preview = try c.decodeIfPresent(String.self, forKey: .preview)
+        images = try c.decodeIfPresent([ToolImage].self, forKey: .images) ?? []
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(toolCallId, forKey: .toolCallId)
+        try c.encode(isError, forKey: .isError)
+        try c.encodeIfPresent(preview, forKey: .preview)
+        if !images.isEmpty { try c.encode(images, forKey: .images) }
+    }
+}
+
+/// One image in a tool result. `width`/`height` come from the image header when the bridge could read it.
+public struct ToolImage: Codable, Hashable, Sendable {
+    public var index: Int
+    public var mediaType: String
+    public var bytes: Int
+    public var width: Int?
+    public var height: Int?
+
+    public init(index: Int, mediaType: String, bytes: Int, width: Int? = nil, height: Int? = nil) {
+        self.index = index
+        self.mediaType = mediaType
+        self.bytes = bytes
+        self.width = width
+        self.height = height
+    }
+
+    /// Width over height, when both are known and sane.
+    public var aspectRatio: Double? {
+        guard let width, let height, width > 0, height > 0 else { return nil }
+        return Double(width) / Double(height)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case index, mediaType, bytes, width, height
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        index = try c.decode(Int.self, forKey: .index)
+        mediaType = try c.decodeIfPresent(String.self, forKey: .mediaType) ?? "application/octet-stream"
+        bytes = try c.decodeIfPresent(Int.self, forKey: .bytes) ?? 0
+        width = try c.decodeIfPresent(Int.self, forKey: .width)
+        height = try c.decodeIfPresent(Int.self, forKey: .height)
     }
 }
 

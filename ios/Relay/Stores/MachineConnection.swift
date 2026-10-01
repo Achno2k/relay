@@ -136,6 +136,9 @@ struct RoutingBackend: Backend {
     func attachmentData(agentId: String, attachmentId: String) async throws -> Data {
         try await route(agentId).attachmentData(agentId: agentId, attachmentId: attachmentId)
     }
+    func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data {
+        try await route(agentId).toolImage(agentId: agentId, toolCallId: toolCallId, index: index)
+    }
     func file(agentId: String, path: String) async throws -> AgentFile {
         try await route(agentId).file(agentId: agentId, path: path)
     }

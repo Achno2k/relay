@@ -69,7 +69,11 @@ enum MockChats {
             .toolCall(ToolCall(id: "l-t1", name: "Read", summary: "Read src/components/Hero.tsx", path: "src/components/Hero.tsx")),
             .toolResult(ToolResult(toolCallId: "l-t1", isError: false, preview: "export function Hero() {")),
             .toolCall(ToolCall(id: "l-t3", name: "Read", summary: "Read assets/hero.png", path: "assets/hero.png")),
-            .toolResult(ToolResult(toolCallId: "l-t3", isError: false, preview: "[image]")),
+            .toolResult(ToolResult(toolCallId: "l-t3", isError: false, preview: "[image]", images: MockToolImages.hero)),
+            .toolCall(ToolCall(id: "l-t5", name: "ViewImage", summary: "Viewed 2 screenshots")),
+            .toolResult(ToolResult(
+                toolCallId: "l-t5", isError: false, preview: "Captured light and dark\n[image]\n[image]", images: MockToolImages.screens
+            )),
             .toolCall(ToolCall(
                 id: "l-t2", name: "MultiEdit", summary: "Edited src/components/Hero.tsx",
                 path: "src/components/Hero.tsx", edit: MockFiles.heroEdit

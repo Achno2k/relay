@@ -152,7 +152,7 @@ enum MockFiles {
     }
 
     /// A small generated banner, so no binary is checked in.
-    private static func heroImage() -> Data? {
+    static func heroImage() -> Data? {
         let size = CGSize(width: 600, height: 320)
         return UIGraphicsImageRenderer(size: size).pngData { ctx in
             let colors = [UIColor.systemIndigo.cgColor, UIColor.systemTeal.cgColor] as CFArray

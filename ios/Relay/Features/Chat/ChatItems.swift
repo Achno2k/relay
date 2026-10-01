@@ -13,6 +13,18 @@ struct ToolStep: Identifiable, Hashable {
     var edit: ToolEdit? = nil
     /// ExitPlanMode's plan, shown inline under the step.
     var plan: String? = nil
+    /// Images in the result (a Read of a PNG, a screenshot), shown as thumbnails under the step.
+    var images: [ToolImage] = []
+
+    /// The preview without the bridge's `[image]` placeholder lines, for when the images themselves show.
+    var textPreview: String? {
+        guard let preview else { return nil }
+        let text = preview.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { $0.trimmingCharacters(in: .whitespaces) != "[image]" }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
 }
 
 /// What the chat list renders. Consecutive tool calls/results collapse into one `.tools` row.
@@ -145,6 +157,7 @@ enum ChatItem: Identifiable, Hashable {
                     if let j = steps.lastIndex(where: { $0.id == result.toolCallId }) {
                         steps[j].isError = result.isError
                         steps[j].preview = result.preview
+                        steps[j].images = result.images
                         steps[j].finished = true
                     }
                 case .attachment, .unknown:
