@@ -42,10 +42,8 @@
 
 ## State on 2026-10-01 (lead `relay-lead`, pane w13:pP)
 - **Round 8 (done, on master):** the bridge was ported to Go in `bridge-go/` (behavior-identical, parity harness `bridge-go/parity/run.sh`); 25 bridge and 7 app bugs fixed.
-- **Go cutover NOT done.** The LaunchAgent still runs the Swift binary. The plist on disk already points at `bridge-go/bin/relay`. The user must run the cutover themselves (auto mode blocks it):
-  1. `git rm -r bridge && rm -rf bridge && git mv bridge-go bridge`, add `bin/` to `.gitignore`;
-  2. `cd bridge && go build -trimpath -o bin/relay ./cmd/relay && ./bin/relay install-launchd`;
-  3. `launchctl bootout gui/$(id -u)/com.relay.bridge; sleep 3; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.relay.bridge.plist`.
+- **Go cutover, half done (2026-10-01):** the LaunchAgent `com.relay.bridge` now runs the Go binary `bridge-go/bin/relay` (built from master, gitignored), with the same token. The swap of the Swift `bridge/` for `bridge-go/` is still to do and needs the user (auto mode blocks deleting `bridge/`): `git rm -r bridge && rm -rf bridge && git mv bridge-go bridge`, then rebuild into `bridge/bin/relay`, `relay install-launchd`, and reload.
+- **Phone:** the user's iPhone 17 has the round-10 build from 2026-10-01 (expires about 2026-10-08).
 - **Round 9 (done, on master):** multi-machine P1. `docs/remote-setup.md` covers Linux VMs. No real cloud VM tested yet (need its OS/arch plus Tailscale).
 - **New app icon** (geometric R), on master.
 - **The user's new iPhone** (`00008150-0000000000000000`) runs a free-team build from 2026-09-29, which expires about 2026-10-06. Developer Mode is on.
