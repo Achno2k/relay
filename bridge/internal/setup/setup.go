@@ -28,6 +28,9 @@ type UI interface {
 	Info(string)
 	Success(string)
 	Warn(string)
+	Muted(string)
+	// Spinner shows label while fn runs.
+	Spinner(ctx context.Context, label string, fn func(ctx context.Context) error) error
 	// Confirm asks before changing the machine.
 	Confirm(title string, steps []string) (bool, error)
 	// Login shows the Tailscale login link (as a QR code).
@@ -107,6 +110,10 @@ func Run(ctx context.Context, ui UI, o Options) (string, error) {
 		ui.Success("a herdr server already answers on " + herdr.DefaultSocketPath())
 	}
 
+	if err := s.integrations(ctx, p, st, params.Herdr); err != nil {
+		return "", err
+	}
+
 	if err := s.tailscale(ctx, p, o.AuthKey); err != nil {
 		return "", err
 	}
@@ -160,6 +167,11 @@ func (s *sys) survey(ctx context.Context) State {
 	st.SudoNoPass = s.root || exec.CommandContext(ctx, "sudo", "-n", "true").Run() == nil
 	st.HerdrPath = findHerdr()
 	st.HerdrAnswers = herdrAnswers(ctx)
+	st.Harnesses = findHarnesses(ctx)
+	if st.HerdrPath != "" && len(st.Harnesses) > 0 {
+		out, _ := exec.CommandContext(ctx, st.HerdrPath, "integration", "status").Output()
+		st.Integrations = ParseIntegrationStatus(string(out))
+	}
 	st.TailscalePath = config.TailscaleBinary()
 	if st.TailscalePath != "" {
 		st.TailscaleState = tailscaleState(ctx, st.TailscalePath)
@@ -174,6 +186,52 @@ func (s *sys) survey(ctx context.Context) State {
 		st.RelayExe = mainExe(ctx, RelayUnitName)
 	}
 	return st
+}
+
+// harnessDirs are where the agent CLIs land besides PATH: an ssh session or a
+// fresh shell often lacks the mise shims and npm's global bin.
+func harnessDirs(ctx context.Context) []string {
+	home, _ := os.UserHomeDir()
+	dirs := []string{
+		filepath.Join(home, ".local/share/mise/shims"),
+		filepath.Join(home, ".local/bin"),
+		filepath.Join(home, ".npm-global/bin"),
+	}
+	if npm := lookIn("npm", dirs); npm != "" {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		if out, err := exec.CommandContext(ctx, npm, "prefix", "-g").Output(); err == nil {
+			if prefix := strings.TrimSpace(string(out)); prefix != "" {
+				dirs = append(dirs, filepath.Join(prefix, "bin"))
+			}
+		}
+	}
+	return dirs
+}
+
+// lookIn finds name on PATH, then in dirs.
+func lookIn(name string, dirs []string) string {
+	if p, err := exec.LookPath(name); err == nil {
+		return p
+	}
+	for _, d := range dirs {
+		p := filepath.Join(d, name)
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
+			return p
+		}
+	}
+	return ""
+}
+
+func findHarnesses(ctx context.Context) []string {
+	dirs := harnessDirs(ctx)
+	var found []string
+	for _, kind := range Harnesses {
+		if lookIn(kind, dirs) != "" {
+			found = append(found, kind)
+		}
+	}
+	return found
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
@@ -407,19 +465,103 @@ func (s *sys) startHerdrServer(ctx context.Context, p UnitParams) error {
 	return nil
 }
 
+func (s *sys) integrations(ctx context.Context, p Plan, st State, herdrBin string) error {
+	if len(st.Harnesses) == 0 {
+		s.ui.Info("no claude, codex or pi found; run relay pair again after installing one to hook it into herdr")
+		return nil
+	}
+	if herdrBin == "" {
+		herdrBin = DefaultHerdr
+	}
+	for _, kind := range p.Integrations {
+		// Not fatal: the bridge runs without it, the agent's chat just stays empty. herdr
+		// refuses while the CLI's own config dir doesn't exist yet (installed, never run).
+		if err := s.quiet(ctx, "herdr integration for "+kind, false, herdrBin, "integration", "install", kind); err != nil {
+			s.ui.Warn(fmt.Sprintf("%v\nstart %s once (or log in), then run relay pair again", err, kind))
+		}
+	}
+	if len(p.Integrations) == 0 {
+		s.ui.Success("herdr integrations are current: " + strings.Join(st.Harnesses, ", "))
+	}
+	return nil
+}
+
+// SetupLog keeps the output of the steps that run behind a spinner.
+func SetupLog() string { return filepath.Join(config.Home(), "setup.log") }
+
+// quiet runs a command behind a spinner, its output appended to SetupLog. Only a
+// failure shows the output: its last lines, and where the rest is.
+func (s *sys) quiet(ctx context.Context, label string, root bool, args ...string) error {
+	if root && !s.root {
+		args = append([]string{"sudo"}, args...)
+	}
+	if err := config.EnsureHome(); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(SetupLog(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "\n== %s %s\n", time.Now().Format(time.RFC3339), strings.Join(args, " "))
+	tail := &lastLines{n: 20}
+	err = s.ui.Spinner(ctx, label, func(ctx context.Context) error {
+		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+		w := io.MultiWriter(f, tail)
+		cmd.Stdout, cmd.Stderr = w, w
+		return cmd.Run()
+	})
+	if err != nil {
+		for _, l := range tail.lines() {
+			s.ui.Muted("  " + l)
+		}
+		return fmt.Errorf("%s: %w (full output in %s)", label, err, SetupLog())
+	}
+	return nil
+}
+
+// lastLines keeps the last n lines written to it.
+type lastLines struct {
+	n   int
+	buf []string
+	cur strings.Builder
+}
+
+func (l *lastLines) Write(p []byte) (int, error) {
+	for _, b := range p {
+		if b == '\n' {
+			l.buf = append(l.buf, l.cur.String())
+			l.cur.Reset()
+			if len(l.buf) > l.n {
+				l.buf = l.buf[1:]
+			}
+			continue
+		}
+		l.cur.WriteByte(b)
+	}
+	return len(p), nil
+}
+
+func (l *lastLines) lines() []string {
+	out := l.buf
+	if l.cur.Len() > 0 {
+		out = append(out, l.cur.String())
+	}
+	return out
+}
+
 func (s *sys) tailscale(ctx context.Context, p Plan, authKey string) error {
 	if p.InstallTailscale {
 		if _, err := exec.LookPath("curl"); err != nil {
 			return errors.New("installing Tailscale needs curl")
 		}
-		s.ui.Info("installing Tailscale")
-		if err := s.interactive(ctx, "sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh"); err != nil {
-			return fmt.Errorf("install Tailscale: %w", err)
+		// As root, so the script never asks sudo for a password behind the spinner.
+		if err := s.quiet(ctx, "install Tailscale", true, "sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh"); err != nil {
+			return err
 		}
 		if config.TailscaleBinary() == "" {
 			return errors.New("the Tailscale installer finished but tailscale isn't on PATH")
 		}
-		s.ui.Success("installed Tailscale")
 	}
 	bin := config.TailscaleBinary()
 	state := tailscaleState(ctx, bin)

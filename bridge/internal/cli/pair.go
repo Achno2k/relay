@@ -92,6 +92,11 @@ type pairUI struct{}
 func (pairUI) Info(s string)    { ui.Info(s) }
 func (pairUI) Success(s string) { ui.Success(s) }
 func (pairUI) Warn(s string)    { ui.Warn(s) }
+func (pairUI) Muted(s string)   { ui.Muted(s) }
+
+func (pairUI) Spinner(ctx context.Context, label string, fn func(ctx context.Context) error) error {
+	return ui.Spinner(ctx, label, fn)
+}
 
 func (pairUI) Confirm(title string, steps []string) (bool, error) {
 	ui.Info(title)

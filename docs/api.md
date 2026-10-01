@@ -19,8 +19,9 @@ Both sides build against `docs/fixtures/*.json`. Change this file first, then th
   - Linux with systemd: it first sets the machine up, then prints. Each step checks first, so a second run changes nothing (and restarts nothing):
     1. sudo: passwordless, or one password prompt.
     2. herdr: installed to `/usr/local/bin/herdr` if missing (herdr.dev manifest, sha256 checked). `herdr-server.service` is written and started only when no herdr server answers on the socket.
-    3. Tailscale: installed with tailscale.com's script if missing. When logged out, `tailscale up` runs and its login link is shown as a QR code. `--authkey <key>` logs in without it.
-    4. `relay.service`: written to `/etc/systemd/system`, enabled, and (re)started when the unit or the binary changed. Then it waits for `/health` on the Tailscale IP.
+    3. herdr integrations: `herdr integration install <kind>` for each of claude, codex, pi that is installed and not `current` yet. Without it herdr reports `agent_session: null` and the bridge finds no transcript. A failure here is a warning.
+    4. Tailscale: installed with tailscale.com's script if missing (output kept in `~/.relay/setup.log`). When logged out, `tailscale up` runs and its login link is shown as a QR code. `--authkey <key>` logs in without it.
+    5. `relay.service`: written to `/etc/systemd/system`, enabled, and (re)started when the unit or the binary changed. Then it waits for `/health` on the Tailscale IP.
   - The `<base>` in the link is that Tailscale IP unless `--host`/`--url` say otherwise.
 - Flags: `--port` (7878), `--host`, `--url`, `--authkey`, `--yes` (no confirmation; `relay init` runs `relay pair --yes` over SSH). Without `--yes` and without a terminal, it stops before changing anything.
 

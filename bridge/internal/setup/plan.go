@@ -1,6 +1,12 @@
 package setup
 
-import "strings"
+import (
+	"reflect"
+	"strings"
+)
+
+// Harnesses are the agent CLIs pair hooks into herdr, in order.
+var Harnesses = []string{"claude", "codex", "pi"}
 
 // State is what pair finds on the machine before it changes anything.
 type State struct {
@@ -9,6 +15,9 @@ type State struct {
 
 	HerdrPath    string // "" when herdr isn't installed
 	HerdrAnswers bool   // a herdr server answers on the socket
+
+	Harnesses    []string          // the Harnesses found on PATH, the mise shims, ~/.local/bin or npm's global bin
+	Integrations map[string]string // `herdr integration status`: kind -> "current (v9)", "not installed", …
 
 	TailscalePath  string // "" when tailscale isn't installed
 	TailscaleState string // BackendState ("Running", "NeedsLogin", "Stopped", …); "" when tailscaled doesn't answer
@@ -22,9 +31,12 @@ type State struct {
 
 // Plan is what pair is about to do. The zero Plan does nothing.
 type Plan struct {
-	SudoPrompt       bool // ask for the sudo password once
-	InstallHerdr     bool
-	HerdrUnit        bool // write and start herdr-server.service
+	SudoPrompt   bool // ask for the sudo password once
+	InstallHerdr bool
+	HerdrUnit    bool // write and start herdr-server.service
+	// Integrations to install with `herdr integration install <kind>`. Without one herdr
+	// reports agent_session null and the bridge never finds the agent's transcript.
+	Integrations     []string
 	InstallTailscale bool
 	StartTailscaled  bool
 	TailscaleUp      bool
@@ -35,12 +47,13 @@ type Plan struct {
 }
 
 // Empty reports whether the machine is already set up.
-func (p Plan) Empty() bool { return p == Plan{} }
+func (p Plan) Empty() bool { return reflect.DeepEqual(p, Plan{}) }
 
 // NeedsSudo reports whether any step runs as root.
 func (p Plan) NeedsSudo() bool {
 	q := p
-	q.SudoPrompt, q.RemoveLegacyUnit = false, false // the user unit needs no root
+	// The user unit and the integrations live in the user's home and need no root.
+	q.SudoPrompt, q.RemoveLegacyUnit, q.Integrations = false, false, nil
 	return !q.Empty()
 }
 
@@ -54,6 +67,7 @@ func (p Plan) Steps() []string {
 	}
 	add(p.InstallHerdr, "install herdr to "+DefaultHerdr)
 	add(p.HerdrUnit, "install and start "+HerdrUnitName)
+	add(len(p.Integrations) > 0, "install the herdr integration for "+strings.Join(p.Integrations, ", "))
 	add(p.InstallTailscale, "install Tailscale (tailscale.com/install.sh)")
 	add(p.StartTailscaled, "start tailscaled")
 	add(p.TailscaleUp, "log in to Tailscale (tailscale up)")
@@ -72,6 +86,11 @@ func Decide(st State, wantUnit, exe string) Plan {
 	// A herdr server somebody already runs (a unit of their own, or herdr started by
 	// hand) owns the socket; a second one would fight it for it.
 	p.HerdrUnit = !st.HerdrAnswers
+	for _, kind := range st.Harnesses {
+		if !IntegrationCurrent(st.Integrations[kind]) {
+			p.Integrations = append(p.Integrations, kind)
+		}
+	}
 
 	p.InstallTailscale = st.TailscalePath == ""
 	switch {
@@ -103,3 +122,7 @@ func BinaryChanged(running, exe string) bool {
 	}
 	return strings.HasSuffix(running, " (deleted)") || running != exe
 }
+
+// IntegrationCurrent reports whether a `herdr integration status` entry needs no
+// install: "current (v9)". "not installed", "outdated …" or no entry at all do.
+func IntegrationCurrent(status string) bool { return strings.HasPrefix(status, "current") }

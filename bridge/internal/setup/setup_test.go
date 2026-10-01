@@ -112,6 +112,8 @@ func setUp(t *testing.T) (State, string) {
 		RelayEnabled:   true,
 		RelayActive:    true,
 		RelayExe:       params.Relay,
+		Harnesses:      []string{"claude", "codex", "pi"},
+		Integrations:   map[string]string{"claude": "current (v9)", "codex": "current (v8)", "pi": "current (v8)", "omp": "not installed"},
 	}, want
 }
 
@@ -128,16 +130,16 @@ func TestDecideSecondRunDoesNothing(t *testing.T) {
 
 func TestDecideFreshMachine(t *testing.T) {
 	_, want := setUp(t)
-	p := Decide(State{}, want, params.Relay)
+	p := Decide(State{Harnesses: []string{"claude", "pi"}}, want, params.Relay)
 	exp := Plan{
-		SudoPrompt: true, InstallHerdr: true, HerdrUnit: true,
+		SudoPrompt: true, InstallHerdr: true, HerdrUnit: true, Integrations: []string{"claude", "pi"},
 		InstallTailscale: true, TailscaleUp: true,
 		WriteRelayUnit: true, EnableRelay: true, RestartRelay: true,
 	}
-	if p != exp {
+	if !reflect.DeepEqual(p, exp) {
 		t.Errorf("got %+v\nwant %+v", p, exp)
 	}
-	if got := len(p.Steps()); got != 7 {
+	if got := len(p.Steps()); got != 8 {
 		t.Errorf("%d steps: %q", got, p.Steps())
 	}
 }
@@ -160,12 +162,21 @@ func TestDecideEachStep(t *testing.T) {
 		"unit stopped":         {func(s *State) { s.RelayActive, s.RelayExe = false, "" }, Plan{RestartRelay: true}},
 		"binary replaced":      {func(s *State) { s.RelayExe = params.Relay + " (deleted)" }, Plan{RestartRelay: true}},
 		"binary moved":         {func(s *State) { s.RelayExe = "/home/dev/relay" }, Plan{RestartRelay: true}},
-		"old user unit":        {func(s *State) { s.LegacyUserUnit = true }, Plan{RemoveLegacyUnit: true, RestartRelay: true}},
+		"integration missing":  {func(s *State) { s.Integrations["codex"] = "not installed" }, Plan{Integrations: []string{"codex"}}},
+		"integration outdated": {func(s *State) { s.Integrations["pi"] = "outdated (v7, latest v8)" }, Plan{Integrations: []string{"pi"}}},
+		"herdr status failed":  {func(s *State) { s.Integrations = nil }, Plan{Integrations: []string{"claude", "codex", "pi"}}},
+		// A harness that isn't installed gets no integration, current or not.
+		"only claude": {func(s *State) {
+			s.Harnesses = []string{"claude"}
+			s.Integrations = map[string]string{"claude": "current (v9)"}
+		}, Plan{}},
+		"no harnesses":  {func(s *State) { s.Harnesses = nil }, Plan{}},
+		"old user unit": {func(s *State) { s.LegacyUserUnit = true }, Plan{RemoveLegacyUnit: true, RestartRelay: true}},
 	}
 	for name, c := range cases {
 		st, want := setUp(t)
 		c.change(&st)
-		if got := Decide(st, want, params.Relay); got != c.want {
+		if got := Decide(st, want, params.Relay); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s: got %+v\nwant %+v", name, got, c.want)
 		}
 	}
@@ -190,6 +201,44 @@ func TestDecideSudo(t *testing.T) {
 	p := Decide(st, want, params.Relay)
 	if !p.SudoPrompt {
 		t.Error("restart after removing the user unit needs sudo")
+	}
+}
+
+func TestIntegrationsNeedNoSudo(t *testing.T) {
+	st, want := setUp(t)
+	st.SudoNoPass = false
+	st.Integrations = map[string]string{}
+	p := Decide(st, want, params.Relay)
+	if p.SudoPrompt || p.NeedsSudo() {
+		t.Errorf("integrations asked for sudo: %+v", p)
+	}
+	if len(p.Integrations) != 3 || len(p.Steps()) != 1 {
+		t.Errorf("plan %+v steps %q", p, p.Steps())
+	}
+}
+
+func TestParseIntegrationStatus(t *testing.T) {
+	out := "pi: current (v8) (/home/dev/.pi/agent/extensions/herdr-agent-state.ts)\n" +
+		"claude: not installed (/home/dev/.claude/hooks/herdr-agent-state.sh)\n" +
+		"codex: outdated (v7) (/home/dev/.codex/herdr-agent-state.sh)\n" +
+		"\nusage: herdr integration status [--outdated-only]\n"
+	got := ParseIntegrationStatus(out)
+	want := map[string]string{"pi": "current (v8)", "claude": "not installed", "codex": "outdated (v7)"}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s: %q, want %q", k, got[k], v)
+		}
+	}
+	if !IntegrationCurrent(got["pi"]) || IntegrationCurrent(got["claude"]) || IntegrationCurrent(got["codex"]) || IntegrationCurrent("") {
+		t.Errorf("IntegrationCurrent wrong for %v", got)
+	}
+}
+
+func TestLastLines(t *testing.T) {
+	l := &lastLines{n: 2}
+	l.Write([]byte("a\nb\nc\nd"))
+	if got := l.lines(); !reflect.DeepEqual(got, []string{"b", "c", "d"}) {
+		t.Errorf("%q", got)
 	}
 }
 

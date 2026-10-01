@@ -20,9 +20,10 @@ relay pair
 - `relay pair` lists what it is about to do and asks once. Then, skipping whatever is already there:
   1. **sudo**: checks `sudo -n true`; otherwise asks for your password once and keeps it fresh while it runs.
   2. **herdr**: installs it to `/usr/local/bin/herdr` if it isn't on `PATH`, from the herdr.dev manifest, checking its sha256. If no herdr server answers on the socket, it writes and starts `herdr-server.service`. A herdr you already run is left alone.
-  3. **Tailscale**: installs it with `https://tailscale.com/install.sh` if missing and starts `tailscaled`. If it's logged out, it runs `tailscale up` and shows the login link as a QR code. Scan it with the phone (or open the link anywhere) and it carries on. `relay pair --authkey tskey-…` logs in without it.
-  4. **relay.service**: writes `/etc/systemd/system/relay.service`, enables it, and starts it. It restarts it only when the unit or the `relay` binary changed. Then it waits up to 45 s for `/health` on the Tailscale IP.
-  5. Prints the pairing QR code and the `relay://pair?url=…&token=…` link.
+  3. **herdr integrations**: for each of `claude`, `codex` and `pi` it finds (on `PATH`, in the mise shims, `~/.local/bin` or npm's global bin), runs `herdr integration install <kind>` unless `herdr integration status` already says `current`. Without it herdr never reports the agent's session, the bridge can't find its transcript, and the app shows an empty chat. herdr refuses while the CLI's own config dir doesn't exist yet (installed, never started); `pair` then warns and carries on, so start or log in to that CLI and run `relay pair` again.
+  4. **Tailscale**: installs it with `https://tailscale.com/install.sh` if missing (behind a spinner; the installer's output goes to `~/.relay/setup.log` and only shows if it fails) and starts `tailscaled`. If it's logged out, it runs `tailscale up` and shows the login link as a QR code. Scan it with the phone (or open the link anywhere) and it carries on. `relay pair --authkey tskey-…` logs in without it.
+  5. **relay.service**: writes `/etc/systemd/system/relay.service`, enables it, and starts it. It restarts it only when the unit or the `relay` binary changed. Then it waits up to 45 s for `/health` on the Tailscale IP.
+  6. Prints the pairing QR code and the `relay://pair?url=…&token=…` link.
 - In the app: machine menu > Add machine…, then scan the QR or paste the link.
 - Run it again any time. On a set-up machine it changes nothing and just prints the QR again.
 - `--yes` skips the question (needed without a terminal). `--port` changes 7878.
@@ -33,6 +34,7 @@ relay init
 ```
 - `relay init` (see `relay-cli.md`) picks the AWS profile, region and an existing instance, sets up SSH, installs the harnesses and logs them in, sets up GitHub, clones your repos and writes the environment plan.
 - At the end it runs `relay pair --yes` on the box over an interactive SSH session. The Tailscale login QR and the pairing QR both show in the laptop terminal.
+- `relay pair` runs after the harnesses are installed and logged in, so it also installs their herdr integrations.
 - It also gives each cloned repo a herdr workspace, so the app's "New chat" can start agents there.
 - `relay attach` opens the box's herdr on the laptop (`herdr --remote <user>@<host>`).
 
@@ -111,6 +113,8 @@ Both are system units in `/etc/systemd/system` with `User=` set to you, so they 
 | App says re-pair needed | the token changed or the URL now reaches another machine: `relay pair` and scan again |
 | Usage cards say the CLI isn't found | the unit's `PATH` doesn't include it: `sudo systemctl edit relay.service` |
 | `relay pair` stops with "no terminal to confirm on" | run it in a terminal, or pass `--yes` |
+| New chats in the app stay empty | the herdr integration is missing: `herdr integration status`, then `relay pair` |
+| `relay pair` failed on a step behind a spinner | `~/.relay/setup.log` has the full output |
 
 ## Tested
 Round 11, `relay pair` on Ubuntu 24.04 arm64 in a podman container with systemd as PID 1, real herdr from herdr.dev, and a stub `tailscale` (logged out at first, prints a login URL from `up`, then reports the container IP):
@@ -123,4 +127,9 @@ Round 11, `relay pair` on Ubuntu 24.04 arm64 in a podman container with systemd 
 - without a terminal and without `--yes` it lists the plan and stops;
 - after a container restart both units come back with no one logged in; `kill -9` of the bridge brings it back in about 5 s; with Tailscale stopped the bridge exits 75 and comes back once it's up.
 
-Not tested here: the real Tailscale installer and login (the box tests cover them).
+Box test fixes (same container setup, stub `claude`/`codex` in `~/.local/bin` and the mise shims, stub `pi` under a fake `npm prefix -g`, none of them on the exec `PATH`):
+- before the CLIs' config dirs exist, `herdr integration install` fails; `pair` shows its message, warns and finishes;
+- once they exist, `pair` installs all three integrations (`herdr integration status` says `current`), and the next run changes nothing;
+- the real `tailscale.com/install.sh` runs behind one spinner line; its apt output, `+ set +x` and "Installation complete!" land only in `~/.relay/setup.log`.
+
+Not tested here: a real `tailscaled` (the container has no tun device) and the real login. The EC2 box test covers them.

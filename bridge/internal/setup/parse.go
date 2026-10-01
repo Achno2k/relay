@@ -67,3 +67,20 @@ func AuthURL(line string) string {
 	}
 	return ""
 }
+
+// ParseIntegrationStatus reads `herdr integration status`, one line per kind:
+// "claude: current (v9) (/home/dev/.claude/hooks/herdr-agent-state.sh)".
+func ParseIntegrationStatus(out string) map[string]string {
+	m := map[string]string{}
+	for _, line := range strings.Split(out, "\n") {
+		kind, rest, ok := strings.Cut(strings.TrimSpace(line), ": ")
+		if !ok || kind == "" || strings.ContainsAny(kind, " \t") {
+			continue
+		}
+		if i := strings.LastIndex(rest, " ("); i >= 0 && strings.HasSuffix(rest, ")") {
+			rest = rest[:i] // the hook file's path
+		}
+		m[kind] = rest
+	}
+	return m
+}
