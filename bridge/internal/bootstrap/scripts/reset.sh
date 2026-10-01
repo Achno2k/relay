@@ -121,6 +121,14 @@ rs_signout() {
     else
         note "codex not installed"
     fi
+
+    # pi has no logout command; its credentials are this one file.
+    local pi_auth="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/auth.json"
+    if [ -e "$pi_auth" ]; then
+        rm_user "$pi_auth" && note "pi signed out"
+    else
+        note "pi not signed in"
+    fi
     finish
 }
 
@@ -173,6 +181,7 @@ rs_runtimes() {
     rm_user "$HOME/.claude"
     rm_user "$HOME/.claude.json"
     rm_user "$HOME/.codex"
+    rm_user "$HOME/.pi"
     rm_user "$HOME/.config/gh"
     rm_user "$HOME/.config/herdr"
     rm_user "$HOME/.relay"
@@ -192,11 +201,11 @@ rs_profiles() {
             note "$rc absent"
             continue
         fi
-        if ! sed -i '/^# relay$/d; /^export RELAY_ON_BOX=1$/d; /^# agents$/d; /^export RELAY_ON_BOX=1$/d; /mise\/shims/d' "$rc"; then
+        if ! sed -i '/^# relay$/d; /^export RELAY_ON_BOX=1$/d; /^# agents$/d; /^export AGENTS_ON_BOX=1$/d; /mise\/shims/d' "$rc"; then
             die "could not edit $rc"
             continue
         fi
-        if grep -q 'RELAY_ON_BOX\|RELAY_ON_BOX\|mise/shims' "$rc"; then
+        if grep -q 'RELAY_ON_BOX\|AGENTS_ON_BOX\|mise/shims' "$rc"; then
             die "$rc still mentions relay"
         else
             note "cleaned $rc"

@@ -5,7 +5,7 @@ package harness
 import "context"
 
 type Harness interface {
-	Name() string // "claude" | "codex"
+	Name() string // "claude" | "codex" | "pi"
 	// InstallScript returns bash that installs the harness on Ubuntu.
 	InstallScript() string
 	// IsInstalledCmd returns bash that exits 0 when installed.
@@ -18,6 +18,12 @@ type Harness interface {
 	// final assistant text. schema, when non-empty, is a JSON schema the
 	// answer must satisfy.
 	HeadlessJSON(ctx context.Context, dir, prompt, schema string) (string, error)
+}
+
+// LoginHinter is implemented by harnesses whose login needs instructions the
+// login command itself does not print.
+type LoginHinter interface {
+	LoginHint() string
 }
 
 var Registry = map[string]Harness{}

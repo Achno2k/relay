@@ -132,7 +132,7 @@ func tailLines(s string, n int) string {
 // harnessGenerator drives a harness through its headless JSON mode.
 type harnessGenerator struct{ h harness.Harness }
 
-// NewGenerator wraps a harness (by name: "claude"|"codex") as a Generator.
+// NewGenerator wraps a harness (by name: "claude"|"codex"|"pi") as a Generator.
 func NewGenerator(harnessName string) (Generator, error) {
 	h, ok := harness.Registry[harnessName]
 	if !ok {

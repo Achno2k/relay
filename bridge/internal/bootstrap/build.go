@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"relay/internal/api"
 	"relay/internal/sshx"
 )
 
@@ -23,7 +24,8 @@ const ModulePath = "relay"
 const remoteUpload = "/tmp/relay.upload"
 
 // BuildForBox cross compiles this module for linux/<goarch> and returns the
-// path of the binary. CGO is off, so a static build is fine.
+// path of the binary. CGO is off, so a static build is fine. It carries this
+// binary's version, so `relay doctor` can compare the two.
 func BuildForBox(ctx context.Context, goarch string) (string, error) {
 	if goarch == "" {
 		goarch = "amd64"
@@ -36,7 +38,7 @@ func BuildForBox(ctx context.Context, goarch string) (string, error) {
 
 	cmd := exec.CommandContext(ctx, "go", "build",
 		"-trimpath",
-		"-ldflags", "-s -w",
+		"-ldflags", "-s -w -X relay/internal/api.Version="+api.Version,
 		"-o", out,
 		"./cmd/relay",
 	)

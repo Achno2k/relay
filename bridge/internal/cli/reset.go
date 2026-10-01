@@ -27,7 +27,7 @@ func init() {
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Remove everything relay installed on the box",
-		Long: "Stops the relay and herdr units, signs out of Claude, Codex and GitHub,\n" +
+		Long: "Stops the relay and herdr units, signs out of Claude, Codex, pi and GitHub,\n" +
 			"deletes the runtimes, caches, clones and worktrees, and the relay config\n" +
 			"on the box. The instance, OS and your ssh access stay. Uncommitted work in\n" +
 			"~/work is lost. For a truly fresh machine, terminate the instance instead.",

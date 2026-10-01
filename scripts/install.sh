@@ -1,10 +1,13 @@
 #!/bin/sh
-# Install relay from the latest GitHub release.
+# Install relay from a GitHub release and check it against checksums.txt.
 # Usage: curl -fsSL https://raw.githubusercontent.com/Achno2k/relay/main/scripts/install.sh | sh
+# RELAY_VERSION=0.2.0 picks a release; the default is the latest.
+# RELAY_INSTALL_DIR=<dir> installs there instead of /usr/local/bin.
+# RELAY_RELEASES=<url> replaces the GitHub releases URL, for tests.
 set -eu
 
 REPO="Achno2k/relay"
-BASE="https://github.com/${REPO}/releases"
+BASE="${RELAY_RELEASES:-https://github.com/${REPO}/releases}"
 
 say() { printf '%s\n' "$*"; }
 die() { say "install: $*" >&2; exit 1; }
@@ -25,9 +28,34 @@ detect_arch() {
 	esac
 }
 
+# download <url> <file>
+download() {
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL "$1" -o "$2"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -qO "$2" "$1"
+	else
+		die "need curl or wget to download"
+	fi
+}
+
+sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | cut -d' ' -f1
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$1" | cut -d' ' -f1
+	else
+		die "need sha256sum or shasum to check the download"
+	fi
+}
+
 install_bin() {
 	src=$1
-	if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then
+	if [ -n "${RELAY_INSTALL_DIR:-}" ]; then
+		mkdir -p "$RELAY_INSTALL_DIR"
+		mv "$src" "$RELAY_INSTALL_DIR/relay"
+		echo "$RELAY_INSTALL_DIR"
+	elif [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then
 		mv "$src" /usr/local/bin/relay
 		echo /usr/local/bin
 	elif command -v sudo >/dev/null 2>&1; then
@@ -49,19 +77,26 @@ main() {
 	*) die "no release for ${os}/${arch}; darwin/arm64, linux/amd64 and linux/arm64 are built" ;;
 	esac
 
-	url="${BASE}/latest/download/relay_${os}_${arch}.tar.gz"
-	say "Downloading ${url}"
+	if [ -n "${RELAY_VERSION:-}" ]; then
+		dl="${BASE}/download/v${RELAY_VERSION#v}"
+	else
+		dl="${BASE}/latest/download"
+	fi
+	asset="relay_${os}_${arch}.tar.gz"
+	say "Downloading ${dl}/${asset}"
 	tmp=$(mktemp -d) || die "mktemp failed"
 	trap 'rm -rf "$tmp"' EXIT
-	if command -v curl >/dev/null 2>&1; then
-		curl -fsSL "$url" -o "$tmp/relay.tgz" || die "download failed"
-	elif command -v wget >/dev/null 2>&1; then
-		wget -qO "$tmp/relay.tgz" "$url" || die "download failed"
-	else
-		die "need curl or wget to download"
-	fi
-	tar -xzf "$tmp/relay.tgz" -C "$tmp" || die "extract failed"
-	[ -f "$tmp/relay" ] || die "archive did not contain an relay binary"
+	download "${dl}/${asset}" "$tmp/$asset" || die "download failed"
+	download "${dl}/checksums.txt" "$tmp/checksums.txt" || die "checksums.txt download failed"
+
+	want=$(awk -v a="$asset" '$2 == a { print $1 }' "$tmp/checksums.txt")
+	[ -n "$want" ] || die "checksums.txt has no entry for $asset"
+	got=$(sha256 "$tmp/$asset")
+	[ "$got" = "$want" ] || die "checksum mismatch for $asset (want $want, got $got)"
+	say "Checksum ok"
+
+	tar -xzf "$tmp/$asset" -C "$tmp" || die "extract failed"
+	[ -f "$tmp/relay" ] || die "archive did not contain a relay binary"
 	chmod +x "$tmp/relay"
 
 	dest=$(install_bin "$tmp/relay")

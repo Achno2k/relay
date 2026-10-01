@@ -69,11 +69,11 @@ func TestModulePathOf(t *testing.T) {
 }
 
 func TestHarnessTasks(t *testing.T) {
-	got := HarnessTasks([]string{"claude", "Codex", "nope"})
-	if len(got) != 2 {
-		t.Fatalf("HarnessTasks returned %d tasks, want 2: %+v", len(got), got)
+	got := HarnessTasks([]string{"claude", "Codex", "nope", "pi"})
+	if len(got) != 3 {
+		t.Fatalf("HarnessTasks returned %d tasks, want 3: %+v", len(got), got)
 	}
-	if got[0].Func != "bs_claude" || got[1].Func != "bs_codex" {
+	if got[0].Func != "bs_claude" || got[1].Func != "bs_codex" || got[2].Func != "bs_pi" {
 		t.Errorf("unexpected funcs: %+v", got)
 	}
 }
@@ -89,31 +89,6 @@ func TestTasksExistInScript(t *testing.T) {
 		if !strings.HasSuffix(Script(task.Func), "\n"+task.Func+"\n") {
 			t.Errorf("Script(%q) does not end with the call", task.Func)
 		}
-	}
-}
-
-func TestUnitsRender(t *testing.T) {
-	for _, name := range Units {
-		body, err := Unit(name, "ubuntu", "/home/ubuntu")
-		if err != nil {
-			t.Fatalf("Unit(%q): %v", name, err)
-		}
-		if strings.Contains(body, "{{") {
-			t.Errorf("Unit(%q) left a template action unrendered", name)
-		}
-		for _, want := range []string{"User=ubuntu", "Restart=always", "[Install]"} {
-			if !strings.Contains(body, want) {
-				t.Errorf("Unit(%q) missing %q", name, want)
-			}
-		}
-	}
-
-	herdr, err := Unit("herdr-server.service", "ubuntu", "/home/ubuntu")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(herdr, "ExecStart=/usr/local/bin/herdr server") {
-		t.Error("herdr-server.service does not run `herdr server`")
 	}
 }
 

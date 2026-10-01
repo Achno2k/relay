@@ -177,6 +177,54 @@ bs_claude() { npm_global @anthropic-ai/claude-code claude; }
 # bs_codex installs the OpenAI Codex CLI.
 bs_codex() { npm_global @openai/codex codex; }
 
+# bs_pi installs the pi coding agent.
+bs_pi() { npm_global @earendil-works/pi-coding-agent pi; }
+
+# --------------------------------------------------------- 5b. auto mode -----
+
+# bs_auto_claude makes Claude Code start in auto mode
+# (permissions.defaultMode in ~/.claude/settings.json). Other settings stay.
+bs_auto_claude() {
+    local f="$HOME/.claude/settings.json" tmp
+    mkdir -p "$HOME/.claude"
+    [ -s "$f" ] || echo '{}' > "$f"
+    if jq -e '.permissions.defaultMode == "auto"' "$f" >/dev/null 2>&1; then
+        say "claude already starts in auto mode"
+        return 0
+    fi
+    tmp="$(mktemp)"
+    jq '.permissions = ((.permissions // {}) + {defaultMode: "auto"})' "$f" > "$tmp" \
+        || { rm -f "$tmp"; die "$f is not valid JSON"; }
+    mv "$tmp" "$f"
+    say "claude: permissions.defaultMode = auto"
+}
+
+# bs_auto_codex sets Codex's closest equivalent: it works inside the workspace
+# and asks only when it wants out. The two top-level keys in
+# ~/.codex/config.toml are replaced, everything else is kept.
+bs_auto_codex() {
+    mkdir -p "$HOME/.codex"
+    python3 - "$HOME/.codex/config.toml" <<'RELAY_PY'
+import os, re, sys
+path = sys.argv[1]
+want = [("approval_policy", '"on-request"'), ("sandbox_mode", '"workspace-write"')]
+old = open(path).read() if os.path.exists(path) else ""
+lines = old.splitlines()
+# Top-level keys must come before the first [table] header.
+first = next((i for i, l in enumerate(lines) if l.lstrip().startswith("[")), len(lines))
+head, rest = lines[:first], lines[first:]
+keys = re.compile(r"^\s*(%s)\s*=" % "|".join(k for k, _ in want))
+head = [l for l in head if not keys.match(l)]
+new = "\n".join(["%s = %s" % kv for kv in want] + head + rest) + "\n"
+if new == old:
+    print("  codex already set to on-request + workspace-write")
+else:
+    with open(path, "w") as f:
+        f.write(new)
+    print("  codex: approval_policy = on-request, sandbox_mode = workspace-write")
+RELAY_PY
+}
+
 # ------------------------------------------------------------ 6. profile -----
 
 # bs_relay_home creates ~/.relay and marks this machine as the box so the CLI
@@ -196,6 +244,24 @@ bs_relay_home() {
     done
     say "RELAY_ON_BOX=1 written to ~/.profile and ~/.bashrc"
     say "$RELAY_DIR ready"
+}
+
+# ------------------------------------------------------ 7. herdr workspace ---
+
+# bs_workspace <name> <dir> creates a herdr workspace labelled <name> with <dir>
+# as its cwd, so the app's "New chat" can start agents there. A workspace with
+# that label already there is left alone.
+bs_workspace() {
+    local name="$1" dir="$2" list
+    have herdr || die "herdr is not installed"
+    [ -d "$dir" ] || die "no checkout for $name"
+    list="$(herdr workspace list 2>&1)" || die "herdr server is not answering: $list"
+    if printf '%s' "$list" | jq -e --arg l "$name" '.result.workspaces[]? | select(.label == $l)' >/dev/null; then
+        say "herdr workspace $name already exists"
+        return 0
+    fi
+    herdr workspace create --cwd "$dir" --label "$name" --no-focus >/dev/null
+    say "created herdr workspace $name"
 }
 
 # Allow `bash bootstrap.sh <fn>`; when piped on stdin the Go side appends the
