@@ -882,3 +882,24 @@ func hasKey(keys []string, want string) bool {
 	}
 	return false
 }
+
+// Enter on an untouched field takes the default, and the collapsed line shows
+// it rather than nothing.
+func TestInputDefaultShowsTheValueUsed(t *testing.T) {
+	for _, c := range []struct{ typed, want string }{
+		{"", "~/.ssh/demo.pem"},
+		{"~/.ssh/other.pem", "~/.ssh/other.pem"},
+	} {
+		var buf bytes.Buffer
+		restore := setOutput(&buf)
+		ask := &askScript{texts: []string{c.typed}}
+		got, err := inputDefault("SSH private key", "~/.ssh/demo.pem", ask.ask)
+		restore()
+		if err != nil || got != c.want {
+			t.Fatalf("typed %q: got %q, %v", c.typed, got, err)
+		}
+		if buf.String() != "? SSH private key  "+c.want+"\n" {
+			t.Fatalf("typed %q: output = %q", c.typed, buf.String())
+		}
+	}
+}

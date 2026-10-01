@@ -163,6 +163,13 @@ func runInit(ctx context.Context, fresh bool) error {
 		return err
 	}
 
+	if repo != "" {
+		if err := ui.RunSteps(ctx, "Trust", bootstrap.Steps(runner,
+			bootstrap.TrustTasks(cfg.Harness, cfg.Box.WorkDir, repo))); err != nil {
+			return err
+		}
+	}
+
 	if err := bootstrap.SyncConfig(ctx, runner, boxHome(cfg), cfg); err != nil {
 		return err
 	}

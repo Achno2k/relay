@@ -319,15 +319,7 @@ func pickTransport(in instanceInfo) (string, error) {
 // askKeyPath asks for the private key, defaulting to a sensible file in ~/.ssh.
 func askKeyPath(keyName string) (string, error) {
 	def := DefaultKeyPath(keyName)
-	p, err := ui.Input("SSH private key", def)
-	if err != nil {
-		return "", err
-	}
-	p = strings.TrimSpace(p)
-	if p == "" {
-		p = def
-	}
-	return p, nil
+	return ui.InputDefault("SSH private key", def)
 }
 
 // DefaultKeyPath guesses the private key for an EC2 key pair name by looking

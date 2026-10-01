@@ -56,6 +56,24 @@ func HarnessTasks(names []string) []Task {
 	return out
 }
 
+// TrustTasks pre-trusts a repo's checkout for each named harness that asks
+// "Trust this folder?", so an agent started there from the app does not stall
+// on the prompt. pi is not covered.
+func TrustTasks(names []string, workDir, repo string) []Task {
+	dir := shellPath(CheckoutDir(workDir, repo))
+	byName := map[string]Task{
+		"claude": {"Claude Code trusts " + repo, "bs_trust_claude " + dir},
+		"codex":  {"Codex trusts " + repo, "bs_trust_codex " + dir},
+	}
+	var out []Task
+	for _, n := range names {
+		if t, ok := byName[strings.ToLower(n)]; ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // WorkspaceTask creates the herdr workspace for a repo, with its checkout under
 // workDir as the cwd.
 func WorkspaceTask(workDir, repo string) Task {

@@ -182,25 +182,8 @@ bs_pi() { npm_global @earendil-works/pi-coding-agent pi; }
 
 # --------------------------------------------------------- 5b. auto mode -----
 
-# bs_auto_claude makes Claude Code start in auto mode
-# (permissions.defaultMode in ~/.claude/settings.json). Other settings stay.
-bs_auto_claude() {
-    local f="$HOME/.claude/settings.json" tmp
-    mkdir -p "$HOME/.claude"
-    [ -s "$f" ] || echo '{}' > "$f"
-    if jq -e '.permissions.defaultMode == "auto"' "$f" >/dev/null 2>&1; then
-        say "claude already starts in auto mode"
-        return 0
-    fi
-    tmp="$(mktemp)"
-    jq '.permissions = ((.permissions // {}) + {defaultMode: "auto"})' "$f" > "$tmp" \
-        || { rm -f "$tmp"; die "$f is not valid JSON"; }
-    mv "$tmp" "$f"
-    say "claude: permissions.defaultMode = auto"
-}
-
-# bs_auto_codex sets Codex's closest equivalent: it works inside the workspace
-# and asks only when it wants out. The two top-level keys in
+# bs_auto_codex makes Codex work inside the workspace and ask only when it
+# wants out. Claude Code needs nothing: auto mode is already its default. The two top-level keys in
 # ~/.codex/config.toml are replaced, everything else is kept.
 bs_auto_codex() {
     mkdir -p "$HOME/.codex"
@@ -244,6 +227,65 @@ bs_relay_home() {
     done
     say "RELAY_ON_BOX=1 written to ~/.profile and ~/.bashrc"
     say "$RELAY_DIR ready"
+}
+
+# ---------------------------------------------------------- 6b. trust ------
+
+# short_path prints the last two parts of a path, "relay/main".
+short_path() { printf '%s/%s' "$(basename "$(dirname "$1")")" "$(basename "$1")"; }
+
+# bs_trust_claude <dir> marks <dir> as trusted in ~/.claude.json, so an agent
+# started there from the app does not stop at "Trust this folder?".
+bs_trust_claude() {
+    local abs f="$HOME/.claude.json" tmp
+    abs="$(cd "$1" && pwd -P)" || die "no checkout at $1"
+    [ -s "$f" ] || echo '{}' > "$f"
+    if jq -e --arg p "$abs" '.projects[$p].hasTrustDialogAccepted == true' "$f" >/dev/null 2>&1; then
+        say "claude already trusts $(short_path "$abs")"
+        return 0
+    fi
+    tmp="$(mktemp)"
+    jq --arg p "$abs" '.projects[$p].hasTrustDialogAccepted = true' "$f" > "$tmp" \
+        || { rm -f "$tmp"; die "$f is not valid JSON"; }
+    cat "$tmp" > "$f"
+    rm -f "$tmp"
+    say "claude trusts $(short_path "$abs")"
+}
+
+# bs_trust_codex <dir> sets trust_level = "trusted" for <dir> in
+# ~/.codex/config.toml, which is what Codex's own trust prompt writes.
+bs_trust_codex() {
+    local abs
+    abs="$(cd "$1" && pwd -P)" || die "no checkout at $1"
+    mkdir -p "$HOME/.codex"
+    python3 - "$HOME/.codex/config.toml" "$abs" <<'RELAY_PY'
+import json, os, sys
+path, project = sys.argv[1], sys.argv[2]
+header = "[projects.%s]" % json.dumps(project)
+old = open(path).read() if os.path.exists(path) else ""
+lines = old.splitlines()
+want = 'trust_level = "trusted"'
+if header in (l.strip() for l in lines):
+    start = [l.strip() for l in lines].index(header) + 1
+    end = next((i for i in range(start, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
+    body = [i for i in range(start, end) if lines[i].split("=")[0].strip() == "trust_level"]
+    if body:
+        lines[body[0]] = want
+    else:
+        lines.insert(start, want)
+else:
+    if lines and lines[-1].strip():
+        lines.append("")
+    lines += [header, want]
+new = "\n".join(lines) + "\n"
+name = os.path.join(os.path.basename(os.path.dirname(project)), os.path.basename(project))
+if new == old:
+    print("  codex already trusts " + name)
+else:
+    with open(path, "w") as f:
+        f.write(new)
+    print("  codex trusts " + name)
+RELAY_PY
 }
 
 # ------------------------------------------------------ 7. herdr workspace ---
