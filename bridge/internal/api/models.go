@@ -117,6 +117,7 @@ type Block struct {
 	ToolCallID string
 	IsError    bool
 	Preview    string
+	Images     []ToolImage // optional: the images in the result, bytes via GET …/tool-images
 	// attachment
 	Kind AttachmentKind
 }
@@ -173,10 +174,20 @@ type ToolEdit struct {
 	Truncated bool             `json:"truncated"`
 }
 type toolResultJSON struct {
-	Type       BlockType `json:"type"`
-	ToolCallID string    `json:"toolCallId"`
-	IsError    bool      `json:"isError"`
-	Preview    string    `json:"preview"`
+	Type       BlockType   `json:"type"`
+	ToolCallID string      `json:"toolCallId"`
+	IsError    bool        `json:"isError"`
+	Preview    string      `json:"preview"`
+	Images     []ToolImage `json:"images,omitzero"`
+}
+
+// ToolImage is an image inside a toolResult; see api.md "Tool result images".
+type ToolImage struct {
+	Index     int    `json:"index"`
+	MediaType string `json:"mediaType"`
+	Bytes     int64  `json:"bytes"`
+	Width     int    `json:"width,omitzero"`
+	Height    int    `json:"height,omitzero"`
 }
 type attachmentJSON struct {
 	Type BlockType      `json:"type"`
@@ -192,7 +203,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	case BlockToolCall:
 		return Marshal(toolCallJSON{b.Type, b.ID, b.Name, b.Summary, b.Input, b.Path, b.Edit, b.Plan})
 	case BlockToolResult:
-		return Marshal(toolResultJSON{b.Type, b.ToolCallID, b.IsError, b.Preview})
+		return Marshal(toolResultJSON{b.Type, b.ToolCallID, b.IsError, b.Preview, b.Images})
 	case BlockAttachment:
 		return Marshal(attachmentJSON{b.Type, b.ID, b.Name, b.Kind})
 	}
@@ -213,6 +224,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 		ToolCallID *string        `json:"toolCallId"`
 		IsError    *bool          `json:"isError"`
 		Preview    *string        `json:"preview"`
+		Images     []ToolImage    `json:"images"`
 		Kind       AttachmentKind `json:"kind"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -247,6 +259,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	case BlockToolResult:
 		if err = need(raw.ToolCallID, raw.IsError, raw.Preview); err == nil {
 			*b = ToolResultBlock(*raw.ToolCallID, *raw.IsError, *raw.Preview)
+			b.Images = raw.Images
 		}
 	case BlockAttachment:
 		if err = need(raw.ID, raw.Name); err == nil && raw.Kind == "" {
