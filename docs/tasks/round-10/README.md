@@ -72,7 +72,7 @@ Commit these first, within about 30 minutes, then write a status line.
 
 ## Rules
 - Simulators:
-  - r10-qa owns **iPhone 17 Pro**, with the Simulator app visible and that window in front (the user watches).
+  - r10-qa owns **iPhone 17 Pro**, headless: the Simulator app stays closed, because its window steals the user's keyboard focus (changed 2026-10-02).
   - r10-chat, r10-files and r10-polish run unit tests on **iPhone 17**, one at a time. Say so in your status file before and after.
 - **Test bridge:** build the Go bridge from *your* worktree and run it on your own port with `RELAY_HOME=$(mktemp -d)`:
   - r10-bridge on 7883;
