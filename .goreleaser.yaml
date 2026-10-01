@@ -1,0 +1,45 @@
+version: 2
+
+project_name: agents
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: agents
+    main: ./cmd/agents
+    binary: agents
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - arm64
+      - amd64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    ldflags:
+      - -s -w
+      - -X github.com/Achno2k/agents-cli/internal/cli.Version={{ .Version }}
+
+archives:
+  - id: agents
+    ids: [agents]
+    formats: [tar.gz]
+    # No version in the asset name so the install script can use the stable
+    # /releases/latest/download/<asset> URL.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ .Version }}-snapshot"
+
+release:
+  github:
+    owner: you
+    name: agents-cli

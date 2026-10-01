@@ -1,0 +1,28 @@
+# herdr-server.service — the headless herdr server the Slack bot drives and the
+# laptop attaches to with `herdr --remote {{.User}}@<host>`.
+#
+# `herdr server` runs in the foreground, needs no tty, and listens on
+# ~/.config/herdr/herdr.sock, so plain Type=simple is enough.
+[Unit]
+Description=Herdr terminal workspace server
+Documentation=https://herdr.dev
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{.User}}
+WorkingDirectory={{.Home}}
+Environment=HOME={{.Home}}
+Environment=AGENTS_ON_BOX=1
+Environment=TERM=xterm-256color
+Environment=PATH={{.Home}}/.local/share/mise/shims:{{.Home}}/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/herdr server
+ExecStop=/usr/local/bin/herdr server stop
+Restart=always
+RestartSec=2
+KillMode=mixed
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
