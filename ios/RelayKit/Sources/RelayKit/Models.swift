@@ -340,6 +340,27 @@ public struct Health: Codable, Hashable, Sendable {
     public var herdrAvailable: Bool? { herdr.map { $0 == "connected" } }
 }
 
+/// `GET /kinds`: whether an agent kind's CLI is installed and signed in on one machine. Re-derived by the
+/// bridge on each call (≤ 15 s cache), so the app fetches it fresh rather than keeping it.
+public struct KindStatus: Codable, Hashable, Identifiable, Sendable {
+    public var kind: String
+    public var installed: Bool
+    public var signedIn: Bool
+    /// What to do about it ("Run `codex login` on this machine, then try again."); nil when it can start.
+    public var signInHint: String?
+
+    public init(kind: String, installed: Bool, signedIn: Bool, signInHint: String? = nil) {
+        self.kind = kind
+        self.installed = installed
+        self.signedIn = signedIn
+        self.signInHint = signInHint
+    }
+
+    public var id: String { kind }
+    /// `POST /agents` would start it rather than answer 409.
+    public var canStart: Bool { installed && signedIn }
+}
+
 /// `GET /machine`: the machine a bridge runs on.
 public struct Machine: Codable, Hashable, Identifiable, Sendable {
     public enum Kind: String, Codable, Hashable, Sendable {

@@ -148,6 +148,7 @@ struct RoutingBackend: Backend {
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent { try await route(request.workspaceId).createAgent(request) }
     func controls() async throws -> ControlsCatalog { try await first().controls() }
     func kindControls(kind: String) async throws -> AgentControlsInfo { try await first().kindControls(kind: kind) }
+    func kinds() async throws -> [KindStatus] { try await first().kinds() }
     func agentControls(agentId: String) async throws -> AgentControlsInfo { try await route(agentId).agentControls(agentId: agentId) }
     func control(agentId: String, _ request: ControlRequest) async throws -> Agent {
         try await route(agentId).control(agentId: agentId, request)

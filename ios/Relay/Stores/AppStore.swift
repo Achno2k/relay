@@ -945,20 +945,37 @@ final class AppStore {
         }
     }
 
+    enum CreateOutcome: Equatable {
+        case created
+        /// `409 not_installed` / `not_signed_in`: the bridge's hint, for an alert in the sheet (no banner).
+        case kindNotReady(String)
+        /// Anything else, already reported in the banner.
+        case failed
+    }
+
     /// Starts an agent with the model/effort picked in New chat (nil = its saved default) and opens its
     /// empty chat with the composer focused.
-    func createAgent(workspaceId: String, kind: String, model: String?, effort: String?) async -> Bool {
+    func createAgent(workspaceId: String, kind: String, model: String?, effort: String?) async -> CreateOutcome {
         let request = CreateAgentRequest(workspaceId: workspaceId, kind: kind, model: model, effort: effort)
         do {
             let agent = try await backend.createAgent(request)
             state.upsert(agent)
             focusComposerFor = agent.id
             open(agent.id)
-            return true
+            return .created
+        } catch let error as RelayError where error.kindNotReady != nil {
+            return .kindNotReady(error.kindNotReady ?? "")
         } catch {
             report(error, agentId: workspaceId)
-            return false
+            return .failed
         }
+    }
+
+    /// `GET /kinds` on one machine, fresh each time (the bridge re-derives it). nil when unknown (an older
+    /// bridge, or the machine is down): the sheet then lets every kind be picked and the bridge decides.
+    func kinds(machineId: String) async -> [KindStatus]? {
+        guard let c = connection(id: machineId) else { return nil }
+        return try? await c.backend.kinds()
     }
 
     /// `GET /controls?kind=` on one machine for the New chat sheet, cached per machine and kind for the session.

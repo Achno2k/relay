@@ -313,8 +313,40 @@ actor MockBackend: Backend {
         return updated
     }
 
+    /// Like the bridge's `GET /kinds`, from `-mockSignedOut` / `-mockNotInstalled`.
+    static func kindStatuses(signedOut: Set<String>, notInstalled: Set<String>) -> [KindStatus] {
+        ["claude", "codex", "pi"].map { kind in
+            if notInstalled.contains(kind) {
+                return KindStatus(kind: kind, installed: false, signedIn: false, signInHint: "`\(kind)` isn't installed on this machine.")
+            }
+            if signedOut.contains(kind) {
+                let hint = switch kind {
+                case "claude": "Run `claude auth login` on this machine, then try again."
+                case "codex": "Run `codex login` on this machine, then try again."
+                default: "Run `pi` on this machine and sign in with `/login`, then try again."
+                }
+                return KindStatus(kind: kind, installed: true, signedIn: false, signInHint: hint)
+            }
+            return KindStatus(kind: kind, installed: true, signedIn: true)
+        }
+    }
+
+    func kinds() async throws -> [KindStatus] {
+        try check()
+        try await Task.sleep(for: latency)
+        let options = LaunchOptions.current
+        if options.mockKindsStale { return Self.kindStatuses(signedOut: [], notInstalled: []) }
+        return Self.kindStatuses(signedOut: options.mockSignedOut, notInstalled: options.mockNotInstalled)
+    }
+
     func createAgent(_ request: CreateAgentRequest) async throws -> Agent {
         try check()
+        // Like the bridge: refused before anything is created.
+        let options = LaunchOptions.current
+        if let status = Self.kindStatuses(signedOut: options.mockSignedOut, notInstalled: options.mockNotInstalled)
+            .first(where: { $0.kind == request.kind }), !status.canStart {
+            throw RelayError.http(status: 409, code: status.installed ? "not_signed_in" : "not_installed", message: status.signInHint)
+        }
         // Like the bridge: model/effort must come from the kind's lists; left out means the saved default.
         let kindInfo = MockControls.kindInfo(for: request.kind, fixtures: fixtures)
         let model = request.model ?? kindInfo.defaultModel
