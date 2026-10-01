@@ -114,3 +114,24 @@ Box test on a real EC2 box (Ubuntu 26.04, x86_64) passed Path 1 and Path 2. Fix 
   1. After cloning, pre-trust the repo folder for Claude (`~/.claude.json` → `projects["<abs path>"].hasTrustDialogAccepted = true`, keep other keys), so a new agent from the app doesn't stop at "Trust this folder?". Same idea for Codex if it has a trust prompt.
   2. UI: after the "SSH private key" input, the collapsed answer line is blank. It should show the path.
   3. Auto mode: Claude Code now defaults to auto mode on its own (seen on the box: "Auto mode is now Claude Code's default permission mode"). Leave Claude alone. Drop the gap note for Claude; Codex stays as is.
+
+## 2026-10-01 bug: agents start for CLIs that aren't signed in
+User report: a harness that is installed but not logged in can still be started from the app. It must not start; the app should say to sign in to that CLI first.
+
+### Contract (w-init writes it into `docs/api.md` first, commits, then logs `contract committed <sha>`)
+- New `GET /kinds` → `200 [KindStatus]`, one entry each for claude, codex, pi:
+  ```json
+  { "kind": "codex", "installed": true, "signedIn": false,
+    "signInHint": "Run `codex login` on this machine, then try again." }
+  ```
+  - `installed`: the CLI is on the bridge's PATH (same lookup the usage code uses).
+  - `signedIn`: claude has credentials (`~/.claude/.credentials.json`, or `claude auth status` where the CLI keeps them elsewhere, e.g. the macOS keychain); codex has `~/.codex/auth.json` (or `CODEX_API_KEY`/`OPENAI_API_KEY` in the bridge env); pi has at least one provider in `~/.pi/agent/auth.json`. Reuse `internal/harness` checks where they fit. Re-derive on each call with a short cache (≤ 15 s); never treat it as truth longer than that.
+  - `signInHint`: present only when `installed && !signedIn`, or `!installed` ("`codex` isn't installed on this machine.").
+  - Never puts full paths on the wire.
+- `POST /agents` for a kind that isn't installed → `409 not_installed`; installed but not signed in → `409 not_signed_in`. Both carry the hint as `error.message`. Checked before herdr is touched, so no pane or tab is created.
+- WebSocket: nothing new. The app refetches `/kinds` when the New chat sheet opens.
+
+### Owners
+- **w-init**: bridge (`/kinds`, the 409s, tests, `docs/api.md`, a fixture in `docs/fixtures/`). Finish with `DONE <sha>`.
+- **w-pair**: iOS. Start after w-init logs `contract committed`. RelayKit model + `Backend` call for `/kinds`. The New chat sheet fetches it per machine: a kind that isn't signed in is shown disabled with its `signInHint` under it and can't be picked; not installed is hidden or disabled with the hint. If `POST /agents` still answers `409 not_signed_in`/`not_installed` (race), show the message as an alert, not a generic error. Unit tests (`RelayTests/NewChatTests.swift`) and the Mock backend. UI tests headless only (Simulator app closed, no OS-level input; see AGENTS.md / brief rules). Finish with `DONE <sha>`.
+- Both: `git merge --ff-only master` first (master = `22c8c4e`).
