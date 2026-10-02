@@ -25,7 +25,9 @@ func TestBsWorkspaceIsIdempotent(t *testing.T) {
 		}
 	}
 	home := t.TempDir()
-	bin := filepath.Join(home, "bin")
+	// bootstrap.sh puts ~/.local/bin ahead of /usr/local/bin, so the fake has
+	// to live there to beat a real herdr installed on the machine.
+	bin := filepath.Join(home, ".local", "bin")
 	if err := os.MkdirAll(filepath.Join(home, "work", "demo", "main"), 0o755); err != nil {
 		t.Fatal(err)
 	}
