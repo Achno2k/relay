@@ -1,8 +1,8 @@
 import RelayKit
 import SwiftUI
 
-/// Floating glass composer: `+` (a sheet with attachments and new chat, see AttachmentSheet), growing field with an attachment tray,
-/// and a send button that morphs into stop.
+/// Floating glass composer: `+` (a sheet with attachments and new chat, see AttachmentSheet), growing field with an attachment tray
+/// and a dictation mic, and a send button that morphs into stop.
 struct ComposerView: View {
     @Binding var text: String
     let placeholder: String
@@ -23,6 +23,8 @@ struct ComposerView: View {
     @Namespace private var glass
     @State private var sends = 0
     @State private var showPlus = false
+    @State private var dictation = Dictation()
+    @Environment(\.scenePhase) private var scenePhase
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var hasAttachments: Bool { !(attachments?.isEmpty ?? true) }
@@ -35,6 +37,25 @@ struct ComposerView: View {
     private var showsStop: Bool { unavailable == nil && isWorking && trimmed.isEmpty && !hasAttachments }
 
     var body: some View {
+        VStack(spacing: 8) {
+            DictationNotice(dictation: dictation)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            composer
+        }
+        .animation(.smooth, value: dictation.notice)
+        .animation(.smooth, value: dictation.phase)
+        // Dictation never outlives its chat, the foreground, or a usable composer.
+        .onDisappear { dictation.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { dictation.finish() }
+        }
+        .onChange(of: unavailable) { _, reason in
+            if reason != nil { dictation.cancel() }
+        }
+        .onChange(of: text) { _, text in dictation.noteEdit(text) }
+    }
+
+    private var composer: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(alignment: .bottom, spacing: 10) {
                 plusMenu
@@ -44,12 +65,21 @@ struct ComposerView: View {
                         ComposerAttachmentTray(attachments: attachments)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    TextField(unavailable ?? placeholder, text: $text, axis: .vertical)
-                        .lineLimit(1...6)
-                        .focused($focused)
-                        .disabled(unavailable != nil)
-                        .padding(.vertical, 13)
-                        .padding(.horizontal, 18)
+                    HStack(alignment: .bottom, spacing: 0) {
+                        TextField(unavailable ?? placeholder, text: $text, axis: .vertical)
+                            .lineLimit(1...6)
+                            .focused($focused)
+                            .disabled(unavailable != nil)
+                            .accessibilityIdentifier("composerField")
+                            .padding(.vertical, 13)
+                            .padding(.leading, 18)
+                            .padding(.trailing, unavailable == nil ? 0 : 18)
+                        if unavailable == nil {
+                            DictationButton(dictation: dictation) { dictation.toggle($text) }
+                                .padding(.trailing, 4)
+                                .padding(.bottom, 2)
+                        }
+                    }
                 }
                 // The tray is a horizontal scroll view; without this the field shrinks to its width.
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
@@ -106,6 +136,7 @@ struct ComposerView: View {
         } else {
             Button {
                 guard canSend else { return }
+                dictation.cancel()
                 onSend(trimmed, attachments?.take() ?? [])
                 text = ""
                 sends += 1

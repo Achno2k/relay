@@ -44,6 +44,8 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: Relay scans the pairing code shown by `relay pair` on your Mac.
+        NSMicrophoneUsageDescription: Relay listens while you dictate a message. Speech is transcribed on this iPhone.
+        NSSpeechRecognitionUsageDescription: Relay turns your dictation into text on this iPhone. Nothing is sent to a server.
         NSLocalNetworkUsageDescription: Relay connects to the bridge running on your Mac.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true

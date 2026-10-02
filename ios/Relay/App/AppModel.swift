@@ -41,6 +41,8 @@ struct LaunchOptions {
     /// `-mockKindsStale`: `GET /kinds` says every kind can start, but `POST /agents` still refuses the ones
     /// above (the race the New chat alert covers).
     var mockKindsStale = false
+    /// `-realDictation` (with `-mock`): the mic uses the real on-device speech engine, not the scripted one.
+    var realDictation = false
 
     static let current = LaunchOptions(arguments: ProcessInfo.processInfo.arguments)
 
@@ -69,6 +71,7 @@ struct LaunchOptions {
         mockSignedOut = kinds("-mockSignedOut")
         mockNotInstalled = kinds("-mockNotInstalled")
         mockKindsStale = arguments.contains("-mockKindsStale")
+        realDictation = arguments.contains("-realDictation")
         #endif
     }
 
