@@ -27,7 +27,7 @@
   - Pairing QR: `bridge/bin/relay pair` (`--url` overrides the address).
 - **EC2 test box** (the user's, eu-north-1, Ubuntu 26.04 x86_64, `relay-server-0`):
   - SSH: alias `relay_ssh` in `~/.zshrc` (key `~/.ssh/relay-server-key.pem`, user `ubuntu`). Laptop config: `~/.relay/config.toml`, so `relay ssh` / `relay deploy` / `relay doctor` work from the Mac.
-  - Set up with both paths: `relay pair` (Path 1), then `relay init` (Path 2) from `~/projects/agents-cli` and from `~/projects/relay`. Runs `relay` built from `main` (`5ca12d0`), `relay.service` + `herdr-server.service` (system units), Tailscale on the user's tailnet.
+  - Set up with both paths: `relay pair` (Path 1), then `relay init` (Path 2) from `~/projects/agents-cli` and from `~/projects/relay`. Runs `relay` built from `main` (round 13, `relay deploy` on 2026-10-03), `relay.service` + `herdr-server.service` (system units), Tailscale on the user's tailnet.
   - herdr workspaces: `w1` = `~/work/agents-cli/main`, `w2` = `~/work/relay/main` (Go 1.25 via mise; the bridge builds and all tests pass there). Claude signed in; codex and pi not signed in (the app greys them out).
   - Get the box bridge's token with `relay ssh relay token` (or `ssh … relay token`).
   - The user also attaches to it from the `box` tab. Never type into that pane; use your own pane (`lead-box` tab).
@@ -83,7 +83,7 @@
   - This repo's local git identity is `Achno2k <Achno2k@users.noreply.github.com>`. 10 commits on origin/main from round 12 carry the work email; the user said leave them.
 
 ## Open items
-1. **The user is testing the round-13 build** on the iPhone 17 (round 12 + 13 together). Wait for feedback. The EC2 box bridge has no `/changes` yet: `relay deploy` updates it.
+1. **The user is testing the round-13 build** on the iPhone 17 (round 12 + 13 together). Wait for feedback. Both bridges (Mac and the EC2 box) run round 13.
 2. **Waiting on the user's answer:**
    - Show image thumbnails even when the "Worked for …" group is collapsed? Today you have to expand it.
    - Fix `testOfflineAgentCantBePrompted` (Round9 UI tests)? On the iPhone 13 it fails every time in the full run: tapping the offline VM's row opens the Mac's chat. It passes when run alone and in the simulator. It could be a real mis-tap from rows shifting, or leftover test state.
