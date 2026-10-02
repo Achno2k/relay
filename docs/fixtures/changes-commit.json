@@ -1,0 +1,28 @@
+{
+  "sha": "7d3e9a1c4b2f8e60a5d1c3b7f9e2a4c6d8b0e1f3",
+  "shortSha": "7d3e9a1",
+  "subject": "feat: stop dictation when the chat changes",
+  "body": "Switching chats or backgrounding the app ends the recording.\n\nThe transcript so far stays in the composer.",
+  "time": "2026-10-03T09:41:00+00:00",
+  "files": [
+    {
+      "path": "Sources/Composer.swift",
+      "status": "modified",
+      "additions": 9,
+      "deletions": 2,
+      "binary": false,
+      "diff": "diff --git a/Sources/Composer.swift b/Sources/Composer.swift\nindex 0b1c2d3..4e5f6a7 100644\n--- a/Sources/Composer.swift\n+++ b/Sources/Composer.swift\n@@ -20,8 +20,15 @@ struct Composer: View {\n     var body: some View {\n         HStack {\n             TextField(\"Message\", text: $text)\n-            micButton\n-            sendButton\n+            if dictation.isRecording {\n+                stopButton\n+            } else {\n+                micButton\n+            }\n+            sendButton\n+        }\n+        .onChange(of: chatID) {\n+            dictation.stop()\n         }\n     }\n }\n",
+      "truncated": false
+    },
+    {
+      "path": "Tests/ComposerTests.swift",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "binary": false,
+      "diff": "diff --git a/Tests/ComposerTests.swift b/Tests/ComposerTests.swift\nnew file mode 100644\nindex 0000000..9a8b7c6\n--- /dev/null\n+++ b/Tests/ComposerTests.swift\n@@ -0,0 +1,2 @@\n+import Testing\n+@Test func stopsOnChatChange() {}\n",
+      "truncated": false
+    }
+  ],
+  "truncated": false
+}

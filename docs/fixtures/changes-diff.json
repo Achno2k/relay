@@ -1,0 +1,6 @@
+{
+  "path": "Sources/App.swift",
+  "diff": "diff --git a/Sources/App.swift b/Sources/App.swift\nindex 3f2a1b9..8c4d0e7 100644\n--- a/Sources/App.swift\n+++ b/Sources/App.swift\n@@ -1,8 +1,10 @@\n import SwiftUI\n+import Speech\n \n @main\n struct SampleApp: App {\n-    @State private var model = Model()\n+    @State private var model = Model(dictation: true)\n+    @State private var recorder = Recorder()\n \n     var body: some Scene {\n         WindowGroup { ContentView(model: model) }\n",
+  "binary": false,
+  "truncated": false
+}
