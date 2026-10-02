@@ -17,7 +17,7 @@
   - `docs/qa/`: bugs.
   - `docs/research/relay-competition.md`: the monetization research.
 
-## Running system (2026-10-02)
+## Running system (2026-10-03)
 - **Bridge (Mac):**
   - LaunchAgent `com.relay.bridge` runs `bridge/bin/relay serve --port 7878 --require-tailscale` (the binary is gitignored).
   - It binds the Mac's Tailscale IP and localhost.
@@ -27,11 +27,14 @@
   - Pairing QR: `bridge/bin/relay pair` (`--url` overrides the address).
 - **EC2 test box** (the user's, eu-north-1, Ubuntu 26.04 x86_64, `relay-server-0`):
   - SSH: alias `relay_ssh` in `~/.zshrc` (key `~/.ssh/relay-server-key.pem`, user `ubuntu`). Laptop config: `~/.relay/config.toml`, so `relay ssh` / `relay deploy` / `relay doctor` work from the Mac.
-  - Set up with both paths: `relay pair` (Path 1), then `relay init` from `~/projects/agents-cli` (Path 2). Runs `relay` v0.1.0 (installed with `install.sh`), `relay.service` + `herdr-server.service` (system units), Tailscale on the user's tailnet.
-  - herdr workspace `w1` = `~/work/agents-cli/main`. Claude signed in; codex and pi not signed in (the app greys them out).
+  - Set up with both paths: `relay pair` (Path 1), then `relay init` (Path 2) from `~/projects/agents-cli` and from `~/projects/relay`. Runs `relay` built from `main` (`5ca12d0`), `relay.service` + `herdr-server.service` (system units), Tailscale on the user's tailnet.
+  - herdr workspaces: `w1` = `~/work/agents-cli/main`, `w2` = `~/work/relay/main` (Go 1.25 via mise; the bridge builds and all tests pass there). Claude signed in; codex and pi not signed in (the app greys them out).
+  - Get the box bridge's token with `relay ssh relay token` (or `ssh … relay token`).
   - The user also attaches to it from the `box` tab. Never type into that pane; use your own pane (`lead-box` tab).
-- **Phone:**
-  - The user's iPhone 17 (Developer Mode on; the UDID is in `xcrun devicectl list devices`) has the round-11 build from 2026-10-01. It expires about **2026-10-08**.
+- **Phones** (UDIDs: `xcrun devicectl list devices`; never commit them):
+  - iPhone 17, named "iPhone", iOS 27: the main phone. Build from `main` `eef5e52`, installed 2026-10-03, expires about **2026-10-10**.
+  - iPhone 13, named "Aman's iPhone", iOS 26.5: a test device. Developer Mode is on and the developer certificate is trusted. Same build. Run UI tests on it only when the user asks.
+  - Both are plugged into the Mac. `install-device.sh` picks the first device it finds, so for a given phone build with `-destination id=<udid>` and the same flags, then `xcrun devicectl device install app --device <udid> …`.
   - Reinstall (plugged in): `TEAM=TC56945264 scripts/install-device.sh`. This is the free Personal Team, so builds last 7 days and there are no App Groups (`Relay-FreeTeam.entitlements`).
   - If Xcode says "No Accounts", the user must sign in again under Xcode → Settings → Accounts.
 - **Checks:**
@@ -46,7 +49,7 @@
   - `w14:p2` claude, `w14:p4` pi, `w14:p5` codex.
   - Never touch the user's other agents.
 
-## What's built (rounds 1–11, all on main and verified)
+## What's built (rounds 1–12, all on main and verified)
 - Chats from transcripts, with:
   - a live "Thinking…" shimmer and live replies;
   - approvals, including plan-mode plans shown in full;
@@ -70,21 +73,27 @@
   - `GET /kinds` + `409 not_signed_in`/`not_installed`: the app greys out agent kinds that aren't signed in on that machine.
   - Claude Code now defaults to auto mode on its own. Codex auto settings exist (`bs_auto_codex`) but aren't wired in (the auto-mode classifier blocked it; the user said leave it).
   - History was rewritten before going public (real paths, tailnet IPs, device id and work email replaced; author is `Achno2k`). The old agents-cli GitHub repo is deleted.
+- **Round 12 (2026-10-02, briefs in the lead's scratchpad, not in the repo):**
+  - Sidebar top bar per the user's design canvas (`https://claude.ai/artifact/G9d4jpDKR4qcTtLf5ruYA9`, artboard "A · Quiet list — Light"): "Relay" and the glass filter/more capsule in one row, with the machine picker as a plain subtitle below, pinned in the bar.
+  - Images in tool results: `toolResult.images` + `GET /agents/:id/tool-images/:toolCallId/:index`, served from the transcript (Claude, pi, codex MCP; not codex `view_image`). In the app: thumbnails under the tool row, and a shared full-screen viewer (zoom, share) that photo attachments use too.
 
 ## Open items
-1. **The user is testing the round-11 build** on the phone against the Mac and the EC2 box. Wait for feedback.
-2. **Follow-ups from the box test:**
+1. **The user is testing the round-12 build** on the iPhone 17. Wait for feedback.
+2. **Waiting on the user's answer:**
+   - Show image thumbnails even when the "Worked for …" group is collapsed? Today you have to expand it.
+   - Fix `testOfflineAgentCantBePrompted` (Round9 UI tests)? On the iPhone 13 it fails every time in the full run: tapping the offline VM's row opens the Mac's chat. It passes when run alone and in the simulator. It could be a real mis-tap from rows shifting, or leftover test state.
+3. **Follow-ups from the box test:**
    - The box binary is 51 MB (mostly the AWS SDK), so uploads are slow. Build the Linux binary without the AWS code (build tags).
    - `relay deploy`'s upload has no timeout or progress. One upload stalled for 19 minutes.
    - `/agents/:id/controls` reports `permissionMode: null` while Claude's footer says auto mode is on. Not investigated.
-3. **Later phases:**
+4. **Later phases:**
    - P2: version warnings in the app when a bridge is older than the app expects. `relay deploy` covers updates from the laptop.
    - P3: pair-once discovery, and usage merged across machines.
-4. **Parked decisions:**
+5. **Parked decisions:**
    - The pi/Codex default models. The user's ChatGPT is on the Free plan, and `~/.pi/agent/settings.json` / `~/.codex/config.toml` default to models it can't use.
    - A paid Apple account (TestFlight, push, Live Activities).
-5. `docs/relay-system-design.html` is untracked and belongs to the user. Leave it alone.
-6. Local branch `r10/qa-int` still holds the pre-rewrite history. Never push it. The user may delete it.
+6. `docs/relay-system-design.html` is untracked and belongs to the user. Leave it alone.
+7. Local branch `r10/qa-int` still holds the pre-rewrite history. Never push it. The user may delete it.
 
 ## How the user wants you to work
 - Follow `~/.claude/CLAUDE.md`:
@@ -106,4 +115,6 @@
   - Full paths never cross the wire.
 - **Blocked actions:** auto mode blocks destructive or "deploy" actions such as deleting dirs or `launchctl` reloads, unless the user has just asked for them explicitly. When blocked, give the user the exact commands.
 - **The repo is public now.** Before every push, grep the diff for real paths (`/Users/<name>`), tailnet IPs, device ids, hostnames and work emails. Push to `origin main` only; tags and history rewrites are the user's call.
-- **Agent sessions:** none running. All round 8–11 workers are closed, their worktrees removed and branches deleted.
+- **UI tests:** headless in the simulator by default. Use a real iPhone only when the user asks. Device signing flags: `-allowProvisioningUpdates DEVELOPMENT_TEAM=TC56945264 CODE_SIGN_ENTITLEMENTS=Relay/Relay-FreeTeam.entitlements`, plus a separate `-derivedDataPath`.
+- **Design canvas:** read it with the Artifact tool (`read`, then `list` files with `scope: "files"`). Its boards are `project/*.dc.html`. Pasted screenshots are assets, read by their blob id.
+- **Agent sessions:** none running. All round 8–12 workers are closed, their worktrees removed and branches deleted.
