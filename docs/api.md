@@ -181,6 +181,9 @@ Transcript rules (Claude JSONL at `~/.claude/projects/<cwd with / and . replaced
 | GET | /agents/:id/approval | – | `Approval` or `204` when not blocked |
 | GET | /agents/:id/file?path=<cwd-relative path> | – | `FileContent` for text; raw bytes with their `Content-Type` for images. See Files. |
 | GET | /agents/:id/tool-images/:toolCallId/:index | – | the raw bytes of one `ToolImage`, with its `mediaType` as `Content-Type`. See "Tool result images". |
+| GET | /agents/:id/changes | – | `Changes`: uncommitted files and unpushed commits in the agent's cwd. See "Changes". |
+| GET | /agents/:id/changes/diff?path=<cwd-relative path> | – | `FileDiffText` for one uncommitted file. See "Changes". |
+| GET | /agents/:id/changes/commits/:sha | – | `CommitDetail` for one unpushed commit. See "Changes". |
 | GET | /controls | – | `Controls`: Claude's list only, kept for older apps. Use `/agents/:id/controls`. |
 | GET | /controls?kind=claude\|codex\|pi | – | `AgentControls` for a kind with no agent yet (the New chat sheet), with `defaultModel`/`defaultEffort` (each left out when the agent has no saved default, e.g. no `model` in `~/.claude/settings.json`; the app then shows no default) and, for pi and codex, `effortsByModel`. `400 unsupported` for other kinds. |
 | GET | /agents/:id/controls | – | `AgentControls` for that agent's kind (see below) |
@@ -290,6 +293,51 @@ Round 10. Claude's plan mode ends with the `ExitPlanMode` tool and an approval p
 - `toolCall.plan`: every `ExitPlanMode` `toolCall` in history carries it, so the plan stays visible after approval (or rejection). For step 2 the file is read when the message is built, so an older `ExitPlanMode` shows the file as it is now if Claude later rewrote the same file.
 - pi and codex have no plan approvals; codex's own plan updates are not covered here.
 - Fixtures: `docs/fixtures/approval-plan.json`, and the `ExitPlanMode` call in `messages-edits.json`.
+
+## Changes
+
+Round 13. A read-only review screen: what the agent's project has that no remote has yet. Uncommitted changes plus unpushed commits. No git actions (no commit, push, stage or discard).
+
+```jsonc
+Changes {
+  "repo": true,                      // false: the cwd isn't inside a git work tree. Every other field is then left out.
+  "branch": "feat/voice",            // null when HEAD is detached
+  "upstream": "origin/feat/voice",   // null when the branch has no upstream
+  "ahead": 2, "behind": 0,           // vs upstream, from the last fetch. Left out when upstream is null.
+  "files": [ChangedFile],            // uncommitted: staged + unstaged vs HEAD, plus untracked. Sorted by path.
+  "moreFiles": false,                // true when there were more than 500 files (only the first 500 are listed)
+  "commits": [CommitSummary],        // unpushed, newest first
+  "moreCommits": false               // true when there were more than 50 unpushed commits
+}
+ChangedFile {
+  "path": "Sources/App.swift",       // cwd-relative
+  "oldPath": "Sources/Old.swift",    // renames only
+  "status": "modified",              // modified | added | deleted | renamed | untracked | conflicted
+  "additions": 12, "deletions": 3,   // 0 and 0 for binary files
+  "binary": false
+}
+CommitSummary { "sha": "<40 hex>", "shortSha": "abc1234", "subject": "fix: …", "time": "2026-10-03T10:00:00Z", "fileCount": 3, "additions": 40, "deletions": 2 }
+FileDiffText { "path": "Sources/App.swift", "diff": "<unified diff>", "binary": false, "truncated": false }
+CommitDetail {
+  "sha": "…", "shortSha": "abc1234", "subject": "fix: …", "body": "…",  // body: the message after the subject, trimmed; "" when none
+  "time": "2026-10-03T10:00:00Z",
+  "files": [ChangedFile & { "diff": "<unified diff>", "truncated": false }],
+  "truncated": false                 // true when any file's diff was cut or emptied
+}
+```
+
+- Scope is the agent's cwd (from herdr, like `GET /file`). git runs there and only looks at paths under the cwd, so when the cwd is a subdirectory of the repo, changes elsewhere in the repo are left out. Every `path` is cwd-relative. No author names or emails, no remote URLs.
+- **Uncommitted** = `git diff HEAD` (staged and unstaged together) plus untracked files that aren't ignored. A repo with no commits yet diffs against the empty tree. Unmerged paths are `conflicted`.
+- **Unpushed** = commits reachable from HEAD that aren't on any remote-tracking branch (`git log HEAD --not --remotes`). This works without an upstream. With no remotes at all, every commit counts (so the cap matters). `fileCount`/`additions`/`deletions` count the commit's whole change (vs its first parent), not only the part under the cwd.
+- Diffs are unified, 3 lines of context, no colour, no external diff tools or textconv, with `--- a/<path>` / `+++ b/<path>` headers (cwd-relative). An untracked text file diffs against `/dev/null` (all added). A binary file has `binary: true` and an empty `diff`.
+- Caps: one file's `diff` at most 256 KB, cut on a line boundary, with `truncated: true`. A `CommitDetail`'s diffs at most 1 MB together; later files are cut or emptied first, and the top-level `truncated` becomes `true`. The app can still open the file through `GET /agents/:id/file`.
+- Content isn't scrubbed. It's the user's own project, as with `GET /file`.
+- The bridge never changes the repo or its index: every git call uses `--no-optional-locks` (so it never takes `index.lock` while an agent works), `GIT_TERMINAL_PROMPT=0`, and never fetches. Each git call has a 10 s timeout.
+- `GET /agents/:id/changes/diff?path=`: `path` follows the `GET /file` rules (`400 bad_request` for empty, absolute or NUL; `403 forbidden` when it resolves outside the cwd). A path with no uncommitted change: `404 not_found`. A deleted file still has a diff (all removed).
+- `GET /agents/:id/changes/commits/:sha`: `:sha` is 4–40 hex characters and must name a commit reachable from HEAD, otherwise `404 not_found`. Any such commit works, not only unpushed ones.
+- Errors on all three: an unknown agent or one with no known cwd, `404 not_found`. A cwd outside a git work tree gives `200 {"repo": false}` on `/changes`, `404 not_found` on the other two. `git` not installed: `503 unavailable`. A git call that times out: `504 timeout`.
+- The app fetches when the screen opens and on pull to refresh. There's no WebSocket event.
+- Fixtures: `docs/fixtures/changes.json`, `changes-diff.json`, `changes-commit.json`.
 
 ## Machine
 
