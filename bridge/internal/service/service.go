@@ -22,6 +22,7 @@ import (
 
 	"relay/internal/api"
 	"relay/internal/approval"
+	"relay/internal/changes"
 	"relay/internal/controls"
 	"relay/internal/files"
 	"relay/internal/herdr"
@@ -602,6 +603,33 @@ func (s *Service) File(ctx context.Context, id, path string) (files.Result, erro
 		return files.Result{}, err
 	}
 	return files.Read(a.CwdOrForeground(), path)
+}
+
+// Changes is the agent's uncommitted files and unpushed commits; see api.md "Changes".
+func (s *Service) Changes(ctx context.Context, id string) (api.Changes, error) {
+	a, err := s.herdr.Agent(ctx, id)
+	if err != nil {
+		return api.Changes{}, err
+	}
+	return changes.Summary(ctx, a.CwdOrForeground())
+}
+
+// ChangeDiff is one uncommitted file's diff.
+func (s *Service) ChangeDiff(ctx context.Context, id, path string) (api.FileDiffText, error) {
+	a, err := s.herdr.Agent(ctx, id)
+	if err != nil {
+		return api.FileDiffText{}, err
+	}
+	return changes.Diff(ctx, a.CwdOrForeground(), path)
+}
+
+// ChangeCommit is one commit reachable from HEAD, with its files and diffs.
+func (s *Service) ChangeCommit(ctx context.Context, id, sha string) (api.CommitDetail, error) {
+	a, err := s.herdr.Agent(ctx, id)
+	if err != nil {
+		return api.CommitDetail{}, err
+	}
+	return changes.Commit(ctx, a.CwdOrForeground(), sha)
 }
 
 // SendKeys: a stop (`["esc"]`) makes Claude put the interrupted prompt back in the input box;

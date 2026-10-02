@@ -40,34 +40,12 @@ var (
 
 // Read returns rel (relative to cwd) when it resolves inside cwd, symlinks followed.
 func Read(cwd, rel string) (Result, error) {
-	if cwd == "" {
-		return Result{}, api.NotFound("the agent has no known folder")
-	}
-	if rel == "" || strings.ContainsRune(rel, 0) || strings.HasPrefix(rel, "/") || strings.HasPrefix(rel, "~") {
-		return Result{}, api.BadRequest("path must be relative to the agent's folder")
-	}
-	root, err := filepath.EvalSymlinks(cwd)
+	clean, real, err := Resolve(cwd, rel)
 	if err != nil {
-		return Result{}, api.NotFound("the agent's folder is gone")
+		return Result{}, err
 	}
-	clean := filepath.Clean(rel)
-	// Lexical check first, so `../x` is 403 whether or not it exists.
-	if !inside(root, filepath.Join(root, clean)) {
-		return Result{}, errForbidden
-	}
-	real, err := filepath.EvalSymlinks(filepath.Join(root, clean))
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			// A dangling symlink that points outside is still 403, not 404.
-			if target, ok := danglingTarget(root, clean); ok && !inside(root, target) {
-				return Result{}, errForbidden
-			}
-			return Result{}, api.NotFound("no such file")
-		}
+	if real == "" {
 		return Result{}, api.NotFound("no such file")
-	}
-	if !inside(root, real) {
-		return Result{}, errForbidden
 	}
 	fi, err := os.Stat(real)
 	if err != nil {
@@ -117,6 +95,41 @@ func Read(cwd, rel string) (Result, error) {
 		Truncated: truncated,
 		Language:  Language(clean),
 	}}, nil
+}
+
+// Resolve applies the path rules of GET /file: 400 for an empty, absolute or NUL path, 404 when
+// the cwd is unknown or gone, 403 when rel resolves outside the cwd (symlinks followed, existing
+// or not). clean is rel cleaned; real is where it resolves, "" when there's no such file.
+func Resolve(cwd, rel string) (clean, real string, err error) {
+	if cwd == "" {
+		return "", "", api.NotFound("the agent has no known folder")
+	}
+	if rel == "" || strings.ContainsRune(rel, 0) || strings.HasPrefix(rel, "/") || strings.HasPrefix(rel, "~") {
+		return "", "", api.BadRequest("path must be relative to the agent's folder")
+	}
+	root, err := filepath.EvalSymlinks(cwd)
+	if err != nil {
+		return "", "", api.NotFound("the agent's folder is gone")
+	}
+	clean = filepath.Clean(rel)
+	// Lexical check first, so `../x` is 403 whether or not it exists.
+	if !inside(root, filepath.Join(root, clean)) {
+		return "", "", errForbidden
+	}
+	real, err = filepath.EvalSymlinks(filepath.Join(root, clean))
+	if err != nil {
+		// A dangling symlink that points outside is still 403, not 404.
+		if errors.Is(err, fs.ErrNotExist) {
+			if target, ok := danglingTarget(root, clean); ok && !inside(root, target) {
+				return "", "", errForbidden
+			}
+		}
+		return clean, "", nil
+	}
+	if !inside(root, real) {
+		return "", "", errForbidden
+	}
+	return clean, real, nil
 }
 
 // inside: p is root or below it (both already clean and absolute).

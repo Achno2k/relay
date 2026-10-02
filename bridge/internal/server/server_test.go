@@ -45,6 +45,15 @@ func (stubBackend) File(context.Context, string, string) (files.Result, error) {
 func (stubBackend) ToolImage(context.Context, string, string, int) (transcript.ToolImage, error) {
 	return transcript.ToolImage{}, errUnused
 }
+func (stubBackend) Changes(context.Context, string) (api.Changes, error) {
+	return api.Changes{}, errUnused
+}
+func (stubBackend) ChangeDiff(context.Context, string, string) (api.FileDiffText, error) {
+	return api.FileDiffText{}, errUnused
+}
+func (stubBackend) ChangeCommit(context.Context, string, string) (api.CommitDetail, error) {
+	return api.CommitDetail{}, errUnused
+}
 func (stubBackend) Catalog() api.Controls { return api.Controls{} }
 func (stubBackend) KindControls(string) (api.AgentControls, error) {
 	return api.AgentControls{}, errUnused

@@ -54,6 +54,10 @@ type Backend interface {
 	File(ctx context.Context, id, path string) (files.Result, error)
 	// ToolImage is one image of a tool result, from the transcript (GET /agents/:id/tool-images/…).
 	ToolImage(ctx context.Context, id, toolCallID string, index int) (transcript.ToolImage, error)
+	// Changes, ChangeDiff and ChangeCommit read git in the agent's cwd (GET /agents/:id/changes…).
+	Changes(ctx context.Context, id string) (api.Changes, error)
+	ChangeDiff(ctx context.Context, id, path string) (api.FileDiffText, error)
+	ChangeCommit(ctx context.Context, id, sha string) (api.CommitDetail, error)
 	Catalog() api.Controls
 	KindControls(kind string) (api.AgentControls, error)
 	Controls(ctx context.Context, id string) (api.AgentControls, error)
@@ -371,6 +375,27 @@ func (s *Server) agentRoute(w http.ResponseWriter, r *http.Request, rawID string
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(res.Image)
 		return nil
+
+	case len(rest) == 1 && sub == "changes" && get:
+		id, err := agentID(rawID)
+		if err != nil {
+			return err
+		}
+		return respond(w, http.StatusOK)(b.Changes(ctx, id))
+
+	case len(rest) == 2 && sub == "changes" && rest[1] == "diff" && get:
+		id, err := agentID(rawID)
+		if err != nil {
+			return err
+		}
+		return respond(w, http.StatusOK)(b.ChangeDiff(ctx, id, r.URL.Query().Get("path")))
+
+	case len(rest) == 3 && sub == "changes" && rest[1] == "commits" && get:
+		id, err := agentID(rawID)
+		if err != nil {
+			return err
+		}
+		return respond(w, http.StatusOK)(b.ChangeCommit(ctx, id, unescape(rest[2])))
 
 	case len(rest) == 3 && sub == "tool-images" && get:
 		id, err := agentID(rawID)
