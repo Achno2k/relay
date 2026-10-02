@@ -32,7 +32,7 @@
   - Get the box bridge's token with `relay ssh relay token` (or `ssh … relay token`).
   - The user also attaches to it from the `box` tab. Never type into that pane; use your own pane (`lead-box` tab).
 - **Phones** (UDIDs: `xcrun devicectl list devices`; never commit them):
-  - iPhone 17, named "iPhone", iOS 27: the main phone. Build from `main` `eef5e52`, installed 2026-10-03, expires about **2026-10-10**.
+  - iPhone 17, named "iPhone", iOS 27: the main phone. Build from `main` (round 13), installed 2026-10-03, expires about **2026-10-10**.
   - iPhone 13, named "Aman's iPhone", iOS 26.5: a test device. Developer Mode is on and the developer certificate is trusted. Same build. Run UI tests on it only when the user asks.
   - Both are plugged into the Mac. `install-device.sh` picks the first device it finds, so for a given phone build with `-destination id=<udid>` and the same flags, then `xcrun devicectl device install app --device <udid> …`.
   - Reinstall (plugged in): `TEAM=TC56945264 scripts/install-device.sh`. This is the free Personal Team, so builds last 7 days and there are no App Groups (`Relay-FreeTeam.entitlements`).
@@ -41,7 +41,7 @@
   - Bridge: `cd bridge && gofmt -l . && go vet ./... && GOOS=linux go vet ./... && go test -race ./...`
   - Linux binaries: `scripts/build-linux.sh`.
   - CI (`.github/workflows/ci.yml`) runs the bridge checks on macOS and Ubuntu for pushes to `main`. `release.yml` runs goreleaser on `v*` tags; tagging is the user's call (auto mode blocks it).
-  - iOS unit tests (212): `xcodebuild test -scheme Relay -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:RelayTests`.
+  - iOS unit tests (250, 1 device-only skip): `xcodebuild test -scheme Relay -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:RelayTests`.
   - UI tests: `-only-testing:RelayUITests`, on the iPhone 17 Pro simulator. The live suites need `TEST_RUNNER_RELAY_*` env vars (see each test file).
   - A second "Test VM" bridge for multi-machine tests: `scripts/second-bridge.sh` (port 7881).
   - Diff two bridges: `bridge/parity/run.sh`.
@@ -49,7 +49,7 @@
   - `w14:p2` claude, `w14:p4` pi, `w14:p5` codex.
   - Never touch the user's other agents.
 
-## What's built (rounds 1–12, all on main and verified)
+## What's built (rounds 1–13, all on main and verified)
 - Chats from transcripts, with:
   - a live "Thinking…" shimmer and live replies;
   - approvals, including plan-mode plans shown in full;
@@ -77,8 +77,13 @@
   - Sidebar top bar per the user's design canvas (`https://claude.ai/artifact/G9d4jpDKR4qcTtLf5ruYA9`, artboard "A · Quiet list — Light"): "Relay" and the glass filter/more capsule in one row, with the machine picker as a plain subtitle below, pinned in the bar.
   - Images in tool results: `toolResult.images` + `GET /agents/:id/tool-images/:toolCallId/:index`, served from the transcript (Claude, pi, codex MCP; not codex `view_image`). In the app: thumbnails under the tool row, and a shared full-screen viewer (zoom, share) that photo attachments use too.
 
+- **Round 13 (2026-10-03, brief in the lead's scratchpad, not in the repo):**
+  - Voice dictation in the composer: tap the mic, the on-device transcript (`SpeechAnalyzer`) streams into the text box, tap to stop, edit, send. Never auto-sends. Typing while listening stops dictation.
+  - Read-only Changes screen (`docs/api.md` "Changes"): a toolbar button in the chat opens a sheet with the branch, uncommitted files in sections (Modified / New / Deleted / Renamed / Conflicts) and unpushed commits, each with a diff. No git actions, by the user's choice. Monochrome rows, the user rejected status badges and extra colours.
+  - This repo's local git identity is `Achno2k <Achno2k@users.noreply.github.com>`. 10 commits on origin/main from round 12 carry the work email; the user said leave them.
+
 ## Open items
-1. **The user is testing the round-12 build** on the iPhone 17. Wait for feedback.
+1. **The user is testing the round-13 build** on the iPhone 17 (round 12 + 13 together). Wait for feedback. The EC2 box bridge has no `/changes` yet: `relay deploy` updates it.
 2. **Waiting on the user's answer:**
    - Show image thumbnails even when the "Worked for …" group is collapsed? Today you have to expand it.
    - Fix `testOfflineAgentCantBePrompted` (Round9 UI tests)? On the iPhone 13 it fails every time in the full run: tapping the offline VM's row opens the Mac's chat. It passes when run alone and in the simulator. It could be a real mis-tap from rows shifting, or leftover test state.
@@ -117,4 +122,4 @@
 - **The repo is public now.** Before every push, grep the diff for real paths (`/Users/<name>`), tailnet IPs, device ids, hostnames and work emails. Push to `origin main` only; tags and history rewrites are the user's call.
 - **UI tests:** headless in the simulator by default. Use a real iPhone only when the user asks. Device signing flags: `-allowProvisioningUpdates DEVELOPMENT_TEAM=TC56945264 CODE_SIGN_ENTITLEMENTS=Relay/Relay-FreeTeam.entitlements`, plus a separate `-derivedDataPath`.
 - **Design canvas:** read it with the Artifact tool (`read`, then `list` files with `scope: "files"`). Its boards are `project/*.dc.html`. Pasted screenshots are assets, read by their blob id.
-- **Agent sessions:** none running. All round 8–12 workers are closed, their worktrees removed and branches deleted.
+- **Agent sessions:** none running. All round 8–13 workers are closed, their worktrees removed and branches deleted.
