@@ -16,6 +16,12 @@ public protocol Backend: Sendable {
     func toolImage(agentId: String, toolCallId: String, index: Int) async throws -> Data
     /// `GET /agents/:id/file`: a file inside the agent's project, by cwd-relative path.
     func file(agentId: String, path: String) async throws -> AgentFile
+    /// `GET /agents/:id/changes`: uncommitted files and unpushed commits in the agent's cwd.
+    func changes(agentId: String) async throws -> Changes
+    /// `GET /agents/:id/changes/diff?path=`: one uncommitted file's diff.
+    func changesDiff(agentId: String, path: String) async throws -> FileDiffText
+    /// `GET /agents/:id/changes/commits/:sha`: a commit's message and its files' diffs.
+    func commit(agentId: String, sha: String) async throws -> CommitDetail
     func machine() async throws -> Machine
     /// `GET /health`: version and herdr state.
     func health() async throws -> Health
@@ -58,6 +64,16 @@ public extension Backend {
     func file(agentId: String, path: String) async throws -> AgentFile {
         throw RelayError.http(status: 404, code: "not_found", message: nil)
     }
+    /// Test doubles without git (and what an older bridge answers).
+    func changes(agentId: String) async throws -> Changes {
+        throw RelayError.http(status: 404, code: "not_found", message: nil)
+    }
+    func changesDiff(agentId: String, path: String) async throws -> FileDiffText {
+        throw RelayError.http(status: 404, code: "not_found", message: nil)
+    }
+    func commit(agentId: String, sha: String) async throws -> CommitDetail {
+        throw RelayError.http(status: 404, code: "not_found", message: nil)
+    }
 }
 
 public struct LiveBackend: Backend {
@@ -92,6 +108,11 @@ public struct LiveBackend: Backend {
     public func file(agentId: String, path: String) async throws -> AgentFile {
         try await client.file(agentId: agentId, path: path)
     }
+    public func changes(agentId: String) async throws -> Changes { try await client.changes(agentId: agentId) }
+    public func changesDiff(agentId: String, path: String) async throws -> FileDiffText {
+        try await client.changesDiff(agentId: agentId, path: path)
+    }
+    public func commit(agentId: String, sha: String) async throws -> CommitDetail { try await client.commit(agentId: agentId, sha: sha) }
     public func machine() async throws -> Machine { try await client.machine() }
     public func health() async throws -> Health { try await client.health() }
     public func sendKeys(agentId: String, keys: [String]) async throws { try await client.sendKeys(agentId: agentId, keys: keys) }

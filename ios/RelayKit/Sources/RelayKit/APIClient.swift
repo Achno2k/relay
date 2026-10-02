@@ -101,10 +101,37 @@ public struct APIClient: Sendable {
         return data
     }
 
-    /// `GET /agents/:id/file?path=`: a text file, or an image's bytes. A `403` here means the path is outside the
-    /// agent's project, not a bad token (that's `401`), so it stays `RelayError.http` instead of `.unauthorized`.
+    /// `GET /agents/:id/file?path=`: a text file, or an image's bytes. `403`: outside the project (see `projectGet`).
     public func file(agentId: String, path: String) async throws -> AgentFile {
-        var comps = URLComponents(url: url("/agents/\(Self.encode(agentId))/file"), resolvingAgainstBaseURL: false)!
+        let (data, http) = try await projectGet("/agents/\(Self.encode(agentId))/file", path: path)
+        let type = http.value(forHTTPHeaderField: "Content-Type") ?? ""
+        if type.lowercased().hasPrefix("image/") { return .image(data, contentType: type) }
+        return .text(try decode(FileContent.self, from: data))
+    }
+
+    /// `GET /agents/:id/changes`: uncommitted files and unpushed commits. Several git calls on the bridge, so a
+    /// longer timeout than plain reads.
+    public func changes(agentId: String) async throws -> Changes {
+        let (data, _) = try await raw("GET", "/agents/\(Self.encode(agentId))/changes", timeout: 30)
+        return try decode(Changes.self, from: data)
+    }
+
+    /// `GET /agents/:id/changes/diff?path=`: one uncommitted file's diff. `403` means outside the cwd, as for `file`.
+    public func changesDiff(agentId: String, path: String) async throws -> FileDiffText {
+        let (data, _) = try await projectGet("/agents/\(Self.encode(agentId))/changes/diff", path: path)
+        return try decode(FileDiffText.self, from: data)
+    }
+
+    /// `GET /agents/:id/changes/commits/:sha`.
+    public func commit(agentId: String, sha: String) async throws -> CommitDetail {
+        let (data, _) = try await raw("GET", "/agents/\(Self.encode(agentId))/changes/commits/\(Self.encode(sha))", timeout: 30)
+        return try decode(CommitDetail.self, from: data)
+    }
+
+    /// A GET with a cwd-relative `path` query. A `403` from these means the path is outside the agent's project,
+    /// not a bad token (that's `401`), so it stays `RelayError.http` instead of `.unauthorized`.
+    private func projectGet(_ endpoint: String, path: String) async throws -> (Data, HTTPURLResponse) {
+        var comps = URLComponents(url: url(endpoint), resolvingAgainstBaseURL: false)!
         // `/` may stay; `+`, `&`, `#` and the rest must not reach the bridge's query parser raw.
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~/"))
         comps.percentEncodedQuery = "path=" + (path.addingPercentEncoding(withAllowedCharacters: allowed) ?? path)
@@ -118,9 +145,7 @@ public struct APIClient: Sendable {
             throw RelayError.http(status: 403, code: detail?.error.code ?? "forbidden", message: detail?.error.message)
         }
         _ = try check(data, response)
-        let type = http.value(forHTTPHeaderField: "Content-Type") ?? ""
-        if type.lowercased().hasPrefix("image/") { return .image(data, contentType: type) }
-        return .text(try decode(FileContent.self, from: data))
+        return (data, http)
     }
 
     public func sendKeys(agentId: String, keys: [String]) async throws {

@@ -108,6 +108,13 @@ public struct NamespacedBackend: Backend {
     public func file(agentId: String, path: String) async throws -> AgentFile {
         try await inner.file(agentId: raw(agentId), path: path)
     }
+    public func changes(agentId: String) async throws -> Changes { try await inner.changes(agentId: raw(agentId)) }
+    public func changesDiff(agentId: String, path: String) async throws -> FileDiffText {
+        try await inner.changesDiff(agentId: raw(agentId), path: path)
+    }
+    public func commit(agentId: String, sha: String) async throws -> CommitDetail {
+        try await inner.commit(agentId: raw(agentId), sha: sha)
+    }
     public func machine() async throws -> Machine { try await inner.machine() }
     public func health() async throws -> Health { try await inner.health() }
     public func sendKeys(agentId: String, keys: [String]) async throws { try await inner.sendKeys(agentId: raw(agentId), keys: keys) }

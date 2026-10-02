@@ -6,6 +6,7 @@ struct ChatView: View {
     @Bindable var store: AppStore
     let onOpenSidebar: () -> Void
     let onNewChat: (_ workspaceId: String?) -> Void
+    @State private var changes: ChangesTarget?
 
     var body: some View {
         NavigationStack {
@@ -40,6 +41,17 @@ struct ChatView: View {
                         Text("Relay").font(.headline)
                     }
                 }
+                if let agent = store.selectedAgent {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            changes = ChangesTarget(agentId: agent.id, projectName: agent.cwdName)
+                        } label: {
+                            Image(systemName: "plus.forwardslash.minus")
+                        }
+                        .accessibilityLabel("Changes")
+                        .accessibilityIdentifier("changesButton")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         onNewChat(store.selectedAgent?.workspaceId)
@@ -50,6 +62,7 @@ struct ChatView: View {
                 }
             }
         }
+        .changesSheet($changes, store: store)
     }
 }
 

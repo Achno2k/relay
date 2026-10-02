@@ -176,6 +176,31 @@ actor MockBackend: Backend {
         return try MockFiles.file(path)
     }
 
+    func changes(agentId: String) async throws -> Changes {
+        try check()
+        try await Task.sleep(for: latency)
+        return MockChanges.changes(agentId: agentId, workspaceName: try workspaceName(of: agentId))
+    }
+
+    func changesDiff(agentId: String, path: String) async throws -> FileDiffText {
+        try check()
+        try await Task.sleep(for: latency)
+        return try MockChanges.diff(agentId: agentId, workspaceName: try workspaceName(of: agentId), path: path)
+    }
+
+    func commit(agentId: String, sha: String) async throws -> CommitDetail {
+        try check()
+        try await Task.sleep(for: latency)
+        return try MockChanges.commit(agentId: agentId, workspaceName: try workspaceName(of: agentId), sha: sha)
+    }
+
+    private func workspaceName(of agentId: String) throws -> String {
+        guard let agent = agentList.first(where: { $0.id == agentId }) else {
+            throw RelayError.http(status: 404, code: "not_found", message: "no such agent")
+        }
+        return agent.workspaceName
+    }
+
     func prompt(agentId: String, text: String, attachments: [String]) async throws {
         try check()
         if text.lowercased().hasPrefix("unsent"), failedOnce.insert(text).inserted {

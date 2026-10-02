@@ -116,7 +116,7 @@ enum FileDiff {
                 k += 2
                 continue
             }
-            if line.hasPrefix("diff --git ") || line.hasPrefix("index ") || line.hasPrefix("\\ ") {
+            if line.hasPrefix("\\ ") || gitHeaders.contains(where: line.hasPrefix) {
                 k += 1
                 continue
             }
@@ -141,6 +141,12 @@ enum FileDiff {
         }
         return out.lines
     }
+
+    /// git's extended header lines (`git diff`, the Changes screen); never a hunk line, which starts with ` `, `+` or `-`.
+    private static let gitHeaders = [
+        "diff --git ", "index ", "new file mode ", "deleted file mode ", "old mode ", "new mode ",
+        "similarity index ", "dissimilarity index ", "rename from ", "rename to ", "copy from ", "copy to ",
+    ]
 
     /// 1-based line where `text` starts in `file`, if it's there.
     static func startLine(of text: String, in file: String) -> Int? {

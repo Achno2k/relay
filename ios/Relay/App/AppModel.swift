@@ -3,7 +3,7 @@ import RelayKit
 import Observation
 
 /// Launch arguments. `-mock` runs against the bundled fixtures; the rest set up a screen for screenshots:
-/// `-demo sidebar|tools|top|card|newChat|usage|pairing`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
+/// `-demo sidebar|tools|top|card|newChat|usage|pairing|changes`, `-agent <id>`, `-replay off`, `-pair <relay:// link>`, `-uitestAttachments`, `-uitest`, `-resetSidebar`.
 /// Machines (docs/tasks/round-9/interfaces.md): `-mockVM`, `-mockOffline <id>`, `-mockOnlineAfter <s>`, `-mockDrop <id> <s>`,
 /// `-seedLegacyPairing <link>`. Agent kinds: `-mockSignedOut codex,pi`, `-mockNotInstalled pi`, `-mockKindsStale`.
 struct LaunchOptions {

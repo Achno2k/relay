@@ -142,6 +142,11 @@ struct RoutingBackend: Backend {
     func file(agentId: String, path: String) async throws -> AgentFile {
         try await route(agentId).file(agentId: agentId, path: path)
     }
+    func changes(agentId: String) async throws -> Changes { try await route(agentId).changes(agentId: agentId) }
+    func changesDiff(agentId: String, path: String) async throws -> FileDiffText {
+        try await route(agentId).changesDiff(agentId: agentId, path: path)
+    }
+    func commit(agentId: String, sha: String) async throws -> CommitDetail { try await route(agentId).commit(agentId: agentId, sha: sha) }
     func machine() async throws -> Machine { try await first().machine() }
     func sendKeys(agentId: String, keys: [String]) async throws { try await route(agentId).sendKeys(agentId: agentId, keys: keys) }
     func sendText(agentId: String, text: String, submit: Bool) async throws {
